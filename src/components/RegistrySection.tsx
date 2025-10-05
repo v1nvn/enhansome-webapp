@@ -34,30 +34,32 @@ export function RegistrySection({
   }
 
   return (
-    <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden">
+    <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-600 rounded-xl overflow-hidden shadow-lg">
       {/* Section Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-700/30 transition-colors"
+        className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-700/40 transition-all duration-200 border-b border-slate-700/50 sticky top-0 z-30 bg-slate-800/95 backdrop-blur-md"
       >
-        <div className="flex items-center gap-3 flex-1 text-left">
+        <div className="flex items-center gap-4 flex-1 text-left">
           {isExpanded ? (
-            <ChevronDown className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+            <ChevronDown className="w-6 h-6 text-cyan-400 flex-shrink-0" />
           ) : (
-            <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+            <ChevronRight className="w-6 h-6 text-gray-400 flex-shrink-0" />
           )}
           <div className="flex-1 min-w-0">
-            <h3 className="text-xl font-semibold text-white">{title}</h3>
+            <h3 className="text-2xl font-bold text-white mb-1">{title}</h3>
             {description && (
-              <p className="text-sm text-gray-400 mt-1 line-clamp-1">
+              <p className="text-sm text-gray-300 line-clamp-1">
                 {description}
               </p>
             )}
           </div>
         </div>
-        <span className="text-sm text-gray-400 ml-4">
-          {items.length} {items.length === 1 ? 'item' : 'items'}
-        </span>
+        <div className="flex items-center gap-2 ml-4">
+          <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-sm font-medium rounded-full">
+            {items.length}
+          </span>
+        </div>
       </button>
 
       {/* Section Content */}

@@ -8,7 +8,7 @@ export interface RepoInfo {
 }
 
 export interface RegistryItem {
-  children: RegistryItem[]
+  children: Array<RegistryItem>
   description: string | null
   title: string
   repo_info?: RepoInfo
@@ -16,7 +16,7 @@ export interface RegistryItem {
 
 export interface RegistrySection {
   description: string
-  items: RegistryItem[]
+  items: Array<RegistryItem>
   title: string
 }
 
@@ -28,7 +28,7 @@ export interface RegistryMetadata {
 }
 
 export interface RegistryData {
-  items: RegistrySection[]
+  items: Array<RegistrySection>
   metadata: RegistryMetadata
 }
 
