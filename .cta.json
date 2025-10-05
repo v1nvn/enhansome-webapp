@@ -1,0 +1,18 @@
+{
+  "projectName": "enhansome-webapp",
+  "mode": "file-router",
+  "typescript": true,
+  "tailwind": true,
+  "packageManager": "npm",
+  "git": true,
+  "version": 1,
+  "framework": "react-cra",
+  "chosenAddOns": [
+    "eslint",
+    "cloudflare",
+    "start",
+    "tanstack-query",
+    "shadcn",
+    "t3env"
+  ]
+}
