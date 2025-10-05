@@ -1,16 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import {
-  Archive,
-  Calendar,
-  ExternalLink,
-  Filter,
-  GitBranch,
-  Search,
-  Star,
-} from 'lucide-react'
-import type { RegistryFile, RegistryItem } from '@/types/registry'
+import { ChevronsDown, ChevronsUp, Filter, Search, Star } from 'lucide-react'
+import type { RegistryFile, RegistryItem, RegistrySection } from '@/types/registry'
+import { RegistrySection as RegistrySectionComponent } from '@/components/RegistrySection'
 
 export const Route = createFileRoute('/registry')({
   component: RegistryBrowser,
@@ -37,89 +30,142 @@ function RegistryBrowser() {
   const [minStars, setMinStars] = useState(0)
   const [hideArchived, setHideArchived] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState<string>('all')
-
-  // Flatten all items from all registries
-  const allItems = useMemo(() => {
-    const items: Array<{
-      item: RegistryItem
-      registry: string
-      section: string
-    }> = []
-
-    registries.forEach((registry) => {
-      registry.data.items.forEach((section) => {
-        section.items.forEach((item) => {
-          if (item.repo_info) {
-            items.push({
-              item,
-              registry: registry.name,
-              section: section.title,
-            })
-          }
-        })
-      })
-    })
-
-    return items
-  }, [registries])
+  const [expandAll, setExpandAll] = useState(true)
 
   // Get unique languages
   const languages = useMemo(() => {
     const langs = new Set<string>()
-    allItems.forEach(({ item }) => {
-      if (item.repo_info?.language) {
-        langs.add(item.repo_info.language)
-      }
+    registries.forEach((registry) => {
+      registry.data.items.forEach((section) => {
+        section.items.forEach((item) => {
+          if (item.repo_info?.language) {
+            langs.add(item.repo_info.language)
+          }
+        })
+      })
     })
     return Array.from(langs).sort()
-  }, [allItems])
+  }, [registries])
 
-  // Filter items
-  const filteredItems = useMemo(() => {
-    return allItems.filter(({ item, registry }) => {
+  // Filter function for individual items
+  const filterItem = (item: RegistryItem): boolean => {
+    // Search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      const title = item.title.toLowerCase()
+      const description = item.description?.toLowerCase() || ''
+      if (!title.includes(query) && !description.includes(query)) {
+        return false
+      }
+    }
+
+    // Stars filter
+    if (item.repo_info && item.repo_info.stars < minStars) {
+      return false
+    }
+
+    // Archived filter
+    if (hideArchived && item.repo_info?.archived) {
+      return false
+    }
+
+    // Language filter
+    if (
+      selectedLanguage !== 'all' &&
+      item.repo_info?.language !== selectedLanguage
+    ) {
+      return false
+    }
+
+    return true
+  }
+
+  // Recursively filter items including children
+  const filterItemRecursive = (item: RegistryItem): RegistryItem | null => {
+    const filteredChildren = item.children
+      .map(filterItemRecursive)
+      .filter((child): child is RegistryItem => child !== null)
+
+    // Include item if it matches filters OR has matching children
+    if (filterItem(item) || filteredChildren.length > 0) {
+      return {
+        ...item,
+        children: filteredChildren,
+      }
+    }
+
+    return null
+  }
+
+  // Filter sections and items while preserving structure
+  const filteredSections = useMemo(() => {
+    const result: Array<{
+      registry: string
+      sections: Array<RegistrySection>
+    }> = []
+
+    registries.forEach((registry) => {
       // Registry filter
-      if (selectedRegistry !== 'all' && registry !== selectedRegistry) {
-        return false
+      if (selectedRegistry !== 'all' && registry.name !== selectedRegistry) {
+        return
       }
 
-      // Search query
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        const title = item.title.toLowerCase()
-        const description = item.description?.toLowerCase() || ''
-        if (!title.includes(query) && !description.includes(query)) {
-          return false
-        }
-      }
+      const filteredRegistrySections = registry.data.items
+        .map((section) => {
+          const filteredItems = section.items
+            .map(filterItemRecursive)
+            .filter((item): item is RegistryItem => item !== null)
 
-      // Stars filter
-      if (item.repo_info && item.repo_info.stars < minStars) {
-        return false
-      }
+          if (filteredItems.length === 0) {
+            return null
+          }
 
-      // Archived filter
-      if (hideArchived && item.repo_info?.archived) {
-        return false
-      }
+          return {
+            ...section,
+            items: filteredItems,
+          }
+        })
+        .filter((section): section is RegistrySection => section !== null)
 
-      // Language filter
-      if (
-        selectedLanguage !== 'all' &&
-        item.repo_info?.language !== selectedLanguage
-      ) {
-        return false
+      if (filteredRegistrySections.length > 0) {
+        result.push({
+          registry: registry.name,
+          sections: filteredRegistrySections,
+        })
       }
-
-      return true
     })
+
+    return result
   }, [
-    allItems,
+    registries,
     searchQuery,
     selectedRegistry,
     minStars,
     hideArchived,
     selectedLanguage,
   ])
+
+  // Count total filtered items
+  const totalFilteredItems = useMemo(() => {
+    let count = 0
+    filteredSections.forEach(({ sections }) => {
+      sections.forEach((section) => {
+        count += section.items.length
+      })
+    })
+    return count
+  }, [filteredSections])
+
+  // Total items count
+  const totalItems = useMemo(() => {
+    let count = 0
+    registries.forEach((registry) => {
+      registry.data.items.forEach((section) => {
+        count += section.items.length
+      })
+    })
+    return count
+  }, [registries])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
@@ -130,7 +176,7 @@ function RegistryBrowser() {
             Enhansome Registry
           </h1>
           <p className="text-gray-400">
-            Browse {allItems.length} curated awesome lists
+            Browse {totalItems} curated awesome lists
           </p>
         </div>
 
@@ -223,86 +269,51 @@ function RegistryBrowser() {
             </div>
           </div>
 
-          {/* Results count */}
-          <div className="mt-4 pt-4 border-t border-slate-700">
+          {/* Results count and expand/collapse */}
+          <div className="mt-4 pt-4 border-t border-slate-700 flex items-center justify-between">
             <p className="text-sm text-gray-400">
-              Showing {filteredItems.length} of {allItems.length} repositories
+              Showing {totalFilteredItems} of {totalItems} repositories
             </p>
+            <button
+              onClick={() => setExpandAll(!expandAll)}
+              className="flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              {expandAll ? (
+                <>
+                  <ChevronsUp className="w-4 h-4" />
+                  Collapse All
+                </>
+              ) : (
+                <>
+                  <ChevronsDown className="w-4 h-4" />
+                  Expand All
+                </>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Results Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredItems.map(({ item, registry, section }, index) => (
-            <div
-              key={`${registry}-${section}-${index}`}
-              className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-5 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-white truncate">
-                    {item.title}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-cyan-400">{registry}</span>
-                    <span className="text-xs text-gray-500">•</span>
-                    <span className="text-xs text-gray-400">{section}</span>
-                  </div>
-                </div>
-                {item.repo_info?.archived && (
-                  <Archive className="w-4 h-4 text-orange-400 flex-shrink-0 ml-2" />
-                )}
-              </div>
-
-              {/* Description */}
-              {item.description && (
-                <p className="text-sm text-gray-400 mb-4 line-clamp-2">
-                  {item.description}
-                </p>
-              )}
-
-              {/* Repo Info */}
-              {item.repo_info && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1 text-yellow-400">
-                        <Star className="w-3 h-3" />
-                        {item.repo_info.stars.toLocaleString()}
-                      </span>
-                      {item.repo_info.language && (
-                        <span className="flex items-center gap-1 text-gray-400">
-                          <GitBranch className="w-3 h-3" />
-                          {item.repo_info.language}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-xs text-gray-500">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(item.repo_info.last_commit).toLocaleDateString()}
-                    </span>
-                    <a
-                      href={`https://github.com/${item.repo_info.owner}/${item.repo_info.repo}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-                    >
-                      View
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                </div>
-              )}
+        {/* Results - Hierarchical Sections */}
+        <div className="space-y-6">
+          {filteredSections.map(({ registry, sections }) => (
+            <div key={registry} className="space-y-6">
+              {sections.map((section) => (
+                <RegistrySectionComponent
+                  key={`${registry}-${section.title}`}
+                  title={section.title}
+                  description={section.description}
+                  items={section.items}
+                  registry={registry}
+                  initialExpanded={true}
+                  expandAll={expandAll}
+                />
+              ))}
             </div>
           ))}
         </div>
 
         {/* Empty state */}
-        {filteredItems.length === 0 && (
+        {totalFilteredItems === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-400">No repositories match your filters</p>
           </div>
