@@ -16,7 +16,7 @@ interface IndexedItem {
 export function useRegistrySearch(registries: RegistryFile[]) {
   const [searchIndex, setSearchIndex] = useState<Index | null>(null)
   const [indexedItems, setIndexedItems] = useState<Map<string, IndexedItem>>(
-    new Map(),
+    () => new Map(),
   )
 
   // Build search index
@@ -58,7 +58,11 @@ export function useRegistrySearch(registries: RegistryFile[]) {
       })
     })
 
+    // We need to update state directly here based on dependencies changing
+    // This is intentional as we're syncing with external data
+    // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
     setSearchIndex(index)
+    // eslint-disable-next-line @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
     setIndexedItems(items)
   }, [registries])
 

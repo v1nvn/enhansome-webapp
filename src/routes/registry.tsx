@@ -22,13 +22,13 @@ interface RegistrySearch {
 export const Route = createFileRoute('/registry')({
   component: RegistryBrowser,
   validateSearch: (search: Record<string, unknown>): RegistrySearch => ({
-    q: search.q as string | undefined,
-    lang: search.lang as string | undefined,
-    stars: search.stars as string | undefined,
     archived: search.archived as string | undefined,
-    registry: search.registry as string | undefined,
     category: search.category as string | undefined,
-    sort: (search.sort as 'stars' | 'updated' | 'name' | undefined) || 'stars',
+    lang: search.lang as string | undefined,
+    q: search.q as string | undefined,
+    registry: search.registry as string | undefined,
+    sort: (search.sort as 'name' | 'stars' | 'updated' | undefined) || 'stars',
+    stars: search.stars as string | undefined,
   }),
   head: () => ({
     meta: [{ title: 'Enhansome Registry Browser' }],
@@ -45,7 +45,7 @@ function RegistryBrowser() {
       if (!response.ok) {
         throw new Error('Failed to fetch registry data')
       }
-      return response.json()
+      return (await response.json()) as RegistryFile[]
     },
     queryKey: ['registry'],
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
@@ -120,18 +120,30 @@ function RegistryBrowser() {
 
     // Apply new tags
     tags.forEach(tag => {
-      if (tag.type === 'text') newSearch.q = tag.value
-      else if (tag.type === 'language') newSearch.lang = tag.value
-      else if (tag.type === 'stars') newSearch.stars = tag.value
-      else if (tag.type === 'archived') newSearch.archived = tag.value
-      else if (tag.type === 'registry') newSearch.registry = tag.value
+      switch (tag.type) {
+        case 'archived':
+          newSearch.archived = tag.value
+          break
+        case 'language':
+          newSearch.lang = tag.value
+          break
+        case 'registry':
+          newSearch.registry = tag.value
+          break
+        case 'stars':
+          newSearch.stars = tag.value
+          break
+        case 'text':
+          newSearch.q = tag.value
+          break
+      }
     })
 
-    navigate({ search: newSearch })
+    void navigate({ search: newSearch })
   }
 
   const handleRegistrySelect = (registry: null | string) => {
-    navigate({
+    void navigate({
       search: {
         ...search,
         category: undefined,
@@ -141,7 +153,7 @@ function RegistryBrowser() {
   }
 
   const handleCategorySelect = (category: string) => {
-    navigate({ search: { ...search, category } })
+    void navigate({ search: { ...search, category } })
   }
 
   return (

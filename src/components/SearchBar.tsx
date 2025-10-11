@@ -140,17 +140,18 @@ export function SearchBar({
 
         {/* Tags */}
         <div className="flex flex-1 flex-wrap gap-1.5">
-          {tags.map((tag, index) => (
+          {tags.map(tag => (
             <div
               className={`flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium ${getTagColor(tag.type)}`}
-              key={index}
+              key={`${tag.type}-${tag.value}`}
             >
               <span>{tag.label}</span>
               <button
                 className="rounded p-0.5 hover:bg-white/10"
                 onClick={() => {
-                  removeTag(index)
+                  removeTag(tags.indexOf(tag))
                 }}
+                type="button"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -192,13 +193,14 @@ export function SearchBar({
             <div className="mb-1 px-2 py-1 text-xs text-gray-400">
               Suggested filters
             </div>
-            {filteredSuggestions.map((suggestion, index) => (
+            {filteredSuggestions.map(suggestion => (
               <button
                 className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-white hover:bg-slate-700"
-                key={index}
+                key={`${suggestion.type}-${suggestion.value}`}
                 onClick={() => {
                   selectSuggestion(suggestion)
                 }}
+                type="button"
               >
                 {suggestion.type === 'stars' && (
                   <Star className="h-4 w-4 text-yellow-400" />

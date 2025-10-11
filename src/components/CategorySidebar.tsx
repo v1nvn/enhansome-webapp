@@ -24,7 +24,7 @@ export function CategorySidebar({
 }: CategorySidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [collapsedRegistries, setCollapsedRegistries] = useState<Set<string>>(
-    new Set(),
+    () => new Set(),
   )
 
   // Build category list grouped by registry
@@ -57,7 +57,10 @@ export function CategorySidebar({
       if (!groups.has(cat.registry)) {
         groups.set(cat.registry, [])
       }
-      groups.get(cat.registry)!.push(cat)
+      const registryGroup = groups.get(cat.registry)
+      if (registryGroup) {
+        registryGroup.push(cat)
+      }
     })
     return groups
   }, [filteredCategories])
@@ -104,6 +107,7 @@ export function CategorySidebar({
                 onClick={() => {
                   toggleRegistry(registry)
                 }}
+                type="button"
               >
                 <div className="flex items-center gap-2">
                   {isCollapsed ? (
@@ -132,6 +136,7 @@ export function CategorySidebar({
                       onClick={() => {
                         onCategorySelect(cat.key)
                       }}
+                      type="button"
                     >
                       <div className="flex items-center justify-between">
                         <span className="flex-1 truncate">{cat.section}</span>

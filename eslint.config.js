@@ -21,7 +21,7 @@ export default defineConfig([
   {
     ignores: [
       'node_modules',
-      'dist',
+      'dist/**',
       'build',
       'coverage',
       '**/.nx/**',
@@ -30,6 +30,7 @@ export default defineConfig([
       '**/vite.config.*.timestamp-*.*',
       "vite.config.ts"
     ],
+  },{
     extends: [
       js.configs['recommended'],
       importX.flatConfigs.recommended,
@@ -96,6 +97,7 @@ export default defineConfig([
           environment: 'node',
         },
       ],
+      'perfectionist/sort-objects': 'off',
     },
     settings: {
       react: {

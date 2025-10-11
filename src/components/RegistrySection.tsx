@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
@@ -23,14 +23,8 @@ export function RegistrySection({
   registry,
   title,
 }: RegistrySectionProps) {
-  const [isExpanded, setIsExpanded] = useState(initialExpanded)
-
-  // Sync with expandAll prop when it changes
-  useEffect(() => {
-    if (expandAll !== undefined) {
-      setIsExpanded(expandAll)
-    }
-  }, [expandAll])
+  const [localExpanded, setLocalExpanded] = useState(initialExpanded)
+  const isExpanded = expandAll !== undefined ? expandAll : localExpanded
 
   if (items.length === 0) {
     return null // Don't render empty sections
@@ -42,7 +36,7 @@ export function RegistrySection({
       <button
         className="sticky top-0 z-30 flex w-full items-center justify-between border-b border-slate-700/50 bg-slate-800/95 px-6 py-5 backdrop-blur-md transition-all duration-200 hover:bg-slate-700/40"
         onClick={() => {
-          setIsExpanded(!isExpanded)
+          setLocalExpanded(!isExpanded)
         }}
         type="button"
       >

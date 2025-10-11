@@ -45,7 +45,7 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
           </div>
         )}
       </div>
-      {treeItem.children && treeItem.children.length > 0 && (
+      {treeItem.children.length > 0 && (
         <div className="mt-2">
           {treeItem.children.map(child => renderItemTree(child, level + 1))}
         </div>
@@ -74,6 +74,7 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
         <button
           className="rounded-lg p-2 transition-colors hover:bg-slate-700"
           onClick={onClose}
+          type="button"
         >
           <X className="h-5 w-5 text-gray-400" />
         </button>
@@ -143,8 +144,7 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
           </div>
         )}
 
-        {/* Children */}
-        {item.children && item.children.length > 0 && (
+        {item.children.length > 0 && (
           <div>
             <h3 className="mb-3 text-sm font-semibold text-gray-300">
               Sub-items ({item.children.length})

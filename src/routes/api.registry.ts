@@ -32,7 +32,7 @@ async function fetchRegistryData(): Promise<RegistryFile[]> {
       if (!response.ok) {
         throw new Error(`Failed to fetch ${filename}: ${response.statusText}`)
       }
-      const data: RegistryData = await response.json()
+      const data = (await response.json()) as RegistryData
       return {
         data,
         name: filename.replace('v1nvn_enhansome-', '').replace('.json', ''),

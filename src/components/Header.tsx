@@ -15,6 +15,7 @@ export default function Header() {
           onClick={() => {
             setIsOpen(true)
           }}
+          type="button"
         >
           <Menu size={24} />
         </button>
@@ -41,6 +42,7 @@ export default function Header() {
             onClick={() => {
               setIsOpen(false)
             }}
+            type="button"
           >
             <X size={24} />
           </button>

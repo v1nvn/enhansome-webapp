@@ -38,6 +38,7 @@ export function ItemsList({
   }, [items, sortBy])
 
   // Virtualize the list
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: sortedItems.length,
     estimateSize: () => 120, // Estimated row height
@@ -92,6 +93,14 @@ export function ItemsList({
                 onClick={() => {
                   onItemSelect(item)
                 }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onItemSelect(item)
+                  }
+                }}
+                role="button"
+                tabIndex={0}
               >
                 {/* Title */}
                 <h3 className="mb-2 line-clamp-1 font-semibold text-white">
@@ -134,8 +143,7 @@ export function ItemsList({
                   </div>
                 )}
 
-                {/* Children indicator */}
-                {item.children && item.children.length > 0 && (
+                {item.children.length > 0 && (
                   <div className="mt-2 text-xs text-cyan-400">
                     +{item.children.length} sub-items
                   </div>

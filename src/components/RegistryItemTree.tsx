@@ -20,12 +20,12 @@ export function RegistryItemTree({
       <RegistryItemCard item={item} registry={registry} section={section} />
 
       {/* Render children recursively */}
-      {item.children && item.children.length > 0 && (
+      {item.children.length > 0 && (
         <div className="mt-4 space-y-4">
-          {item.children.map((child, index) => (
+          {item.children.map(child => (
             <RegistryItemTree
               item={child}
-              key={`${child.title}-${index}`}
+              key={child.title}
               level={level + 1}
               registry={registry}
               section={section}

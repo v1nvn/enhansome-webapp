@@ -15,7 +15,7 @@ function Home() {
       if (!response.ok) {
         throw new Error('Failed to fetch registry data')
       }
-      return response.json()
+      return (await response.json()) as RegistryFile[]
     },
     queryKey: ['registry'],
     staleTime: 24 * 60 * 60 * 1000, // 24 hours

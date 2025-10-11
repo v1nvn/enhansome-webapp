@@ -78,6 +78,7 @@ export function RegistrySidebar({
               onClick={() => {
                 onRegistrySelect(null)
               }}
+              type="button"
             >
               All Registries
             </button>
@@ -92,6 +93,7 @@ export function RegistrySidebar({
                 onClick={() => {
                   onRegistrySelect(registry.name)
                 }}
+                type="button"
               >
                 <div className="flex items-center justify-between">
                   <span className="truncate">{registry.name}</span>
@@ -141,6 +143,7 @@ export function RegistrySidebar({
                     onClick={() => {
                       onCategorySelect(key)
                     }}
+                    type="button"
                   >
                     <div className="flex items-center justify-between">
                       <div className="min-w-0 flex-1">
