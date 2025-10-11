@@ -1,4 +1,4 @@
-# Enhansome Registry Browser
+# Enhansome Webapp
 
 A searchable and filterable web UI for browsing curated awesome lists from the [enhansome-registry](https://github.com/v1nvn/enhansome-registry).
 
