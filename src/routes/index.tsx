@@ -1,12 +1,7 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
-import {
-  Database,
-  Star,
-  GitBranch,
-  Calendar,
-  ArrowRight,
-} from 'lucide-react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { ArrowRight, Calendar, Database, GitBranch, Star } from 'lucide-react'
+
 import type { RegistryFile } from '@/types/registry'
 
 export const Route = createFileRoute('/')({
@@ -15,7 +10,6 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   const { data: registries } = useSuspenseQuery<RegistryFile[]>({
-    queryKey: ['registry'],
     queryFn: async () => {
       const response = await fetch('/api/registry')
       if (!response.ok) {
@@ -23,18 +17,19 @@ function Home() {
       }
       return response.json()
     },
+    queryKey: ['registry'],
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
   })
 
   // Calculate stats for each registry
-  const registryStats = registries.map((registry) => {
+  const registryStats = registries.map(registry => {
     let totalRepos = 0
     let totalStars = 0
-    let languages = new Set<string>()
+    const languages = new Set<string>()
     let latestUpdate = ''
 
-    registry.data.items.forEach((section) => {
-      section.items.forEach((item) => {
+    registry.data.items.forEach(section => {
+      section.items.forEach(item => {
         if (item.repo_info) {
           totalRepos++
           totalStars += item.repo_info.stars
@@ -52,89 +47,89 @@ function Home() {
     })
 
     return {
-      name: registry.name,
-      title: registry.data.metadata.title,
       description: registry.data.metadata.source_repository_description,
-      totalRepos,
-      totalStars,
       languages: Array.from(languages),
       latestUpdate,
+      name: registry.name,
+      title: registry.data.metadata.title,
+      totalRepos,
+      totalStars,
     }
   })
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
       {/* Hero Section */}
-      <section className="relative py-20 px-6 text-center overflow-hidden">
+      <section className="relative overflow-hidden px-6 py-20 text-center">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10"></div>
-        <div className="relative max-w-5xl mx-auto">
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <Database className="w-16 h-16 text-cyan-400" />
-            <h1 className="text-5xl md:text-6xl font-bold text-white">
+        <div className="relative mx-auto max-w-5xl">
+          <div className="mb-6 flex items-center justify-center gap-4">
+            <Database className="h-16 w-16 text-cyan-400" />
+            <h1 className="text-5xl font-bold text-white md:text-6xl">
               <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                 Enhansome
               </span>{' '}
               <span className="text-gray-300">Registry</span>
             </h1>
           </div>
-          <p className="text-xl md:text-2xl text-gray-300 mb-4 font-light">
+          <p className="mb-4 text-xl font-light text-gray-300 md:text-2xl">
             Curated awesome lists with enhanced metadata
           </p>
-          <p className="text-lg text-gray-400 max-w-3xl mx-auto mb-8">
+          <p className="mx-auto mb-8 max-w-3xl text-lg text-gray-400">
             Browse {registries.length} carefully curated collections of the best
             tools, libraries, and resources for developers.
           </p>
           <Link
+            className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-8 py-3 font-semibold text-white shadow-lg shadow-cyan-500/50 transition-colors hover:bg-cyan-600"
             to="/registry"
-            className="inline-flex items-center gap-2 px-8 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-cyan-500/50"
           >
             Browse All Repositories
-            <ArrowRight className="w-5 h-5" />
+            <ArrowRight className="h-5 w-5" />
           </Link>
         </div>
       </section>
 
       {/* Registries Grid */}
-      <section className="py-16 px-6 max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-white mb-8">
+      <section className="mx-auto max-w-7xl px-6 py-16">
+        <h2 className="mb-8 text-3xl font-bold text-white">
           Available Registries
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {registryStats.map((registry) => (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {registryStats.map(registry => (
             <Link
+              className="group rounded-xl border border-slate-700 bg-slate-800/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10"
               key={registry.name}
-              to="/registry"
               search={{ registry: registry.name }}
-              className="group bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10"
+              to="/registry"
             >
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="text-2xl font-semibold text-white group-hover:text-cyan-400 transition-colors">
+              <div className="mb-4 flex items-start justify-between">
+                <h3 className="text-2xl font-semibold text-white transition-colors group-hover:text-cyan-400">
                   {registry.title}
                 </h3>
-                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="h-5 w-5 text-gray-400 transition-all group-hover:translate-x-1 group-hover:text-cyan-400" />
               </div>
 
               {registry.description && (
-                <p className="text-gray-400 mb-6">{registry.description}</p>
+                <p className="mb-6 text-gray-400">{registry.description}</p>
               )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2 text-sm">
-                  <Database className="w-4 h-4 text-cyan-400" />
+                  <Database className="h-4 w-4 text-cyan-400" />
                   <span className="text-gray-300">
                     {registry.totalRepos} repositories
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
-                  <Star className="w-4 h-4 text-yellow-400" />
+                  <Star className="h-4 w-4 text-yellow-400" />
                   <span className="text-gray-300">
                     {registry.totalStars.toLocaleString()} stars
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
-                  <GitBranch className="w-4 h-4 text-purple-400" />
+                  <GitBranch className="h-4 w-4 text-purple-400" />
                   <span className="text-gray-300">
                     {registry.languages.length} languages
                   </span>
@@ -142,7 +137,7 @@ function Home() {
 
                 {registry.latestUpdate && (
                   <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-blue-400" />
+                    <Calendar className="h-4 w-4 text-blue-400" />
                     <span className="text-gray-300">
                       {new Date(registry.latestUpdate).toLocaleDateString()}
                     </span>
@@ -151,12 +146,12 @@ function Home() {
               </div>
 
               {registry.languages.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-700">
+                <div className="mt-4 border-t border-slate-700 pt-4">
                   <div className="flex flex-wrap gap-2">
-                    {registry.languages.slice(0, 5).map((lang) => (
+                    {registry.languages.slice(0, 5).map(lang => (
                       <span
+                        className="rounded bg-slate-700 px-2 py-1 text-xs text-gray-300"
                         key={lang}
-                        className="px-2 py-1 text-xs bg-slate-700 text-gray-300 rounded"
                       >
                         {lang}
                       </span>

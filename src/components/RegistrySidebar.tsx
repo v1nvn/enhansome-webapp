@@ -1,29 +1,31 @@
-import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+
+import { Search } from 'lucide-react'
+
 import type { RegistryFile } from '@/types/registry'
 
 interface RegistrySidebarProps {
-  registries: Array<RegistryFile>
-  selectedRegistry: string | null
-  selectedCategory: string | null
-  onRegistrySelect: (registry: string | null) => void
   onCategorySelect: (category: string) => void
+  onRegistrySelect: (registry: null | string) => void
+  registries: RegistryFile[]
+  selectedCategory: null | string
+  selectedRegistry: null | string
 }
 
 export function RegistrySidebar({
-  registries,
-  selectedRegistry,
-  selectedCategory,
-  onRegistrySelect,
   onCategorySelect,
+  onRegistrySelect,
+  registries,
+  selectedCategory,
+  selectedRegistry,
 }: RegistrySidebarProps) {
   const [categorySearch, setCategorySearch] = useState('')
 
   // Get all categories with counts
   const allCategories = useMemo(() => {
     const categories = new Map<string, { count: number; registry: string }>()
-    registries.forEach((registry) => {
-      registry.data.items.forEach((section) => {
+    registries.forEach(registry => {
+      registry.data.items.forEach(section => {
         const key = `${registry.name}::${section.title}`
         categories.set(key, {
           count: section.items.length,
@@ -59,33 +61,37 @@ export function RegistrySidebar({
   }, [allCategories, selectedRegistry, categorySearch])
 
   return (
-    <div className="h-full flex flex-col bg-slate-800/50 border-r border-slate-700">
+    <div className="flex h-full flex-col border-r border-slate-700 bg-slate-800/50">
       {/* Registries Section */}
       <div className="border-b border-slate-700">
         <div className="p-4">
-          <h2 className="text-sm font-semibold text-gray-300 mb-3">
+          <h2 className="mb-3 text-sm font-semibold text-gray-300">
             Registries
           </h2>
           <div className="space-y-1">
             <button
-              onClick={() => onRegistrySelect(null)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                 !selectedRegistry
-                  ? 'bg-cyan-500/20 text-cyan-300 font-medium'
+                  ? 'bg-cyan-500/20 font-medium text-cyan-300'
                   : 'text-gray-400 hover:bg-slate-700/50 hover:text-gray-300'
               }`}
+              onClick={() => {
+                onRegistrySelect(null)
+              }}
             >
               All Registries
             </button>
-            {registries.map((registry) => (
+            {registries.map(registry => (
               <button
-                key={registry.name}
-                onClick={() => onRegistrySelect(registry.name)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   selectedRegistry === registry.name
-                    ? 'bg-cyan-500/20 text-cyan-300 font-medium'
+                    ? 'bg-cyan-500/20 font-medium text-cyan-300'
                     : 'text-gray-400 hover:bg-slate-700/50 hover:text-gray-300'
                 }`}
+                key={registry.name}
+                onClick={() => {
+                  onRegistrySelect(registry.name)
+                }}
               >
                 <div className="flex items-center justify-between">
                   <span className="truncate">{registry.name}</span>
@@ -100,19 +106,21 @@ export function RegistrySidebar({
       </div>
 
       {/* Categories Section */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="p-4 border-b border-slate-700">
-          <h2 className="text-sm font-semibold text-gray-300 mb-3">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="border-b border-slate-700 p-4">
+          <h2 className="mb-3 text-sm font-semibold text-gray-300">
             Categories
           </h2>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
             <input
-              type="text"
+              className="w-full rounded-lg border border-slate-600 bg-slate-700 py-2 pl-9 pr-3 text-sm text-white placeholder-gray-400 focus:border-cyan-500 focus:outline-none"
+              onChange={e => {
+                setCategorySearch(e.target.value)
+              }}
               placeholder="Search categories..."
+              type="text"
               value={categorySearch}
-              onChange={(e) => setCategorySearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500"
             />
           </div>
         </div>
@@ -124,24 +132,26 @@ export function RegistrySidebar({
                 const [registry, categoryName] = key.split('::')
                 return (
                   <button
-                    key={key}
-                    onClick={() => onCategorySelect(key)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                    className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                       selectedCategory === key
-                        ? 'bg-cyan-500/20 text-cyan-300 font-medium'
+                        ? 'bg-cyan-500/20 font-medium text-cyan-300'
                         : 'text-gray-400 hover:bg-slate-700/30 hover:text-gray-300'
                     }`}
+                    key={key}
+                    onClick={() => {
+                      onCategorySelect(key)
+                    }}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="truncate">{categoryName}</div>
                         {!selectedRegistry && (
-                          <div className="text-xs text-gray-600 truncate">
+                          <div className="truncate text-xs text-gray-600">
                             {registry}
                           </div>
                         )}
                       </div>
-                      <span className="text-xs text-gray-500 ml-2">
+                      <span className="ml-2 text-xs text-gray-500">
                         {meta.count}
                       </span>
                     </div>
@@ -150,14 +160,14 @@ export function RegistrySidebar({
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500 text-sm">
+            <div className="py-8 text-center text-sm text-gray-500">
               No categories found
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-700 text-xs text-gray-500">
+        <div className="border-t border-slate-700 p-3 text-xs text-gray-500">
           {filteredCategories.length} categories
         </div>
       </div>

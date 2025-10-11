@@ -1,24 +1,27 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+
 import { ChevronDown, ChevronRight } from 'lucide-react'
+
 import type { RegistryItem } from '@/types/registry'
+
 import { RegistryItemTree } from './RegistryItemTree'
 
 interface RegistrySectionProps {
-  title: string
-  description: string | null
+  description: null | string
+  expandAll?: boolean
+  initialExpanded?: boolean
   items: RegistryItem[]
   registry: string
-  initialExpanded?: boolean
-  expandAll?: boolean
+  title: string
 }
 
 export function RegistrySection({
-  title,
   description,
+  expandAll,
+  initialExpanded = true,
   items,
   registry,
-  initialExpanded = true,
-  expandAll,
+  title,
 }: RegistrySectionProps) {
   const [isExpanded, setIsExpanded] = useState(initialExpanded)
 
@@ -34,29 +37,32 @@ export function RegistrySection({
   }
 
   return (
-    <div className="bg-slate-800/40 backdrop-blur-sm border border-slate-600 rounded-xl overflow-hidden shadow-lg">
+    <div className="overflow-hidden rounded-xl border border-slate-600 bg-slate-800/40 shadow-lg backdrop-blur-sm">
       {/* Section Header */}
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-6 py-5 flex items-center justify-between hover:bg-slate-700/40 transition-all duration-200 border-b border-slate-700/50 sticky top-0 z-30 bg-slate-800/95 backdrop-blur-md"
+        className="sticky top-0 z-30 flex w-full items-center justify-between border-b border-slate-700/50 bg-slate-800/95 px-6 py-5 backdrop-blur-md transition-all duration-200 hover:bg-slate-700/40"
+        onClick={() => {
+          setIsExpanded(!isExpanded)
+        }}
+        type="button"
       >
-        <div className="flex items-center gap-4 flex-1 text-left">
+        <div className="flex flex-1 items-center gap-4 text-left">
           {isExpanded ? (
-            <ChevronDown className="w-6 h-6 text-cyan-400 flex-shrink-0" />
+            <ChevronDown className="h-6 w-6 flex-shrink-0 text-cyan-400" />
           ) : (
-            <ChevronRight className="w-6 h-6 text-gray-400 flex-shrink-0" />
+            <ChevronRight className="h-6 w-6 flex-shrink-0 text-gray-400" />
           )}
-          <div className="flex-1 min-w-0">
-            <h3 className="text-2xl font-bold text-white mb-1">{title}</h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="mb-1 text-2xl font-bold text-white">{title}</h3>
             {description && (
-              <p className="text-sm text-gray-300 line-clamp-1">
+              <p className="line-clamp-1 text-sm text-gray-300">
                 {description}
               </p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 ml-4">
-          <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-sm font-medium rounded-full">
+        <div className="ml-4 flex items-center gap-2">
+          <span className="rounded-full bg-cyan-500/20 px-3 py-1 text-sm font-medium text-cyan-300">
             {items.length}
           </span>
         </div>
@@ -65,11 +71,12 @@ export function RegistrySection({
       {/* Section Content */}
       {isExpanded && (
         <div className="px-6 pb-6 pt-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {items.map((item, index) => (
               <RegistryItemTree
-                key={`${item.title}-${index}`}
                 item={item}
+                // eslint-disable-next-line @eslint-react/no-array-index-key
+                key={`${item.title}-${index}`}
                 registry={registry}
                 section={title}
               />

@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
+
 import { Index } from 'flexsearch'
+
 import type { RegistryFile, RegistryItem } from '@/types/registry'
 
 interface IndexedItem {
-  id: string
-  title: string
   description: string
+  id: string
+  item: RegistryItem
   registry: string
   section: string
-  item: RegistryItem
+  title: string
 }
 
-export function useRegistrySearch(registries: Array<RegistryFile>) {
+export function useRegistrySearch(registries: RegistryFile[]) {
   const [searchIndex, setSearchIndex] = useState<Index | null>(null)
   const [indexedItems, setIndexedItems] = useState<Map<string, IndexedItem>>(
     new Map(),
@@ -20,24 +22,24 @@ export function useRegistrySearch(registries: Array<RegistryFile>) {
   // Build search index
   useEffect(() => {
     const index = new Index({
-      tokenize: 'forward',
       cache: true,
+      tokenize: 'forward',
     })
 
     const items = new Map<string, IndexedItem>()
     let idCounter = 0
 
-    registries.forEach((registry) => {
-      registry.data.items.forEach((section) => {
-        section.items.forEach((item) => {
+    registries.forEach(registry => {
+      registry.data.items.forEach(section => {
+        section.items.forEach(item => {
           const id = `${idCounter++}`
           const indexedItem: IndexedItem = {
-            id,
-            title: item.title,
             description: item.description || '',
+            id,
+            item,
             registry: registry.name,
             section: section.title,
-            item,
+            title: item.title,
           }
 
           items.set(id, indexedItem)
@@ -62,18 +64,19 @@ export function useRegistrySearch(registries: Array<RegistryFile>) {
 
   // Search function
   const search = useMemo(
-    () => (query: string): Array<IndexedItem> => {
-      if (!searchIndex || !query.trim()) {
-        return []
-      }
+    () =>
+      (query: string): IndexedItem[] => {
+        if (!searchIndex || !query.trim()) {
+          return []
+        }
 
-      const results = searchIndex.search(query, { limit: 1000 })
-      return results
-        .map((id) => indexedItems.get(String(id)))
-        .filter((item): item is IndexedItem => item !== undefined)
-    },
+        const results = searchIndex.search(query, { limit: 1000 })
+        return results
+          .map(id => indexedItems.get(String(id)))
+          .filter((item): item is IndexedItem => item !== undefined)
+      },
     [searchIndex, indexedItems],
   )
 
-  return { search, isReady: searchIndex !== null }
+  return { isReady: searchIndex !== null, search }
 }

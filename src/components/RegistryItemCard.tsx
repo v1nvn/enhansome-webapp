@@ -1,10 +1,5 @@
-import {
-  Archive,
-  Calendar,
-  ExternalLink,
-  GitBranch,
-  Star,
-} from 'lucide-react'
+import { Archive, Calendar, ExternalLink, GitBranch, Star } from 'lucide-react'
+
 import type { RegistryItem } from '@/types/registry'
 
 interface RegistryItemCardProps {
@@ -19,27 +14,27 @@ export function RegistryItemCard({
   section,
 }: RegistryItemCardProps) {
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-5 hover:border-cyan-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10">
+    <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5 backdrop-blur-sm transition-all duration-300 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10">
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-white truncate">
+      <div className="mb-3 flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-lg font-semibold text-white">
             {item.title}
           </h3>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="mt-1 flex items-center gap-2">
             <span className="text-xs text-cyan-400">{registry}</span>
             <span className="text-xs text-gray-500">•</span>
             <span className="text-xs text-gray-400">{section}</span>
           </div>
         </div>
         {item.repo_info?.archived && (
-          <Archive className="w-4 h-4 text-orange-400 flex-shrink-0 ml-2" />
+          <Archive className="ml-2 h-4 w-4 flex-shrink-0 text-orange-400" />
         )}
       </div>
 
       {/* Description */}
       {item.description && (
-        <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+        <p className="mb-4 line-clamp-2 text-sm text-gray-400">
           {item.description}
         </p>
       )}
@@ -50,12 +45,12 @@ export function RegistryItemCard({
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1 text-yellow-400">
-                <Star className="w-3 h-3" />
+                <Star className="h-3 w-3" />
                 {item.repo_info.stars.toLocaleString()}
               </span>
               {item.repo_info.language && (
                 <span className="flex items-center gap-1 text-gray-400">
-                  <GitBranch className="w-3 h-3" />
+                  <GitBranch className="h-3 w-3" />
                   {item.repo_info.language}
                 </span>
               )}
@@ -64,17 +59,17 @@ export function RegistryItemCard({
 
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1 text-xs text-gray-500">
-              <Calendar className="w-3 h-3" />
+              <Calendar className="h-3 w-3" />
               {new Date(item.repo_info.last_commit).toLocaleDateString()}
             </span>
             <a
+              className="flex items-center gap-1 text-xs text-cyan-400 transition-colors hover:text-cyan-300"
               href={`https://github.com/${item.repo_info.owner}/${item.repo_info.repo}`}
-              target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+              target="_blank"
             >
               View
-              <ExternalLink className="w-3 h-3" />
+              <ExternalLink className="h-3 w-3" />
             </a>
           </div>
         </div>

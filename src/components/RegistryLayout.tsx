@@ -1,50 +1,52 @@
 import { useMemo } from 'react'
-import { ItemsList } from './ItemsList'
+
 import type { RegistryFile, RegistryItem } from '@/types/registry'
 
+import { ItemsList } from './ItemsList'
+
 interface RegistryLayoutProps {
-  registries: Array<RegistryFile>
-  sortBy: 'stars' | 'updated' | 'name'
-  minStars?: number
   hideArchived?: boolean
-  selectedLanguage?: string
+  minStars?: number
+  registries: RegistryFile[]
   searchQuery?: string
-  selectedRegistry?: string
   selectedCategory?: string
+  selectedLanguage?: string
+  selectedRegistry?: string
+  sortBy: 'name' | 'stars' | 'updated'
 }
 
 export function RegistryLayout({
-  registries,
-  sortBy,
-  minStars = 0,
   hideArchived = false,
-  selectedLanguage,
+  minStars = 0,
+  registries,
   searchQuery,
-  selectedRegistry,
   selectedCategory,
+  selectedLanguage,
+  selectedRegistry,
+  sortBy,
 }: RegistryLayoutProps) {
   // Get all items across registries/categories based on filters
   const allItems = useMemo(() => {
-    const items: Array<RegistryItem & { registry: string; category: string }> = []
+    const items: (RegistryItem & { category: string; registry: string })[] = []
 
-    registries.forEach((registry) => {
+    registries.forEach(registry => {
       // Filter by registry if selected
       if (selectedRegistry && registry.name !== selectedRegistry) {
         return
       }
 
-      registry.data.items.forEach((section) => {
+      registry.data.items.forEach(section => {
         // Filter by category if selected
         const categoryKey = `${registry.name}::${section.title}`
         if (selectedCategory && categoryKey !== selectedCategory) {
           return
         }
 
-        section.items.forEach((item) => {
+        section.items.forEach(item => {
           items.push({
             ...item,
-            registry: registry.name,
             category: section.title,
+            registry: registry.name,
           })
         })
       })
@@ -55,7 +57,7 @@ export function RegistryLayout({
 
   // Apply filters and sorting
   const filteredItems = useMemo(() => {
-    return allItems.filter((item) => {
+    return allItems.filter(item => {
       // Stars filter
       if (minStars && item.repo_info && item.repo_info.stars < minStars) {
         return false
@@ -107,9 +109,9 @@ export function RegistryLayout({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-slate-700 bg-slate-800/50">
+      <div className="border-b border-slate-700 bg-slate-800/50 p-4">
         <h2 className="text-xl font-bold text-white">{headerText}</h2>
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="mt-1 text-sm text-gray-400">
           {filteredItems.length} items
         </p>
       </div>
@@ -118,10 +120,10 @@ export function RegistryLayout({
       <div className="flex-1 overflow-hidden">
         <ItemsList
           items={filteredItems}
-          selectedItem={null}
           onItemSelect={() => {
             // TODO: Open modal or navigate to detail page
           }}
+          selectedItem={null}
           sortBy={sortBy}
         />
       </div>

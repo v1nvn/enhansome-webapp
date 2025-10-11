@@ -1,19 +1,21 @@
 import { useMemo, useRef } from 'react'
+
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Calendar, Star } from 'lucide-react'
+
 import type { RegistryItem } from '@/types/registry'
 
 interface ItemsListProps {
-  items: Array<RegistryItem>
-  selectedItem: RegistryItem | null
+  items: RegistryItem[]
   onItemSelect: (item: RegistryItem) => void
-  sortBy: 'stars' | 'updated' | 'name'
+  selectedItem: null | RegistryItem
+  sortBy: 'name' | 'stars' | 'updated'
 }
 
 export function ItemsList({
   items,
-  selectedItem,
   onItemSelect,
+  selectedItem,
   sortBy,
 }: ItemsListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
@@ -38,8 +40,8 @@ export function ItemsList({
   // Virtualize the list
   const rowVirtualizer = useVirtualizer({
     count: sortedItems.length,
-    getScrollElement: () => parentRef.current,
     estimateSize: () => 120, // Estimated row height
+    getScrollElement: () => parentRef.current,
     overscan: 5,
   })
 
@@ -57,18 +59,15 @@ export function ItemsList({
   }
 
   return (
-    <div
-      ref={parentRef}
-      className="h-full overflow-y-auto bg-slate-900/50"
-    >
+    <div className="h-full overflow-y-auto bg-slate-900/50" ref={parentRef}>
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
-          width: '100%',
           position: 'relative',
+          width: '100%',
         }}
       >
-        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+        {rowVirtualizer.getVirtualItems().map(virtualRow => {
           const item = sortedItems[virtualRow.index]
           const isSelected = selectedItem?.title === item.title
 
@@ -76,30 +75,32 @@ export function ItemsList({
             <div
               key={virtualRow.index}
               style={{
+                height: `${virtualRow.size}px`,
+                left: 0,
                 position: 'absolute',
                 top: 0,
-                left: 0,
-                width: '100%',
-                height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
+                width: '100%',
               }}
             >
               <div
-                className={`mx-3 my-2 p-4 rounded-lg border cursor-pointer transition-all ${
+                className={`mx-3 my-2 cursor-pointer rounded-lg border p-4 transition-all ${
                   isSelected
-                    ? 'bg-cyan-500/10 border-cyan-500'
-                    : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 hover:border-slate-600'
+                    ? 'border-cyan-500 bg-cyan-500/10'
+                    : 'border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-700/50'
                 }`}
-                onClick={() => onItemSelect(item)}
+                onClick={() => {
+                  onItemSelect(item)
+                }}
               >
                 {/* Title */}
-                <h3 className="text-white font-semibold mb-2 line-clamp-1">
+                <h3 className="mb-2 line-clamp-1 font-semibold text-white">
                   {item.title}
                 </h3>
 
                 {/* Description */}
                 {item.description && (
-                  <p className="text-sm text-gray-400 mb-3 line-clamp-2">
+                  <p className="mb-3 line-clamp-2 text-sm text-gray-400">
                     {item.description}
                   </p>
                 )}
@@ -108,25 +109,25 @@ export function ItemsList({
                 {item.repo_info && (
                   <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
                     <div className="flex items-center gap-1">
-                      <Star className="w-3 h-3" />
+                      <Star className="h-3 w-3" />
                       <span>{item.repo_info.stars.toLocaleString()}</span>
                     </div>
 
                     {item.repo_info.language && (
-                      <div className="px-2 py-0.5 bg-slate-700 rounded text-gray-300">
+                      <div className="rounded bg-slate-700 px-2 py-0.5 text-gray-300">
                         {item.repo_info.language}
                       </div>
                     )}
 
                     {item.repo_info.last_commit && (
                       <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
+                        <Calendar className="h-3 w-3" />
                         <span>{formatDate(item.repo_info.last_commit)}</span>
                       </div>
                     )}
 
                     {item.repo_info.archived && (
-                      <div className="px-2 py-0.5 bg-orange-500/20 text-orange-300 rounded">
+                      <div className="rounded bg-orange-500/20 px-2 py-0.5 text-orange-300">
                         Archived
                       </div>
                     )}
@@ -147,7 +148,7 @@ export function ItemsList({
 
       {/* Empty state */}
       {sortedItems.length === 0 && (
-        <div className="flex items-center justify-center h-full text-gray-400">
+        <div className="flex h-full items-center justify-center text-gray-400">
           <p>No items in this category</p>
         </div>
       )}

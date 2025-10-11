@@ -1,15 +1,16 @@
 import { Archive, Calendar, ExternalLink, Star, X } from 'lucide-react'
+
 import type { RegistryItem } from '@/types/registry'
 
 interface ItemDetailPanelProps {
-  item: RegistryItem | null
+  item: null | RegistryItem
   onClose: () => void
 }
 
 export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
   if (!item) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-900/30 text-gray-500">
+      <div className="flex h-full items-center justify-center bg-slate-900/30 text-gray-500">
         <p>Select an item to view details</p>
       </div>
     )
@@ -17,27 +18,27 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
       day: 'numeric',
+      month: 'short',
+      year: 'numeric',
     })
   }
 
   const renderItemTree = (treeItem: RegistryItem, level = 0) => (
-    <div key={treeItem.title} className={level > 0 ? 'ml-4 mt-2' : 'mt-2'}>
-      <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-        <h4 className="text-white font-medium mb-1">{treeItem.title}</h4>
+    <div className={level > 0 ? 'ml-4 mt-2' : 'mt-2'} key={treeItem.title}>
+      <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-3">
+        <h4 className="mb-1 font-medium text-white">{treeItem.title}</h4>
         {treeItem.description && (
-          <p className="text-sm text-gray-400 mb-2">{treeItem.description}</p>
+          <p className="mb-2 text-sm text-gray-400">{treeItem.description}</p>
         )}
         {treeItem.repo_info && (
           <div className="flex flex-wrap gap-2 text-xs text-gray-500">
             <div className="flex items-center gap-1">
-              <Star className="w-3 h-3" />
+              <Star className="h-3 w-3" />
               {treeItem.repo_info.stars.toLocaleString()}
             </div>
             {treeItem.repo_info.language && (
-              <span className="px-2 py-0.5 bg-slate-700 rounded">
+              <span className="rounded bg-slate-700 px-2 py-0.5">
                 {treeItem.repo_info.language}
               </span>
             )}
@@ -46,35 +47,35 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
       </div>
       {treeItem.children && treeItem.children.length > 0 && (
         <div className="mt-2">
-          {treeItem.children.map((child) => renderItemTree(child, level + 1))}
+          {treeItem.children.map(child => renderItemTree(child, level + 1))}
         </div>
       )}
     </div>
   )
 
   return (
-    <div className="h-full flex flex-col bg-slate-800/30 border-l border-slate-700">
+    <div className="flex h-full flex-col border-l border-slate-700 bg-slate-800/30">
       {/* Header */}
-      <div className="p-4 border-b border-slate-700 flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-bold text-white mb-1">{item.title}</h2>
+      <div className="flex items-start justify-between border-b border-slate-700 p-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="mb-1 text-xl font-bold text-white">{item.title}</h2>
           {item.repo_info && (
             <a
+              className="flex items-center gap-1 text-sm text-cyan-400 hover:text-cyan-300"
               href={`https://github.com/${item.repo_info.owner}/${item.repo_info.repo}`}
-              target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+              target="_blank"
             >
               {item.repo_info.owner}/{item.repo_info.repo}
-              <ExternalLink className="w-3 h-3" />
+              <ExternalLink className="h-3 w-3" />
             </a>
           )}
         </div>
         <button
+          className="rounded-lg p-2 transition-colors hover:bg-slate-700"
           onClick={onClose}
-          className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
         >
-          <X className="w-5 h-5 text-gray-400" />
+          <X className="h-5 w-5 text-gray-400" />
         </button>
       </div>
 
@@ -83,7 +84,7 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
         {/* Description */}
         {item.description && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-300 mb-2">
+            <h3 className="mb-2 text-sm font-semibold text-gray-300">
               Description
             </h3>
             <p className="text-gray-400">{item.description}</p>
@@ -93,13 +94,13 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
         {/* Stats */}
         {item.repo_info && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-300 mb-3">
+            <h3 className="mb-3 text-sm font-semibold text-gray-300">
               Repository Info
             </h3>
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-slate-800/50 rounded-lg">
-                <div className="flex items-center gap-2 text-gray-400 mb-1">
-                  <Star className="w-4 h-4" />
+              <div className="rounded-lg bg-slate-800/50 p-3">
+                <div className="mb-1 flex items-center gap-2 text-gray-400">
+                  <Star className="h-4 w-4" />
                   <span className="text-xs">Stars</span>
                 </div>
                 <p className="text-lg font-semibold text-white">
@@ -108,8 +109,8 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
               </div>
 
               {item.repo_info.language && (
-                <div className="p-3 bg-slate-800/50 rounded-lg">
-                  <div className="text-xs text-gray-400 mb-1">Language</div>
+                <div className="rounded-lg bg-slate-800/50 p-3">
+                  <div className="mb-1 text-xs text-gray-400">Language</div>
                   <p className="text-lg font-semibold text-white">
                     {item.repo_info.language}
                   </p>
@@ -117,9 +118,9 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
               )}
 
               {item.repo_info.last_commit && (
-                <div className="p-3 bg-slate-800/50 rounded-lg col-span-2">
-                  <div className="flex items-center gap-2 text-gray-400 mb-1">
-                    <Calendar className="w-4 h-4" />
+                <div className="col-span-2 rounded-lg bg-slate-800/50 p-3">
+                  <div className="mb-1 flex items-center gap-2 text-gray-400">
+                    <Calendar className="h-4 w-4" />
                     <span className="text-xs">Last Commit</span>
                   </div>
                   <p className="text-sm text-white">
@@ -129,9 +130,9 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
               )}
 
               {item.repo_info.archived && (
-                <div className="p-3 bg-orange-500/20 border border-orange-500/30 rounded-lg col-span-2">
+                <div className="col-span-2 rounded-lg border border-orange-500/30 bg-orange-500/20 p-3">
                   <div className="flex items-center gap-2 text-orange-300">
-                    <Archive className="w-4 h-4" />
+                    <Archive className="h-4 w-4" />
                     <span className="text-sm font-semibold">
                       Archived Repository
                     </span>
@@ -145,11 +146,11 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
         {/* Children */}
         {item.children && item.children.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-gray-300 mb-3">
+            <h3 className="mb-3 text-sm font-semibold text-gray-300">
               Sub-items ({item.children.length})
             </h3>
             <div className="space-y-2">
-              {item.children.map((child) => renderItemTree(child))}
+              {item.children.map(child => renderItemTree(child))}
             </div>
           </div>
         )}

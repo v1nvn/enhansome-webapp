@@ -1,22 +1,17 @@
-export interface RepoInfo {
-  archived: boolean
-  language: string | null
-  last_commit: string
-  owner: string
-  repo: string
-  stars: number
+export interface RegistryData {
+  items: RegistrySection[]
+  metadata: RegistryMetadata
+}
+
+export interface RegistryFile {
+  data: RegistryData
+  name: string
 }
 
 export interface RegistryItem {
-  children: Array<RegistryItem>
-  description: string | null
-  title: string
+  children: RegistryItem[]
+  description: null | string
   repo_info?: RepoInfo
-}
-
-export interface RegistrySection {
-  description: string
-  items: Array<RegistryItem>
   title: string
 }
 
@@ -27,12 +22,17 @@ export interface RegistryMetadata {
   title: string
 }
 
-export interface RegistryData {
-  items: Array<RegistrySection>
-  metadata: RegistryMetadata
+export interface RegistrySection {
+  description: string
+  items: RegistryItem[]
+  title: string
 }
 
-export interface RegistryFile {
-  name: string
-  data: RegistryData
+export interface RepoInfo {
+  archived: boolean
+  language: null | string
+  last_commit: string
+  owner: string
+  repo: string
+  stars: number
 }

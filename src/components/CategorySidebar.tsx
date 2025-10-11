@@ -1,24 +1,26 @@
 import { useMemo, useState } from 'react'
+
 import { ChevronDown, ChevronRight, Search } from 'lucide-react'
+
 import type { RegistryFile } from '@/types/registry'
 
 interface CategoryItem {
+  count: number
   key: string
   registry: string
   section: string
-  count: number
 }
 
 interface CategorySidebarProps {
-  registries: Array<RegistryFile>
-  selectedCategory: string | null
   onCategorySelect: (key: string) => void
+  registries: RegistryFile[]
+  selectedCategory: null | string
 }
 
 export function CategorySidebar({
+  onCategorySelect,
   registries,
   selectedCategory,
-  onCategorySelect,
 }: CategorySidebarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [collapsedRegistries, setCollapsedRegistries] = useState<Set<string>>(
@@ -27,14 +29,14 @@ export function CategorySidebar({
 
   // Build category list grouped by registry
   const categories = useMemo(() => {
-    const items: Array<CategoryItem> = []
-    registries.forEach((registry) => {
-      registry.data.items.forEach((section) => {
+    const items: CategoryItem[] = []
+    registries.forEach(registry => {
+      registry.data.items.forEach(section => {
         items.push({
+          count: section.items.length,
           key: `${registry.name}::${section.title}`,
           registry: registry.name,
           section: section.title,
-          count: section.items.length,
         })
       })
     })
@@ -45,15 +47,13 @@ export function CategorySidebar({
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) return categories
     const query = searchQuery.toLowerCase()
-    return categories.filter((cat) =>
-      cat.section.toLowerCase().includes(query),
-    )
+    return categories.filter(cat => cat.section.toLowerCase().includes(query))
   }, [categories, searchQuery])
 
   // Group by registry for display
   const groupedCategories = useMemo(() => {
-    const groups = new Map<string, Array<CategoryItem>>()
-    filteredCategories.forEach((cat) => {
+    const groups = new Map<string, CategoryItem[]>()
+    filteredCategories.forEach(cat => {
       if (!groups.has(cat.registry)) {
         groups.set(cat.registry, [])
       }
@@ -63,7 +63,7 @@ export function CategorySidebar({
   }, [filteredCategories])
 
   const toggleRegistry = (registry: string) => {
-    setCollapsedRegistries((prev) => {
+    setCollapsedRegistries(prev => {
       const next = new Set(prev)
       if (next.has(registry)) {
         next.delete(registry)
@@ -75,17 +75,19 @@ export function CategorySidebar({
   }
 
   return (
-    <div className="h-full flex flex-col bg-slate-800/50 border-r border-slate-700">
+    <div className="flex h-full flex-col border-r border-slate-700 bg-slate-800/50">
       {/* Search */}
-      <div className="p-4 border-b border-slate-700">
+      <div className="border-b border-slate-700 p-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
           <input
-            type="text"
+            className="w-full rounded-lg border border-slate-600 bg-slate-700 py-2 pl-9 pr-3 text-sm text-white placeholder-gray-400 focus:border-cyan-500 focus:outline-none"
+            onChange={e => {
+              setSearchQuery(e.target.value)
+            }}
             placeholder="Search categories..."
+            type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500"
           />
         </div>
       </div>
@@ -95,17 +97,19 @@ export function CategorySidebar({
         {Array.from(groupedCategories.entries()).map(([registry, cats]) => {
           const isCollapsed = collapsedRegistries.has(registry)
           return (
-            <div key={registry} className="border-b border-slate-700/50">
+            <div className="border-b border-slate-700/50" key={registry}>
               {/* Registry Header */}
               <button
-                onClick={() => toggleRegistry(registry)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-700/30 transition-colors"
+                className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-slate-700/30"
+                onClick={() => {
+                  toggleRegistry(registry)
+                }}
               >
                 <div className="flex items-center gap-2">
                   {isCollapsed ? (
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
                   )}
                   <span className="text-sm font-semibold text-gray-300">
                     {registry}
@@ -117,19 +121,21 @@ export function CategorySidebar({
               {/* Categories under registry */}
               {!isCollapsed && (
                 <div className="pb-2">
-                  {cats.map((cat) => (
+                  {cats.map(cat => (
                     <button
-                      key={cat.key}
-                      onClick={() => onCategorySelect(cat.key)}
                       className={`w-full px-4 py-2 pl-10 text-left text-sm transition-colors ${
                         selectedCategory === cat.key
-                          ? 'bg-cyan-500/20 text-cyan-300 border-l-2 border-cyan-500'
+                          ? 'border-l-2 border-cyan-500 bg-cyan-500/20 text-cyan-300'
                           : 'text-gray-400 hover:bg-slate-700/30 hover:text-gray-300'
                       }`}
+                      key={cat.key}
+                      onClick={() => {
+                        onCategorySelect(cat.key)
+                      }}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="truncate flex-1">{cat.section}</span>
-                        <span className="text-xs text-gray-500 ml-2">
+                        <span className="flex-1 truncate">{cat.section}</span>
+                        <span className="ml-2 text-xs text-gray-500">
                           {cat.count}
                         </span>
                       </div>
@@ -143,7 +149,7 @@ export function CategorySidebar({
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-slate-700 text-xs text-gray-500">
+      <div className="border-t border-slate-700 p-3 text-xs text-gray-500">
         {filteredCategories.length} categories
       </div>
     </div>
