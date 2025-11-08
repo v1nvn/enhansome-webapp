@@ -21,14 +21,16 @@ function Home() {
         <div className="relative mx-auto max-w-5xl">
           <div className="mb-6 flex items-center justify-center gap-4">
             <Database className="h-16 w-16 text-cyan-500 dark:text-cyan-400" />
-            <h1 className="text-5xl font-bold text-slate-900 dark:text-white md:text-6xl">
+            <h1 className="text-5xl font-bold text-slate-900 md:text-6xl dark:text-white">
               <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent dark:from-cyan-400 dark:to-blue-400">
                 Enhansome
               </span>{' '}
-              <span className="text-slate-700 dark:text-gray-300">Registry</span>
+              <span className="text-slate-700 dark:text-gray-300">
+                Registry
+              </span>
             </h1>
           </div>
-          <p className="mb-4 text-xl font-light text-slate-700 dark:text-gray-300 md:text-2xl">
+          <p className="mb-4 text-xl font-light text-slate-700 md:text-2xl dark:text-gray-300">
             Curated awesome lists with enhanced metadata
           </p>
           <p className="mx-auto mb-8 max-w-3xl text-lg text-slate-600 dark:text-gray-400">
@@ -66,7 +68,9 @@ function Home() {
               </div>
 
               {registry.description && (
-                <p className="mb-6 text-slate-600 dark:text-gray-400">{registry.description}</p>
+                <p className="mb-6 text-slate-600 dark:text-gray-400">
+                  {registry.description}
+                </p>
               )}
 
               <div className="grid grid-cols-2 gap-4">

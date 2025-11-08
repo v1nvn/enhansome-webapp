@@ -47,7 +47,9 @@ export function RegistrySection({
             <ChevronRight className="h-6 w-6 flex-shrink-0 text-slate-600 dark:text-gray-400" />
           )}
           <div className="min-w-0 flex-1">
-            <h3 className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">{title}</h3>
+            <h3 className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">
+              {title}
+            </h3>
             {description && (
               <p className="line-clamp-1 text-sm text-slate-700 dark:text-gray-300">
                 {description}

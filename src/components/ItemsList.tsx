@@ -60,7 +60,10 @@ export function ItemsList({
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-100/50 dark:bg-slate-900/50" ref={parentRef}>
+    <div
+      className="h-full overflow-y-auto bg-slate-100/50 dark:bg-slate-900/50"
+      ref={parentRef}
+    >
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,

@@ -27,9 +27,13 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
   const renderItemTree = (treeItem: RegistryItem, level = 0) => (
     <div className={level > 0 ? 'ml-4 mt-2' : 'mt-2'} key={treeItem.title}>
       <div className="rounded-lg border border-slate-200 bg-white/50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
-        <h4 className="mb-1 font-medium text-slate-900 dark:text-white">{treeItem.title}</h4>
+        <h4 className="mb-1 font-medium text-slate-900 dark:text-white">
+          {treeItem.title}
+        </h4>
         {treeItem.description && (
-          <p className="mb-2 text-sm text-slate-600 dark:text-gray-400">{treeItem.description}</p>
+          <p className="mb-2 text-sm text-slate-600 dark:text-gray-400">
+            {treeItem.description}
+          </p>
         )}
         {treeItem.repo_info && (
           <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-gray-500">
@@ -58,7 +62,9 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
       {/* Header */}
       <div className="flex items-start justify-between border-b border-slate-200 p-4 dark:border-slate-700">
         <div className="min-w-0 flex-1">
-          <h2 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">{item.title}</h2>
+          <h2 className="mb-1 text-xl font-bold text-slate-900 dark:text-white">
+            {item.title}
+          </h2>
           {item.repo_info && (
             <a
               className="flex items-center gap-1 text-sm text-cyan-500 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300"
@@ -88,7 +94,9 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
             <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-gray-300">
               Description
             </h3>
-            <p className="text-slate-600 dark:text-gray-400">{item.description}</p>
+            <p className="text-slate-600 dark:text-gray-400">
+              {item.description}
+            </p>
           </div>
         )}
 
@@ -111,7 +119,9 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
 
               {item.repo_info.language && (
                 <div className="rounded-lg bg-white/50 p-3 dark:bg-slate-800/50">
-                  <div className="mb-1 text-xs text-slate-600 dark:text-gray-400">Language</div>
+                  <div className="mb-1 text-xs text-slate-600 dark:text-gray-400">
+                    Language
+                  </div>
                   <p className="text-lg font-semibold text-slate-900 dark:text-white">
                     {item.repo_info.language}
                   </p>

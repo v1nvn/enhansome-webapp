@@ -22,9 +22,13 @@ export function RegistryItemCard({
             {item.title}
           </h3>
           <div className="mt-1 flex items-center gap-2">
-            <span className="text-xs text-cyan-500 dark:text-cyan-400">{registry}</span>
+            <span className="text-xs text-cyan-500 dark:text-cyan-400">
+              {registry}
+            </span>
             <span className="text-xs text-slate-400 dark:text-gray-500">•</span>
-            <span className="text-xs text-slate-600 dark:text-gray-400">{section}</span>
+            <span className="text-xs text-slate-600 dark:text-gray-400">
+              {section}
+            </span>
           </div>
         </div>
         {item.repo_info?.archived && (

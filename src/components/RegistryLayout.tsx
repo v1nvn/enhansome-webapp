@@ -123,7 +123,9 @@ export function RegistryLayout({
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="border-b border-slate-200 bg-white/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{headerText}</h2>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+          {headerText}
+        </h2>
         <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">
           {filteredItems.length} of {total} items
         </p>

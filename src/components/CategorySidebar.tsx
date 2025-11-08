@@ -100,7 +100,10 @@ export function CategorySidebar({
         {Array.from(groupedCategories.entries()).map(([registry, cats]) => {
           const isCollapsed = collapsedRegistries.has(registry)
           return (
-            <div className="border-b border-slate-200/50 dark:border-slate-700/50" key={registry}>
+            <div
+              className="border-b border-slate-200/50 dark:border-slate-700/50"
+              key={registry}
+            >
               {/* Registry Header */}
               <button
                 className="flex w-full items-center justify-between px-4 py-3 transition-colors hover:bg-slate-100 dark:hover:bg-slate-700/30"
@@ -119,7 +122,9 @@ export function CategorySidebar({
                     {registry}
                   </span>
                 </div>
-                <span className="text-xs text-slate-500 dark:text-gray-500">{cats.length}</span>
+                <span className="text-xs text-slate-500 dark:text-gray-500">
+                  {cats.length}
+                </span>
               </button>
 
               {/* Categories under registry */}

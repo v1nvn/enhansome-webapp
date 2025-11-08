@@ -222,11 +222,15 @@ export function SearchBar({
       {tags.length === 0 && (
         <div className="mt-2 text-xs text-slate-500 dark:text-gray-500">
           Try:{' '}
-          <code className="rounded bg-slate-200 px-1 py-0.5 dark:bg-slate-800">language:Go</code>{' '}
+          <code className="rounded bg-slate-200 px-1 py-0.5 dark:bg-slate-800">
+            language:Go
+          </code>{' '}
           <code className="rounded bg-slate-200 px-1 py-0.5 dark:bg-slate-800">
             stars:&gt;1000
           </code>{' '}
-          <code className="rounded bg-slate-200 px-1 py-0.5 dark:bg-slate-800">is:archived</code>
+          <code className="rounded bg-slate-200 px-1 py-0.5 dark:bg-slate-800">
+            is:archived
+          </code>
         </div>
       )}
     </div>
