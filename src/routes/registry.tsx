@@ -6,20 +6,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { RegistryLayout } from '@/components/RegistryLayout'
 import { RegistrySidebar } from '@/components/RegistrySidebar'
 import { SearchBar, type SearchTag } from '@/components/SearchBar'
-
-interface RegistryMetadata {
-  description: string
-  name: string
-  source_repository: string
-  stats: {
-    languages: string[]
-    latest_update: null | string
-    total_items: number
-    total_repos: number
-    total_stars: number
-  }
-  title: string
-}
+import {
+  languagesQueryOptions,
+  metadataQueryOptions,
+} from '@/lib/server-functions'
 
 interface RegistrySearch {
   archived?: string
@@ -42,6 +32,11 @@ export const Route = createFileRoute('/registry')({
     sort: (search.sort as 'name' | 'stars' | 'updated' | undefined) || 'stars',
     stars: search.stars as string | undefined,
   }),
+  loader: ({ context }) => {
+    // Preload metadata and languages
+    void context.queryClient.ensureQueryData(metadataQueryOptions())
+    void context.queryClient.ensureQueryData(languagesQueryOptions())
+  },
   head: () => ({
     meta: [{ title: 'Enhansome Registry Browser' }],
   }),
@@ -52,30 +47,10 @@ function RegistryBrowser() {
   const search = Route.useSearch()
 
   // Fetch registry metadata for registry names
-  const { data: registryMetadata } = useSuspenseQuery<RegistryMetadata[]>({
-    queryFn: async () => {
-      const response = await fetch('/api/metadata')
-      if (!response.ok) {
-        throw new Error('Failed to fetch registry metadata')
-      }
-      return await response.json()
-    },
-    queryKey: ['registry-metadata'],
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours
-  })
+  const { data: registryMetadata } = useSuspenseQuery(metadataQueryOptions())
 
   // Fetch languages from API
-  const { data: languages = [] } = useSuspenseQuery<string[]>({
-    queryFn: async () => {
-      const response = await fetch('/api/languages')
-      if (!response.ok) {
-        throw new Error('Failed to fetch languages')
-      }
-      return await response.json()
-    },
-    queryKey: ['languages'],
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours
-  })
+  const { data: languages = [] } = useSuspenseQuery(languagesQueryOptions())
 
   const registryNames = useMemo(() => {
     return registryMetadata.map(r => r.name)

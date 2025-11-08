@@ -2,36 +2,16 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowRight, Calendar, Database, GitBranch, Star } from 'lucide-react'
 
+import { metadataQueryOptions } from '@/lib/server-functions'
+
 export const Route = createFileRoute('/')({
   component: Home,
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData(metadataQueryOptions()),
 })
 
-interface RegistryMetadata {
-  description: string
-  name: string
-  source_repository: string
-  stats: {
-    languages: string[]
-    latest_update: null | string
-    total_items: number
-    total_repos: number
-    total_stars: number
-  }
-  title: string
-}
-
 function Home() {
-  const { data: registries } = useSuspenseQuery<RegistryMetadata[]>({
-    queryFn: async () => {
-      const response = await fetch('/api/metadata')
-      if (!response.ok) {
-        throw new Error('Failed to fetch registry metadata')
-      }
-      return await response.json()
-    },
-    queryKey: ['registry-metadata'],
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours
-  })
+  const { data: registries } = useSuspenseQuery(metadataQueryOptions())
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
@@ -93,14 +73,14 @@ function Home() {
                 <div className="flex items-center gap-2 text-sm">
                   <Database className="h-4 w-4 text-cyan-400" />
                   <span className="text-gray-300">
-                    {registry.stats.total_repos} repositories
+                    {registry.stats.totalRepos} repositories
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
                   <Star className="h-4 w-4 text-yellow-400" />
                   <span className="text-gray-300">
-                    {registry.stats.total_stars} stars
+                    {registry.stats.totalStars} stars
                   </span>
                 </div>
 
@@ -111,12 +91,12 @@ function Home() {
                   </span>
                 </div>
 
-                {registry.stats.latest_update && (
+                {registry.stats.latestUpdate && (
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-blue-400" />
                     <span className="text-gray-300">
                       {new Date(
-                        registry.stats.latest_update,
+                        registry.stats.latestUpdate,
                       ).toLocaleDateString()}
                     </span>
                   </div>

@@ -11,11 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegistryRouteImport } from './routes/registry'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiSearchRouteImport } from './routes/api.search'
-import { Route as ApiRegistryRouteImport } from './routes/api.registry'
-import { Route as ApiMetadataRouteImport } from './routes/api.metadata'
-import { Route as ApiLanguagesRouteImport } from './routes/api.languages'
-import { Route as ApiCategoriesRouteImport } from './routes/api.categories'
 
 const RegistryRoute = RegistryRouteImport.update({
   id: '/registry',
@@ -27,98 +22,31 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiSearchRoute = ApiSearchRouteImport.update({
-  id: '/api/search',
-  path: '/api/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiRegistryRoute = ApiRegistryRouteImport.update({
-  id: '/api/registry',
-  path: '/api/registry',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMetadataRoute = ApiMetadataRouteImport.update({
-  id: '/api/metadata',
-  path: '/api/metadata',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiLanguagesRoute = ApiLanguagesRouteImport.update({
-  id: '/api/languages',
-  path: '/api/languages',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiCategoriesRoute = ApiCategoriesRouteImport.update({
-  id: '/api/categories',
-  path: '/api/categories',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/registry': typeof RegistryRoute
-  '/api/categories': typeof ApiCategoriesRoute
-  '/api/languages': typeof ApiLanguagesRoute
-  '/api/metadata': typeof ApiMetadataRoute
-  '/api/registry': typeof ApiRegistryRoute
-  '/api/search': typeof ApiSearchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/registry': typeof RegistryRoute
-  '/api/categories': typeof ApiCategoriesRoute
-  '/api/languages': typeof ApiLanguagesRoute
-  '/api/metadata': typeof ApiMetadataRoute
-  '/api/registry': typeof ApiRegistryRoute
-  '/api/search': typeof ApiSearchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/registry': typeof RegistryRoute
-  '/api/categories': typeof ApiCategoriesRoute
-  '/api/languages': typeof ApiLanguagesRoute
-  '/api/metadata': typeof ApiMetadataRoute
-  '/api/registry': typeof ApiRegistryRoute
-  '/api/search': typeof ApiSearchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/registry'
-    | '/api/categories'
-    | '/api/languages'
-    | '/api/metadata'
-    | '/api/registry'
-    | '/api/search'
+  fullPaths: '/' | '/registry'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/registry'
-    | '/api/categories'
-    | '/api/languages'
-    | '/api/metadata'
-    | '/api/registry'
-    | '/api/search'
-  id:
-    | '__root__'
-    | '/'
-    | '/registry'
-    | '/api/categories'
-    | '/api/languages'
-    | '/api/metadata'
-    | '/api/registry'
-    | '/api/search'
+  to: '/' | '/registry'
+  id: '__root__' | '/' | '/registry'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   RegistryRoute: typeof RegistryRoute
-  ApiCategoriesRoute: typeof ApiCategoriesRoute
-  ApiLanguagesRoute: typeof ApiLanguagesRoute
-  ApiMetadataRoute: typeof ApiMetadataRoute
-  ApiRegistryRoute: typeof ApiRegistryRoute
-  ApiSearchRoute: typeof ApiSearchRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -137,52 +65,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/search': {
-      id: '/api/search'
-      path: '/api/search'
-      fullPath: '/api/search'
-      preLoaderRoute: typeof ApiSearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/registry': {
-      id: '/api/registry'
-      path: '/api/registry'
-      fullPath: '/api/registry'
-      preLoaderRoute: typeof ApiRegistryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/metadata': {
-      id: '/api/metadata'
-      path: '/api/metadata'
-      fullPath: '/api/metadata'
-      preLoaderRoute: typeof ApiMetadataRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/languages': {
-      id: '/api/languages'
-      path: '/api/languages'
-      fullPath: '/api/languages'
-      preLoaderRoute: typeof ApiLanguagesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/categories': {
-      id: '/api/categories'
-      path: '/api/categories'
-      fullPath: '/api/categories'
-      preLoaderRoute: typeof ApiCategoriesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   RegistryRoute: RegistryRoute,
-  ApiCategoriesRoute: ApiCategoriesRoute,
-  ApiLanguagesRoute: ApiLanguagesRoute,
-  ApiMetadataRoute: ApiMetadataRoute,
-  ApiRegistryRoute: ApiRegistryRoute,
-  ApiSearchRoute: ApiSearchRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

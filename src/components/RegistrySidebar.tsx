@@ -3,12 +3,9 @@ import { useMemo, useState } from 'react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 
-interface Category {
-  category: string
-  count: number
-  key: string
-  registry: string
-}
+import type { Category } from '@/lib/server-functions'
+
+import { categoriesQueryOptions } from '@/lib/server-functions'
 
 interface RegistrySidebarProps {
   onCategorySelect: (category: string) => void
@@ -28,28 +25,9 @@ export function RegistrySidebar({
   const [categorySearch, setCategorySearch] = useState('')
 
   // Fetch categories from API
-  const queryParams = useMemo(() => {
-    const params = new URLSearchParams()
-    if (selectedRegistry) {
-      params.append('registry', selectedRegistry)
-    }
-    return params.toString()
-  }, [selectedRegistry])
-
-  const { data: categories = [] } = useSuspenseQuery<Category[]>({
-    queryFn: async () => {
-      const url = queryParams
-        ? `/api/categories?${queryParams}`
-        : '/api/categories'
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error('Failed to fetch categories')
-      }
-      return await response.json()
-    },
-    queryKey: ['categories', queryParams],
-    staleTime: 60 * 60 * 1000, // 1 hour
-  })
+  const { data: categories = [] } = useSuspenseQuery<Category[]>(
+    categoriesQueryOptions(selectedRegistry ?? undefined),
+  )
 
   // Filter categories by search
   const filteredCategories = useMemo(() => {

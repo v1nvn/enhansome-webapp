@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 
-import type { RegistryItem } from '@/types/registry'
+import type { SearchResult } from '@/lib/server-functions'
+
+import { searchQueryOptions } from '@/lib/server-functions'
 
 import { ItemsList } from './ItemsList'
 
@@ -15,13 +17,6 @@ interface RegistryLayoutProps {
   selectedLanguage?: string
   selectedRegistry?: string
   sortBy: 'name' | 'stars' | 'updated'
-}
-
-interface SearchResult {
-  data: (RegistryItem & { category: string; registry: string })[]
-  hasMore: boolean
-  offset: number
-  total: number
 }
 
 const PAGE_SIZE = 100
@@ -38,45 +33,40 @@ export function RegistryLayout({
   const [offset, setOffset] = useState(0)
   const [pages, setPages] = useState<SearchResult[]>([])
 
-  // Build base search params (without offset)
-  const baseSearchParams = useMemo(() => {
-    const params = new URLSearchParams()
-    if (searchQuery?.trim()) params.append('q', searchQuery.trim())
-    if (selectedRegistry) params.append('registry', selectedRegistry)
-    if (selectedLanguage) params.append('language', selectedLanguage)
-    if (hideArchived) params.append('archived', 'false')
-    if (minStars > 0) params.append('minStars', minStars.toString())
-    params.append('sortBy', sortBy)
-    return params.toString()
-  }, [
-    searchQuery,
-    selectedRegistry,
-    selectedLanguage,
-    hideArchived,
-    minStars,
-    sortBy,
-  ])
+  // Build search params object
+  const searchParams = useMemo(
+    () => ({
+      archived: hideArchived ? false : undefined,
+      language: selectedLanguage,
+      limit: PAGE_SIZE,
+      minStars: minStars > 0 ? minStars : undefined,
+      offset,
+      q: searchQuery?.trim(),
+      registryName: selectedRegistry,
+      sortBy,
+    }),
+    [
+      searchQuery,
+      selectedRegistry,
+      selectedLanguage,
+      hideArchived,
+      minStars,
+      sortBy,
+      offset,
+    ],
+  )
 
-  // Build full search params with offset
-  const searchParams = useMemo(() => {
-    const params = new URLSearchParams(baseSearchParams)
-    params.append('limit', PAGE_SIZE.toString())
-    params.append('offset', offset.toString())
-    return params.toString()
-  }, [baseSearchParams, offset])
+  // Build base search params (without offset) for reset detection
+  const baseSearchParams = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { offset: _, ...base } = searchParams
+    return JSON.stringify(base)
+  }, [searchParams])
 
   // Fetch from search API
-  const { data: searchResult, isFetching } = useQuery<SearchResult>({
+  const { data: searchResult, isFetching } = useQuery({
+    ...searchQueryOptions(searchParams),
     enabled: offset < pages.length * PAGE_SIZE || pages.length === 0,
-    queryFn: async () => {
-      const response = await fetch(`/api/search?${searchParams}`)
-      if (!response.ok) {
-        throw new Error('Failed to search items')
-      }
-      return await response.json()
-    },
-    queryKey: ['search', searchParams],
-    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
   // Reset pages when base params change
