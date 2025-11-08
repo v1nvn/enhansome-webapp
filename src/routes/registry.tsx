@@ -47,7 +47,49 @@ export const Route = createFileRoute('/registry')({
       ),
     ])
   },
-  pendingComponent: () => <div>OHNO</div>,
+  pendingComponent: () => (
+    <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 via-slate-100 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* Header Skeleton */}
+      <div className="border-b border-slate-200 bg-white/95 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95">
+        <div className="px-6 py-6">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="h-9 w-64 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+              <div className="mt-2 h-4 w-48 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            </div>
+            <div className="h-10 w-40 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+          </div>
+          {/* Search Bar Skeleton */}
+          <div className="h-12 w-full animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+        </div>
+      </div>
+
+      {/* Main Content Skeleton */}
+      <div className="relative flex flex-1 overflow-hidden">
+        {/* Left Sidebar Skeleton */}
+        <div className="w-64 flex-shrink-0 border-r border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <div className="space-y-3">
+            <div className="h-8 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-8 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-8 w-5/6 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-8 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+          </div>
+        </div>
+
+        {/* Main Content Area Skeleton */}
+        <div className="flex-1 overflow-hidden p-6">
+          <div className="space-y-4">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div
+                className="h-32 animate-pulse rounded-lg bg-white shadow-sm dark:bg-slate-800"
+                key={`skeleton-${i}`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  ),
   head: () => ({
     meta: [{ title: 'Enhansome Registry Browser' }],
   }),
