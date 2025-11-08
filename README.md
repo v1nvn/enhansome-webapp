@@ -26,37 +26,6 @@ A searchable and filterable web UI for browsing curated awesome lists from the [
 npm install
 ```
 
-### Database Setup
-
-1. Create a D1 database:
-```bash
-npx wrangler d1 create enhansome-registry
-```
-
-2. Update `wrangler.json` with your database ID:
-```json
-{
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "enhansome-registry",
-      "database_id": "YOUR_DATABASE_ID_HERE"
-    }
-  ]
-}
-```
-
-3. Apply migrations:
-```bash
-npx wrangler d1 migrations apply enhansome-registry
-```
-
-4. Run the initial indexing:
-```bash
-npx wrangler deploy
-npx wrangler triggers cron run
-```
-
 ### Development
 
 Run the development server:
@@ -66,6 +35,13 @@ npm run dev
 ```
 
 The app will be available at [http://localhost:3000](http://localhost:3000)
+
+**That's it!** The Vite plugin automatically:
+- ✅ Applies D1 migrations to your local database
+- ✅ Seeds the database with registry data (if empty)
+- ✅ Sets up everything before the server starts
+
+No manual database setup required for local development!
 
 ### Testing
 
@@ -86,13 +62,38 @@ npm run typecheck     # Type check before building
 
 ### Deployment
 
-Deploy to Cloudflare Pages:
+#### First-time Production Setup
+
+1. Create a production D1 database:
+```bash
+npx wrangler d1 create enhansome-registry
+```
+
+2. Update `wrangler.json` with your database ID (line 18):
+```json
+"database_id": "YOUR_ACTUAL_DATABASE_ID"
+```
+
+3. Apply migrations to production:
+```bash
+npx wrangler d1 migrations apply enhansome-registry --remote
+```
+
+#### Deploy
+
+Deploy to Cloudflare Workers:
 
 ```bash
 npm run deploy
 ```
 
-The scheduled indexer will automatically run daily at 6 AM UTC to sync registry data.
+After first deployment, trigger the initial data seeding:
+
+```bash
+npx wrangler triggers cron run
+```
+
+The scheduled indexer will then automatically run daily at 6 AM UTC to sync registry data.
 
 ## Project Structure
 

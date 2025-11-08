@@ -100,7 +100,7 @@ function Home() {
                 <div className="flex items-center gap-2 text-sm">
                   <Star className="h-4 w-4 text-yellow-400" />
                   <span className="text-gray-300">
-                    {registry.stats.total_stars.toLocaleString()} stars
+                    {registry.stats.total_stars} stars
                   </span>
                 </div>
 
