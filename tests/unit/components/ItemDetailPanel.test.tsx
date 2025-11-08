@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ItemDetailPanel } from '@/components/ItemDetailPanel'
 import { createMockRegistryItem, render, screen } from '../../helpers/test-utils.tsx'

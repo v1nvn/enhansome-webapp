@@ -39,7 +39,6 @@ export const Route = createFileRoute('/registry')({
       context.queryClient.ensureQueryData(languagesQueryOptions()),
     ])
   },
-  pendingComponent: () => <div>OHNO</div>,
   head: () => ({
     meta: [{ title: 'Enhansome Registry Browser' }],
   }),

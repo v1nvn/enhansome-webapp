@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CategorySidebar } from '@/components/CategorySidebar'
 import { createMockRegistryData, render, screen } from '../../helpers/test-utils.tsx'
@@ -145,7 +145,7 @@ describe('CategorySidebar', () => {
     const selectedButton = screen.getByText('Web Frameworks').closest('button')
     expect(selectedButton).toHaveClass('border-cyan-500')
     expect(selectedButton).toHaveClass('bg-cyan-500/20')
-    expect(selectedButton).toHaveClass('text-cyan-300')
+    expect(selectedButton).toHaveClass('dark:text-cyan-300')
   })
 
   it('filters categories based on search query', async () => {

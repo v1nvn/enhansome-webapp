@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ItemsList } from '@/components/ItemsList'
 import { createMockRegistryItem, render, screen } from '../../helpers/test-utils.tsx'
@@ -261,8 +261,9 @@ describe('ItemsList', () => {
       </div>
     )
 
-    const itemButton = screen.getByText('Item A').closest('div[role="button"]')!
-    itemButton.focus()
+    const itemButton = screen.getByText('Item A').closest<HTMLButtonElement>('div[role="button"]')
+    expect(itemButton).not.toBeNull()
+    itemButton!.focus()
 
     await user.keyboard('{Enter}')
 
@@ -278,8 +279,9 @@ describe('ItemsList', () => {
       </div>
     )
 
-    const itemButton = screen.getByText('Item A').closest('div[role="button"]')!
-    itemButton.focus()
+    const itemButton = screen.getByText('Item A').closest<HTMLButtonElement>('div[role="button"]')
+    expect(itemButton).not.toBeNull()
+    itemButton!.focus()
 
     await user.keyboard(' ')
 

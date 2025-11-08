@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SearchBar, SearchTag } from '@/components/SearchBar'
 import { render, screen, waitFor } from '../../helpers/test-utils.tsx'

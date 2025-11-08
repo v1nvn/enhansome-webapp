@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act } from '@testing-library/react'
 
 import { BackToTop } from '@/components/BackToTop'
 import { render, screen, waitFor } from '../../helpers/test-utils.tsx'
@@ -24,7 +25,9 @@ describe('BackToTop', () => {
     render(<BackToTop />)
 
     // Dispatch scroll event to trigger visibility check
-    window.dispatchEvent(new Event('scroll'))
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+    })
 
     await waitFor(() => {
       expect(screen.getByLabelText('Back to top')).toBeInTheDocument()
@@ -39,7 +42,9 @@ describe('BackToTop', () => {
 
     // Simulate scroll
     window.scrollY = 400
-    window.dispatchEvent(new Event('scroll'))
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+    })
 
     // Should be visible now
     await waitFor(() => {
@@ -52,7 +57,9 @@ describe('BackToTop', () => {
     render(<BackToTop />)
 
     // Dispatch initial scroll event
-    window.dispatchEvent(new Event('scroll'))
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+    })
 
     // Wait for button to appear
     await waitFor(() => {
@@ -61,7 +68,9 @@ describe('BackToTop', () => {
 
     // Simulate scroll back up
     window.scrollY = 100
-    window.dispatchEvent(new Event('scroll'))
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+    })
 
     // Should be hidden now
     await waitFor(() => {
@@ -77,7 +86,9 @@ describe('BackToTop', () => {
     const { user } = render(<BackToTop />)
 
     // Dispatch scroll event to make button visible
-    window.dispatchEvent(new Event('scroll'))
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+    })
 
     await waitFor(() => {
       expect(screen.getByLabelText('Back to top')).toBeInTheDocument()
@@ -113,7 +124,9 @@ describe('BackToTop', () => {
     render(<BackToTop />)
 
     // Dispatch scroll event to make button visible
-    window.dispatchEvent(new Event('scroll'))
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+    })
 
     await waitFor(() => {
       expect(screen.getByLabelText('Back to top')).toBeInTheDocument()
@@ -129,7 +142,9 @@ describe('BackToTop', () => {
     const { container } = render(<BackToTop />)
 
     // Dispatch scroll event to make button visible
-    window.dispatchEvent(new Event('scroll'))
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+    })
 
     await waitFor(() => {
       const icon = container.querySelector('.lucide-arrow-up')
