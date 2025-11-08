@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 
 import type { Category } from '@/lib/server-functions'
@@ -8,16 +9,12 @@ import type { Category } from '@/lib/server-functions'
 import { categoriesQueryOptions } from '@/lib/server-functions'
 
 interface RegistrySidebarProps {
-  onCategorySelect: (category: string) => void
-  onRegistrySelect: (registry: null | string) => void
   registryNames: string[]
   selectedCategory: null | string
   selectedRegistry: null | string
 }
 
 export function RegistrySidebar({
-  onCategorySelect,
-  onRegistrySelect,
   registryNames,
   selectedCategory,
   selectedRegistry,
@@ -49,34 +46,38 @@ export function RegistrySidebar({
             Registries
           </h2>
           <div className="space-y-1">
-            <button
-              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+            <Link
+              className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                 !selectedRegistry
                   ? 'bg-cyan-500/20 font-medium text-cyan-600 dark:text-cyan-300'
                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-gray-400 dark:hover:bg-slate-700/50 dark:hover:text-gray-300'
               }`}
-              onClick={() => {
-                onRegistrySelect(null)
-              }}
-              type="button"
+              search={prev => ({
+                ...prev,
+                category: undefined,
+                registry: undefined,
+              })}
+              to="."
             >
               All Registries
-            </button>
+            </Link>
             {registryNames.map(name => (
-              <button
-                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+              <Link
+                className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   selectedRegistry === name
                     ? 'bg-cyan-500/20 font-medium text-cyan-600 dark:text-cyan-300'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-gray-400 dark:hover:bg-slate-700/50 dark:hover:text-gray-300'
                 }`}
                 key={name}
-                onClick={() => {
-                  onRegistrySelect(name)
-                }}
-                type="button"
+                search={prev => ({
+                  ...prev,
+                  category: undefined,
+                  registry: name,
+                })}
+                to="."
               >
                 <span className="truncate">{name}</span>
-              </button>
+              </Link>
             ))}
           </div>
         </div>
@@ -105,34 +106,40 @@ export function RegistrySidebar({
         <div className="flex-1 overflow-y-auto p-2">
           {filteredCategories.length > 0 ? (
             <div className="space-y-0.5">
-              {filteredCategories.map(cat => (
-                <button
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                    selectedCategory === cat.key
-                      ? 'bg-cyan-500/20 font-medium text-cyan-600 dark:text-cyan-300'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-gray-400 dark:hover:bg-slate-700/30 dark:hover:text-gray-300'
-                  }`}
-                  key={cat.key}
-                  onClick={() => {
-                    onCategorySelect(cat.key)
-                  }}
-                  type="button"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate">{cat.category}</div>
-                      {!selectedRegistry && (
-                        <div className="truncate text-xs text-slate-500 dark:text-gray-600">
-                          {cat.registry}
-                        </div>
-                      )}
+              {filteredCategories.map(cat => {
+                // Extract registry name from category key (format: "registry::category")
+                const [registryName] = cat.key.split('::')
+                return (
+                  <Link
+                    className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                      selectedCategory === cat.key
+                        ? 'bg-cyan-500/20 font-medium text-cyan-600 dark:text-cyan-300'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-gray-400 dark:hover:bg-slate-700/30 dark:hover:text-gray-300'
+                    }`}
+                    key={cat.key}
+                    search={prev => ({
+                      ...prev,
+                      category: cat.key,
+                      registry: registryName,
+                    })}
+                    to="."
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate">{cat.category}</div>
+                        {!selectedRegistry && (
+                          <div className="truncate text-xs text-slate-500 dark:text-gray-600">
+                            {cat.registry}
+                          </div>
+                        )}
+                      </div>
+                      <span className="ml-2 text-xs text-slate-500 dark:text-gray-500">
+                        {cat.count}
+                      </span>
                     </div>
-                    <span className="ml-2 text-xs text-slate-500 dark:text-gray-500">
-                      {cat.count}
-                    </span>
-                  </div>
-                </button>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           ) : (
             <div className="py-8 text-center text-sm text-slate-500 dark:text-gray-500">

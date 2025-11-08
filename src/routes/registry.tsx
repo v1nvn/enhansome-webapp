@@ -32,11 +32,14 @@ export const Route = createFileRoute('/registry')({
     sort: (search.sort as 'name' | 'stars' | 'updated' | undefined) || 'stars',
     stars: search.stars as string | undefined,
   }),
-  loader: ({ context }) => {
+  loader: async ({ context }) => {
     // Preload metadata and languages
-    void context.queryClient.ensureQueryData(metadataQueryOptions())
-    void context.queryClient.ensureQueryData(languagesQueryOptions())
+    await Promise.all([
+      context.queryClient.ensureQueryData(metadataQueryOptions()),
+      context.queryClient.ensureQueryData(languagesQueryOptions()),
+    ])
   },
+  pendingComponent: () => <div>OHNO</div>,
   head: () => ({
     meta: [{ title: 'Enhansome Registry Browser' }],
   }),
@@ -50,7 +53,7 @@ function RegistryBrowser() {
   const { data: registryMetadata } = useSuspenseQuery(metadataQueryOptions())
 
   // Fetch languages from API
-  const { data: languages = [] } = useSuspenseQuery(languagesQueryOptions())
+  const { data: languages } = useSuspenseQuery(languagesQueryOptions())
 
   const registryNames = useMemo(() => {
     return registryMetadata.map(r => r.name)
@@ -128,29 +131,6 @@ function RegistryBrowser() {
     void navigate({ search: newSearch })
   }
 
-  const handleRegistrySelect = (registry: null | string) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { category, registry: _, ...restSearch } = search
-    void navigate({
-      search: {
-        ...restSearch,
-        registry: registry || undefined,
-      },
-    })
-  }
-
-  const handleCategorySelect = (category: string) => {
-    // Extract registry name from category (format: "registry::category")
-    const [registryName] = category.split('::')
-    void navigate({
-      search: {
-        ...search,
-        category,
-        registry: registryName,
-      },
-    })
-  }
-
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 via-slate-100 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* Header */}
@@ -198,12 +178,10 @@ function RegistryBrowser() {
       </div>
 
       {/* Main Content - Two Panel Layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
         {/* Left Sidebar */}
         <div className="w-64 flex-shrink-0">
           <RegistrySidebar
-            onCategorySelect={handleCategorySelect}
-            onRegistrySelect={handleRegistrySelect}
             registryNames={registryNames}
             selectedCategory={search.category || null}
             selectedRegistry={search.registry || null}
