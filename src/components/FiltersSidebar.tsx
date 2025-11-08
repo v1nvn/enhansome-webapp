@@ -34,7 +34,7 @@ export function FiltersSidebar({
   const [categorySearch, setCategorySearch] = useState('')
   const [registrySearch, setRegistrySearch] = useState('')
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(),
+    () => new Set(),
   )
 
   // Fetch categories from API
@@ -107,7 +107,7 @@ export function FiltersSidebar({
         }}
         type="button"
       >
-        <X className="h-3 w-3 transition-colors duration-200 ease-in-out group-hover/tag:text-red-600 group-hover/tag:font-bold" />
+        <X className="h-3 w-3 transition-colors duration-200 ease-in-out group-hover/tag:font-bold group-hover/tag:text-red-600" />
       </button>
     </div>
   )
@@ -141,10 +141,9 @@ export function FiltersSidebar({
             {!isExpanded('sort') &&
               selectedFilters.sort &&
               selectedFilters.sort !== 'stars' &&
-              renderFilterTag(
-                sortLabels[selectedFilters.sort],
-                () => handleFilterChange('sort', 'stars'),
-              )}
+              renderFilterTag(sortLabels[selectedFilters.sort], () => {
+                handleFilterChange('sort', 'stars')
+              })}
             {isExpanded('sort') && (
               <div className="mt-3 space-y-2">
                 {[
@@ -189,9 +188,9 @@ export function FiltersSidebar({
             </button>
             {!isExpanded('registry') &&
               selectedFilters.registry &&
-              renderFilterTag(selectedFilters.registry, () =>
-                handleFilterChange('registry', undefined),
-              )}
+              renderFilterTag(selectedFilters.registry, () => {
+                handleFilterChange('registry', undefined)
+              })}
             {isExpanded('registry') && (
               <>
                 <div className="relative mt-3">
@@ -276,9 +275,9 @@ export function FiltersSidebar({
             </button>
             {!isExpanded('categories') &&
               selectedCategoryName &&
-              renderFilterTag(selectedCategoryName, () =>
-                handleFilterChange('category', undefined),
-              )}
+              renderFilterTag(selectedCategoryName, () => {
+                handleFilterChange('category', undefined)
+              })}
             {isExpanded('categories') && (
               <>
                 <div className="relative mt-3">
@@ -470,7 +469,9 @@ export function FiltersSidebar({
                 selectedFilters.archived === 'true'
                   ? 'Archived Only'
                   : 'Active Only',
-                () => handleFilterChange('archived', undefined),
+                () => {
+                  handleFilterChange('archived', undefined)
+                },
               )}
             {isExpanded('status') && (
               <select

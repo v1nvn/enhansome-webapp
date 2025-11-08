@@ -12,13 +12,10 @@ interface RegistryLayoutProps {
   dateFrom?: string
   dateTo?: string
   hideArchived?: boolean
-  languages: string[]
   maxStars?: number
   minStars?: number
   onTagsChange: (tags: SearchTag[]) => void
-  registries: string[]
   searchQuery?: string
-  searchTags: SearchTag[]
   selectedCategory?: string
   selectedLanguage?: string
   selectedRegistry?: string
@@ -31,13 +28,10 @@ export function RegistryLayout({
   dateFrom,
   dateTo,
   hideArchived = false,
-  languages,
   maxStars,
   minStars = 0,
   onTagsChange,
-  registries,
   searchQuery,
-  searchTags,
   selectedCategory,
   selectedLanguage,
   selectedRegistry,
@@ -94,17 +88,6 @@ export function RegistryLayout({
     void fetchNextPage()
   }
 
-  // Get header text
-  const headerText = useMemo(() => {
-    if (categoryName) {
-      return categoryName
-    }
-    if (selectedRegistry) {
-      return selectedRegistry
-    }
-    return 'All Items'
-  }, [categoryName, selectedRegistry])
-
   return (
     <div className="flex h-full flex-col">
       {/* Header with Search Bar in Single Row */}
@@ -114,12 +97,7 @@ export function RegistryLayout({
             {headerText}
           </h2> */}
           <div className="flex-1">
-            <SearchBar
-              languages={languages}
-              onTagsChange={onTagsChange}
-              registries={registries}
-              tags={searchTags}
-            />
+            <SearchBar onTagsChange={onTagsChange} />
           </div>
           <p className="whitespace-nowrap text-sm text-slate-500">
             {total > 0 && <>{total.toLocaleString()} items</>}

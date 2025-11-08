@@ -4,13 +4,12 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
 import type { FilterValues } from '@/components/FiltersSidebar'
+import type { SearchTag } from '@/components/SearchBar'
 
 import { FiltersSidebar } from '@/components/FiltersSidebar'
 import { RegistryLayout } from '@/components/RegistryLayout'
-import type { SearchTag } from '@/components/SearchBar'
 import {
   categoriesQueryOptions,
-  languagesQueryOptions,
   metadataQueryOptions,
 } from '@/lib/server-functions'
 
@@ -45,11 +44,10 @@ export const Route = createFileRoute('/registry')({
     registry: search.registry,
   }),
   loader: async ({ context, deps }) => {
-    // Preload metadata, registry-specific languages, and registry-specific categories
+    // Preload metadata and registry-specific categories
     // This ensures all data is ready before component renders (SWR pattern)
     await Promise.all([
       context.queryClient.ensureQueryData(metadataQueryOptions()),
-      context.queryClient.ensureQueryData(languagesQueryOptions(deps.registry)),
       context.queryClient.ensureQueryData(
         categoriesQueryOptions(deps.registry),
       ),
@@ -107,30 +105,9 @@ function RegistryBrowser() {
   // Fetch registry metadata for registry names
   const { data: registryMetadata } = useSuspenseQuery(metadataQueryOptions())
 
-  // Fetch registry-specific languages from API
-  const { data: languages } = useSuspenseQuery(
-    languagesQueryOptions(search.registry),
-  )
-
   const registryNames = useMemo(() => {
     return registryMetadata.map(r => r.name)
   }, [registryMetadata])
-
-  // Convert URL params to SearchTags for search bar
-  const searchTags = useMemo((): SearchTag[] => {
-    const tags: SearchTag[] = []
-    if (search.q) {
-      tags.push({ label: search.q, type: 'text', value: search.q })
-    }
-    if (search.lang) {
-      tags.push({
-        label: `language:${search.lang}`,
-        type: 'language',
-        value: search.lang,
-      })
-    }
-    return tags
-  }, [search])
 
   // Filters for the sidebar
   const currentFilters = useMemo((): FilterValues => {
@@ -204,13 +181,10 @@ function RegistryBrowser() {
             dateFrom={search.dateFrom}
             dateTo={search.dateTo}
             hideArchived={search.archived === 'false'}
-            languages={languages}
             maxStars={search.starsMax ? parseInt(search.starsMax) : undefined}
             minStars={search.starsMin ? parseInt(search.starsMin) : undefined}
             onTagsChange={handleTagsChange}
-            registries={registryNames}
             searchQuery={search.q}
-            searchTags={searchTags}
             selectedCategory={search.category}
             selectedLanguage={search.lang}
             selectedRegistry={search.registry}
