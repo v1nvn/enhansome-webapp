@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "title": "Awesome Test Registry",
+    "source_repository": "test/awesome-test",
+    "source_repository_description": "A curated list of test resources",
+    "last_updated": "2025-10-12T00:00:00Z"
+  },
+  "items": [
+    {
+      "title": "Testing Tools",
+      "description": "Tools for testing applications",
+      "items": [
+        {
+          "title": "Vitest",
+          "description": "A blazing fast unit test framework",
+          "children": [],
+          "repo_info": {
+            "owner": "vitest-dev",
+            "repo": "vitest",
+            "stars": 15000,
+            "language": "TypeScript",
+            "last_commit": "2025-10-10T12:00:00Z",
+            "archived": false
+          }
+        },
+        {
+          "title": "Playwright",
+          "description": "Fast and reliable end-to-end testing",
+          "children": [],
+          "repo_info": {
+            "owner": "microsoft",
+            "repo": "playwright",
+            "stars": 50000,
+            "language": "TypeScript",
+            "last_commit": "2025-10-11T08:30:00Z",
+            "archived": false
+          }
+        }
+      ]
+    },
+    {
+      "title": "Databases",
+      "description": "Database tools and libraries",
+      "items": [
+        {
+          "title": "Cloudflare D1",
+          "description": null,
+          "children": [],
+          "repo_info": {
+            "owner": "cloudflare",
+            "repo": "d1",
+            "stars": 5000,
+            "language": "Rust",
+            "last_commit": "2025-10-09T15:45:00Z",
+            "archived": false
+          }
+        },
+        {
+          "title": "Archived Project",
+          "description": "This project is no longer maintained",
+          "children": [],
+          "repo_info": {
+            "owner": "old-org",
+            "repo": "abandoned",
+            "stars": 100,
+            "language": null,
+            "last_commit": "2020-01-01T00:00:00Z",
+            "archived": true
+          }
+        }
+      ]
+    }
+  ]
+}

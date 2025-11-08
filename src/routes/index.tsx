@@ -2,59 +2,35 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowRight, Calendar, Database, GitBranch, Star } from 'lucide-react'
 
-import type { RegistryFile } from '@/types/registry'
-
 export const Route = createFileRoute('/')({
   component: Home,
 })
 
+interface RegistryMetadata {
+  description: string
+  name: string
+  source_repository: string
+  stats: {
+    languages: string[]
+    latest_update: null | string
+    total_items: number
+    total_repos: number
+    total_stars: number
+  }
+  title: string
+}
+
 function Home() {
-  const { data: registries } = useSuspenseQuery<RegistryFile[]>({
+  const { data: registries } = useSuspenseQuery<RegistryMetadata[]>({
     queryFn: async () => {
-      const response = await fetch('/api/registry')
+      const response = await fetch('/api/metadata')
       if (!response.ok) {
-        throw new Error('Failed to fetch registry data')
+        throw new Error('Failed to fetch registry metadata')
       }
-      return (await response.json()) as RegistryFile[]
+      return await response.json()
     },
-    queryKey: ['registry'],
+    queryKey: ['registry-metadata'],
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
-  })
-
-  // Calculate stats for each registry
-  const registryStats = registries.map(registry => {
-    let totalRepos = 0
-    let totalStars = 0
-    const languages = new Set<string>()
-    let latestUpdate = ''
-
-    registry.data.items.forEach(section => {
-      section.items.forEach(item => {
-        if (item.repo_info) {
-          totalRepos++
-          totalStars += item.repo_info.stars
-          if (item.repo_info.language) {
-            languages.add(item.repo_info.language)
-          }
-          if (
-            !latestUpdate ||
-            new Date(item.repo_info.last_commit) > new Date(latestUpdate)
-          ) {
-            latestUpdate = item.repo_info.last_commit
-          }
-        }
-      })
-    })
-
-    return {
-      description: registry.data.metadata.source_repository_description,
-      languages: Array.from(languages),
-      latestUpdate,
-      name: registry.name,
-      title: registry.data.metadata.title,
-      totalRepos,
-      totalStars,
-    }
   })
 
   return (
@@ -95,7 +71,7 @@ function Home() {
           Available Registries
         </h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {registryStats.map(registry => (
+          {registries.map(registry => (
             <Link
               className="group rounded-xl border border-slate-700 bg-slate-800/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10"
               key={registry.name}
@@ -117,38 +93,40 @@ function Home() {
                 <div className="flex items-center gap-2 text-sm">
                   <Database className="h-4 w-4 text-cyan-400" />
                   <span className="text-gray-300">
-                    {registry.totalRepos} repositories
+                    {registry.stats.total_repos} repositories
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
                   <Star className="h-4 w-4 text-yellow-400" />
                   <span className="text-gray-300">
-                    {registry.totalStars.toLocaleString()} stars
+                    {registry.stats.total_stars.toLocaleString()} stars
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
                   <GitBranch className="h-4 w-4 text-purple-400" />
                   <span className="text-gray-300">
-                    {registry.languages.length} languages
+                    {registry.stats.languages.length} languages
                   </span>
                 </div>
 
-                {registry.latestUpdate && (
+                {registry.stats.latest_update && (
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-blue-400" />
                     <span className="text-gray-300">
-                      {new Date(registry.latestUpdate).toLocaleDateString()}
+                      {new Date(
+                        registry.stats.latest_update,
+                      ).toLocaleDateString()}
                     </span>
                   </div>
                 )}
               </div>
 
-              {registry.languages.length > 0 && (
+              {registry.stats.languages.length > 0 && (
                 <div className="mt-4 border-t border-slate-700 pt-4">
                   <div className="flex flex-wrap gap-2">
-                    {registry.languages.slice(0, 5).map(lang => (
+                    {registry.stats.languages.slice(0, 5).map(lang => (
                       <span
                         className="rounded bg-slate-700 px-2 py-1 text-xs text-gray-300"
                         key={lang}
@@ -156,9 +134,9 @@ function Home() {
                         {lang}
                       </span>
                     ))}
-                    {registry.languages.length > 5 && (
+                    {registry.stats.languages.length > 5 && (
                       <span className="px-2 py-1 text-xs text-gray-500">
-                        +{registry.languages.length - 5} more
+                        +{registry.stats.languages.length - 5} more
                       </span>
                     )}
                   </div>

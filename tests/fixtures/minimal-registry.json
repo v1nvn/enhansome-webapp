@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "title": "Minimal Registry",
+    "source_repository": "test/minimal",
+    "source_repository_description": "Registry with items without repo info",
+    "last_updated": "2025-10-12T00:00:00Z"
+  },
+  "items": [
+    {
+      "title": "Resources",
+      "description": "External resources",
+      "items": [
+        {
+          "title": "Documentation",
+          "description": "Official documentation",
+          "children": []
+        },
+        {
+          "title": "Tutorial",
+          "description": null,
+          "children": []
+        }
+      ]
+    }
+  ]
+}

@@ -3,11 +3,23 @@ import { useMemo } from 'react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
-import type { RegistryFile } from '@/types/registry'
-
 import { RegistryLayout } from '@/components/RegistryLayout'
 import { RegistrySidebar } from '@/components/RegistrySidebar'
 import { SearchBar, type SearchTag } from '@/components/SearchBar'
+
+interface RegistryMetadata {
+  description: string
+  name: string
+  source_repository: string
+  stats: {
+    languages: string[]
+    latest_update: null | string
+    total_items: number
+    total_repos: number
+    total_stars: number
+  }
+  title: string
+}
 
 interface RegistrySearch {
   archived?: string
@@ -39,36 +51,35 @@ function RegistryBrowser() {
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
 
-  const { data: registries } = useSuspenseQuery<RegistryFile[]>({
+  // Fetch registry metadata for registry names
+  const { data: registryMetadata } = useSuspenseQuery<RegistryMetadata[]>({
     queryFn: async () => {
-      const response = await fetch('/api/registry')
+      const response = await fetch('/api/metadata')
       if (!response.ok) {
-        throw new Error('Failed to fetch registry data')
+        throw new Error('Failed to fetch registry metadata')
       }
-      return (await response.json()) as RegistryFile[]
+      return await response.json()
     },
-    queryKey: ['registry'],
+    queryKey: ['registry-metadata'],
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
   })
 
-  // Get unique languages and registry names
-  const languages = useMemo(() => {
-    const langs = new Set<string>()
-    registries.forEach(registry => {
-      registry.data.items.forEach(section => {
-        section.items.forEach(item => {
-          if (item.repo_info?.language) {
-            langs.add(item.repo_info.language)
-          }
-        })
-      })
-    })
-    return Array.from(langs).sort()
-  }, [registries])
+  // Fetch languages from API
+  const { data: languages = [] } = useSuspenseQuery<string[]>({
+    queryFn: async () => {
+      const response = await fetch('/api/languages')
+      if (!response.ok) {
+        throw new Error('Failed to fetch languages')
+      }
+      return await response.json()
+    },
+    queryKey: ['languages'],
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  })
 
   const registryNames = useMemo(() => {
-    return registries.map(r => r.name)
-  }, [registries])
+    return registryMetadata.map(r => r.name)
+  }, [registryMetadata])
 
   // Convert URL params to SearchTags
   const searchTags = useMemo((): SearchTag[] => {
@@ -209,7 +220,7 @@ function RegistryBrowser() {
           <RegistrySidebar
             onCategorySelect={handleCategorySelect}
             onRegistrySelect={handleRegistrySelect}
-            registries={registries}
+            registryNames={registryNames}
             selectedCategory={search.category || null}
             selectedRegistry={search.registry || null}
           />
@@ -224,7 +235,6 @@ function RegistryBrowser() {
                 ? parseInt(search.stars.slice(1))
                 : undefined
             }
-            registries={registries}
             searchQuery={search.q}
             selectedCategory={search.category}
             selectedLanguage={search.lang}

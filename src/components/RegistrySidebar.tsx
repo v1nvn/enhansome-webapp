@@ -1,13 +1,19 @@
 import { useMemo, useState } from 'react'
 
+import { useSuspenseQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 
-import type { RegistryFile } from '@/types/registry'
+interface Category {
+  category: string
+  count: number
+  key: string
+  registry: string
+}
 
 interface RegistrySidebarProps {
   onCategorySelect: (category: string) => void
   onRegistrySelect: (registry: null | string) => void
-  registries: RegistryFile[]
+  registryNames: string[]
   selectedCategory: null | string
   selectedRegistry: null | string
 }
@@ -15,50 +21,46 @@ interface RegistrySidebarProps {
 export function RegistrySidebar({
   onCategorySelect,
   onRegistrySelect,
-  registries,
+  registryNames,
   selectedCategory,
   selectedRegistry,
 }: RegistrySidebarProps) {
   const [categorySearch, setCategorySearch] = useState('')
 
-  // Get all categories with counts
-  const allCategories = useMemo(() => {
-    const categories = new Map<string, { count: number; registry: string }>()
-    registries.forEach(registry => {
-      registry.data.items.forEach(section => {
-        const key = `${registry.name}::${section.title}`
-        categories.set(key, {
-          count: section.items.length,
-          registry: registry.name,
-        })
-      })
-    })
-    return categories
-  }, [registries])
+  // Fetch categories from API
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams()
+    if (selectedRegistry) {
+      params.append('registry', selectedRegistry)
+    }
+    return params.toString()
+  }, [selectedRegistry])
 
-  // Filter categories by selected registry and search
+  const { data: categories = [] } = useSuspenseQuery<Category[]>({
+    queryFn: async () => {
+      const url = queryParams
+        ? `/api/categories?${queryParams}`
+        : '/api/categories'
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories')
+      }
+      return await response.json()
+    },
+    queryKey: ['categories', queryParams],
+    staleTime: 60 * 60 * 1000, // 1 hour
+  })
+
+  // Filter categories by search
   const filteredCategories = useMemo(() => {
-    return Array.from(allCategories.entries())
-      .filter(([key, meta]) => {
-        // Filter by selected registry
-        if (selectedRegistry && meta.registry !== selectedRegistry) {
-          return false
-        }
-        // Filter by search
-        if (categorySearch.trim()) {
-          const [, categoryName] = key.split('::')
-          return categoryName
-            .toLowerCase()
-            .includes(categorySearch.toLowerCase())
-        }
-        return true
-      })
-      .sort(([keyA], [keyB]) => {
-        const [, nameA] = keyA.split('::')
-        const [, nameB] = keyB.split('::')
-        return nameA.localeCompare(nameB)
-      })
-  }, [allCategories, selectedRegistry, categorySearch])
+    if (!categorySearch.trim()) {
+      return categories
+    }
+
+    return categories.filter(cat =>
+      cat.category.toLowerCase().includes(categorySearch.toLowerCase()),
+    )
+  }, [categories, categorySearch])
 
   return (
     <div className="flex h-full flex-col border-r border-slate-700 bg-slate-800/50">
@@ -82,25 +84,20 @@ export function RegistrySidebar({
             >
               All Registries
             </button>
-            {registries.map(registry => (
+            {registryNames.map(name => (
               <button
                 className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                  selectedRegistry === registry.name
+                  selectedRegistry === name
                     ? 'bg-cyan-500/20 font-medium text-cyan-300'
                     : 'text-gray-400 hover:bg-slate-700/50 hover:text-gray-300'
                 }`}
-                key={registry.name}
+                key={name}
                 onClick={() => {
-                  onRegistrySelect(registry.name)
+                  onRegistrySelect(name)
                 }}
                 type="button"
               >
-                <div className="flex items-center justify-between">
-                  <span className="truncate">{registry.name}</span>
-                  <span className="text-xs text-gray-500">
-                    {registry.data.items.length}
-                  </span>
-                </div>
+                <span className="truncate">{name}</span>
               </button>
             ))}
           </div>
@@ -130,37 +127,34 @@ export function RegistrySidebar({
         <div className="flex-1 overflow-y-auto p-2">
           {filteredCategories.length > 0 ? (
             <div className="space-y-0.5">
-              {filteredCategories.map(([key, meta]) => {
-                const [registry, categoryName] = key.split('::')
-                return (
-                  <button
-                    className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                      selectedCategory === key
-                        ? 'bg-cyan-500/20 font-medium text-cyan-300'
-                        : 'text-gray-400 hover:bg-slate-700/30 hover:text-gray-300'
-                    }`}
-                    key={key}
-                    onClick={() => {
-                      onCategorySelect(key)
-                    }}
-                    type="button"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate">{categoryName}</div>
-                        {!selectedRegistry && (
-                          <div className="truncate text-xs text-gray-600">
-                            {registry}
-                          </div>
-                        )}
-                      </div>
-                      <span className="ml-2 text-xs text-gray-500">
-                        {meta.count}
-                      </span>
+              {filteredCategories.map(cat => (
+                <button
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                    selectedCategory === cat.key
+                      ? 'bg-cyan-500/20 font-medium text-cyan-300'
+                      : 'text-gray-400 hover:bg-slate-700/30 hover:text-gray-300'
+                  }`}
+                  key={cat.key}
+                  onClick={() => {
+                    onCategorySelect(cat.key)
+                  }}
+                  type="button"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">{cat.category}</div>
+                      {!selectedRegistry && (
+                        <div className="truncate text-xs text-gray-600">
+                          {cat.registry}
+                        </div>
+                      )}
                     </div>
-                  </button>
-                )
-              })}
+                    <span className="ml-2 text-xs text-gray-500">
+                      {cat.count}
+                    </span>
+                  </div>
+                </button>
+              ))}
             </div>
           ) : (
             <div className="py-8 text-center text-sm text-gray-500">

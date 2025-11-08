@@ -2,33 +2,33 @@ import { createFileRoute } from '@tanstack/react-router'
 // eslint-disable-next-line import-x/no-unresolved
 import { env } from 'cloudflare:workers'
 
-import type { RegistryFile } from '@/types/registry'
+import { createKysely, getRegistryMetadata, getRegistryStats } from '@/lib/db'
 
-import { createKysely, getRegistryData, getRegistryMetadata } from '@/lib/db'
-
-export const Route = createFileRoute('/api/registry')({
+export const Route = createFileRoute('/api/metadata')({
   server: {
     handlers: {
       GET: async () => {
         try {
-          // Create Kysely instance
           const db = createKysely(env.DB)
 
           // Get all registry metadata
           const metadataList = await getRegistryMetadata(db)
 
-          // Fetch full data for each registry
-          const registries: RegistryFile[] = await Promise.all(
+          // Get stats for each registry
+          const registriesWithStats = await Promise.all(
             metadataList.map(async metadata => {
-              const data = await getRegistryData(db, metadata.registry_name)
+              const stats = await getRegistryStats(db, metadata.registry_name)
               return {
-                data,
+                description: metadata.description,
                 name: metadata.registry_name,
+                source_repository: metadata.source_repository,
+                stats,
+                title: metadata.title,
               }
             }),
           )
 
-          return new Response(JSON.stringify(registries), {
+          return new Response(JSON.stringify(registriesWithStats), {
             headers: {
               'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
               'Content-Type': 'application/json',
@@ -36,16 +36,13 @@ export const Route = createFileRoute('/api/registry')({
             status: 200,
           })
         } catch (error) {
-          console.error('Registry API error:', error)
+          console.error('Metadata API error:', error)
           return new Response(
             JSON.stringify({
               error: error instanceof Error ? error.message : 'Unknown error',
-              stack: error instanceof Error ? error.stack : undefined,
             }),
             {
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              headers: { 'Content-Type': 'application/json' },
               status: 500,
             },
           )
