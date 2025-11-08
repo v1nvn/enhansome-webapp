@@ -121,22 +121,22 @@ export function SearchBar({
   const getTagColor = (type: SearchTag['type']) => {
     switch (type) {
       case 'archived':
-        return 'bg-orange-500/20 text-orange-600 border-orange-500/30 dark:text-orange-300 dark:border-orange-500/30'
+        return 'bg-orange-500/20 text-orange-600 border-orange-500/30'
       case 'language':
-        return 'bg-blue-500/20 text-blue-600 border-blue-500/30 dark:text-blue-300 dark:border-blue-500/30'
+        return 'bg-blue-500/20 text-blue-600 border-blue-500/30'
       case 'registry':
-        return 'bg-purple-500/20 text-purple-600 border-purple-500/30 dark:text-purple-300 dark:border-purple-500/30'
+        return 'bg-purple-500/20 text-purple-600 border-purple-500/30'
       case 'stars':
-        return 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30 dark:text-yellow-300 dark:border-yellow-500/30'
+        return 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30'
       default:
-        return 'bg-cyan-500/20 text-cyan-600 border-cyan-500/30 dark:text-cyan-300 dark:border-cyan-500/30'
+        return 'bg-cyan-500/20 text-cyan-600 border-cyan-500/30'
     }
   }
 
   return (
     <div className="relative">
-      <div className="flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 focus-within:border-cyan-500 dark:border-slate-700 dark:bg-slate-800">
-        <Search className="h-5 w-5 flex-shrink-0 text-slate-400 dark:text-gray-400" />
+      <div className="flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 focus-within:border-cyan-500">
+        <Search className="h-5 w-5 flex-shrink-0 text-slate-400" />
 
         {/* Tags */}
         <div className="flex flex-1 flex-wrap gap-1.5">
@@ -160,7 +160,7 @@ export function SearchBar({
 
           {/* Input */}
           <input
-            className="min-w-[200px] flex-1 bg-transparent text-slate-900 placeholder-slate-400 outline-none dark:text-white dark:placeholder-gray-400"
+            className="min-w-[200px] flex-1 bg-transparent text-slate-900 placeholder-slate-400 outline-none"
             onBlur={() =>
               setTimeout(() => {
                 setShowSuggestions(false)
@@ -188,14 +188,14 @@ export function SearchBar({
 
       {/* Suggestions Dropdown */}
       {showSuggestions && filteredSuggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-64 overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-64 overflow-y-auto rounded-lg border border-slate-300 bg-white shadow-xl">
           <div className="p-2">
-            <div className="mb-1 px-2 py-1 text-xs text-slate-500 dark:text-gray-400">
+            <div className="mb-1 px-2 py-1 text-xs text-slate-500">
               Suggested filters
             </div>
             {filteredSuggestions.map(suggestion => (
               <button
-                className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-100 dark:text-white dark:hover:bg-slate-700"
+                className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-100"
                 key={`${suggestion.type}-${suggestion.value}`}
                 onClick={() => {
                   selectSuggestion(suggestion)
@@ -203,13 +203,13 @@ export function SearchBar({
                 type="button"
               >
                 {suggestion.type === 'stars' && (
-                  <Star className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />
+                  <Star className="h-4 w-4 text-yellow-500" />
                 )}
                 {suggestion.type === 'language' && (
-                  <FilterIcon className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                  <FilterIcon className="h-4 w-4 text-blue-500" />
                 )}
                 {suggestion.type === 'registry' && (
-                  <FilterIcon className="h-4 w-4 text-purple-500 dark:text-purple-400" />
+                  <FilterIcon className="h-4 w-4 text-purple-500" />
                 )}
                 {suggestion.label}
               </button>
@@ -220,15 +220,15 @@ export function SearchBar({
 
       {/* Help text */}
       {tags.length === 0 && (
-        <div className="mt-2 text-xs text-slate-500 dark:text-gray-500">
+        <div className="mt-2 text-xs text-slate-500">
           Try:{' '}
-          <code className="rounded bg-slate-200 px-1 py-0.5 dark:bg-slate-800">
+          <code className="rounded bg-slate-200 px-1 py-0.5">
             language:Go
           </code>{' '}
-          <code className="rounded bg-slate-200 px-1 py-0.5 dark:bg-slate-800">
+          <code className="rounded bg-slate-200 px-1 py-0.5">
             stars:&gt;1000
           </code>{' '}
-          <code className="rounded bg-slate-200 px-1 py-0.5 dark:bg-slate-800">
+          <code className="rounded bg-slate-200 px-1 py-0.5">
             is:archived
           </code>
         </div>

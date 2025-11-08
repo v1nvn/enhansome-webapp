@@ -5,12 +5,20 @@ import { Loader2 } from 'lucide-react'
 
 import { searchInfiniteQueryOptions } from '@/lib/server-functions'
 
-import { ItemsList } from './ItemsList'
+import { ItemsGrid } from './ItemsGrid'
+import { SearchBar, type SearchTag } from './SearchBar'
 
 interface RegistryLayoutProps {
+  dateFrom?: string
+  dateTo?: string
   hideArchived?: boolean
+  languages: string[]
+  maxStars?: number
   minStars?: number
+  onTagsChange: (tags: SearchTag[]) => void
+  registries: string[]
   searchQuery?: string
+  searchTags: SearchTag[]
   selectedCategory?: string
   selectedLanguage?: string
   selectedRegistry?: string
@@ -20,9 +28,16 @@ interface RegistryLayoutProps {
 const PAGE_SIZE = 20
 
 export function RegistryLayout({
+  dateFrom,
+  dateTo,
   hideArchived = false,
+  languages,
+  maxStars,
   minStars = 0,
+  onTagsChange,
+  registries,
   searchQuery,
+  searchTags,
   selectedCategory,
   selectedLanguage,
   selectedRegistry,
@@ -40,8 +55,11 @@ export function RegistryLayout({
     () => ({
       archived: hideArchived ? false : undefined,
       category: categoryName,
+      dateFrom,
+      dateTo,
       language: selectedLanguage,
       limit: PAGE_SIZE,
+      maxStars: maxStars && maxStars > 0 ? maxStars : undefined,
       minStars: minStars > 0 ? minStars : undefined,
       q: searchQuery?.trim(),
       registryName: selectedRegistry,
@@ -54,6 +72,9 @@ export function RegistryLayout({
       selectedLanguage,
       hideArchived,
       minStars,
+      maxStars,
+      dateFrom,
+      dateTo,
       sortBy,
     ],
   )
@@ -68,10 +89,6 @@ export function RegistryLayout({
   }, [data?.pages])
 
   const total = data?.pages[data.pages.length - 1]?.total ?? 0
-
-  // Calculate pagination info
-  const currentPage = data?.pages.length ?? 0
-  const totalPages = Math.ceil(total / PAGE_SIZE)
 
   const handleLoadMore = () => {
     void fetchNextPage()
@@ -90,79 +107,55 @@ export function RegistryLayout({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="border-b border-slate-200 bg-white/50 px-6 py-4 dark:border-slate-700 dark:bg-slate-800/50">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-          {headerText}
-        </h2>
-        <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">
-          Showing {allItems.length} of {total} items
-        </p>
+      {/* Header with Search Bar in Single Row */}
+      <div className="bg-white px-6 py-3 shadow-sm">
+        <div className="flex items-center gap-4">
+          {/* <h2 className="whitespace-nowrap text-lg font-semibold text-slate-900">
+            {headerText}
+          </h2> */}
+          <div className="flex-1">
+            <SearchBar
+              languages={languages}
+              onTagsChange={onTagsChange}
+              registries={registries}
+              tags={searchTags}
+            />
+          </div>
+          <p className="whitespace-nowrap text-sm text-slate-500">
+            {total > 0 && <>{total.toLocaleString()} items</>}
+          </p>
+        </div>
       </div>
 
-      {/* Items List */}
-      <div className="flex-1 overflow-hidden">
-        <ItemsList
-          items={allItems}
-          onItemSelect={() => {
-            // TODO: Open modal or navigate to detail page
-          }}
-          selectedItem={null}
-          sortBy={sortBy}
-        />
+      {/* Items Grid with Scroll */}
+      <div className="flex-1 overflow-y-auto bg-white p-6">
+        <ItemsGrid items={allItems} sortBy={sortBy} />
       </div>
 
       {/* Pagination Controls */}
-      {totalPages > 0 && (
-        <div className="border-t border-slate-200 bg-white/50 px-6 py-4 dark:border-slate-700 dark:bg-slate-800/50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-900 dark:text-white">
-                Page {currentPage} of {totalPages}
-              </span>
-              <span className="text-sm text-slate-500 dark:text-gray-500">
-                • {allItems.length} loaded of {total} total
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {hasNextPage && (
-                <button
-                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-700"
-                  disabled={isFetchingNextPage}
-                  onClick={handleLoadMore}
-                  type="button"
-                >
-                  {isFetchingNextPage ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      Next Page
-                      <svg
-                        className="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          d="M9 5l7 7-7 7"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                        />
-                      </svg>
-                    </>
-                  )}
-                </button>
+      {hasNextPage && (
+        <div className="bg-white px-6 py-4">
+          <div className="flex items-center justify-center">
+            <button
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isFetchingNextPage}
+              onClick={handleLoadMore}
+              type="button"
+            >
+              {isFetchingNextPage ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <>
+                  <span>Load More</span>
+                  <span className="text-indigo-200">
+                    ({allItems.length} / {total})
+                  </span>
+                </>
               )}
-              {!hasNextPage && currentPage > 0 && (
-                <span className="text-sm text-slate-500 dark:text-gray-500">
-                  No more items
-                </span>
-              )}
-            </div>
+            </button>
           </div>
         </div>
       )}

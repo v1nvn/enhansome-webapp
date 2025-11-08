@@ -3,9 +3,11 @@ import { useMemo } from 'react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
+import type { FilterValues } from '@/components/FiltersSidebar'
+
+import { FiltersSidebar } from '@/components/FiltersSidebar'
 import { RegistryLayout } from '@/components/RegistryLayout'
-import { RegistrySidebar } from '@/components/RegistrySidebar'
-import { SearchBar, type SearchTag } from '@/components/SearchBar'
+import type { SearchTag } from '@/components/SearchBar'
 import {
   categoriesQueryOptions,
   languagesQueryOptions,
@@ -15,11 +17,14 @@ import {
 interface RegistrySearch {
   archived?: string
   category?: string
+  dateFrom?: string
+  dateTo?: string
   lang?: string
   q?: string
   registry?: string
   sort?: 'name' | 'stars' | 'updated'
-  stars?: string
+  starsMax?: string
+  starsMin?: string
 }
 
 export const Route = createFileRoute('/registry')({
@@ -27,11 +32,14 @@ export const Route = createFileRoute('/registry')({
   validateSearch: (search: Record<string, unknown>): RegistrySearch => ({
     archived: search.archived as string | undefined,
     category: search.category as string | undefined,
+    dateFrom: search.dateFrom as string | undefined,
+    dateTo: search.dateTo as string | undefined,
     lang: search.lang as string | undefined,
     q: search.q as string | undefined,
     registry: search.registry as string | undefined,
     sort: (search.sort as 'name' | 'stars' | 'updated' | undefined) || 'stars',
-    stars: search.stars as string | undefined,
+    starsMax: search.starsMax as string | undefined,
+    starsMin: search.starsMin as string | undefined,
   }),
   loaderDeps: ({ search }) => ({
     registry: search.registry,
@@ -48,43 +56,40 @@ export const Route = createFileRoute('/registry')({
     ])
   },
   pendingComponent: () => (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 via-slate-100 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      {/* Header Skeleton */}
-      <div className="border-b border-slate-200 bg-white/95 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95">
-        <div className="px-6 py-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="h-9 w-64 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
-              <div className="mt-2 h-4 w-48 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-            </div>
-            <div className="h-10 w-40 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
-          </div>
-          {/* Search Bar Skeleton */}
-          <div className="h-12 w-full animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
-        </div>
-      </div>
-
+    <div className="flex min-h-screen flex-col bg-white">
       {/* Main Content Skeleton */}
-      <div className="relative flex flex-1 overflow-hidden">
-        {/* Left Sidebar Skeleton */}
-        <div className="w-64 flex-shrink-0 border-r border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-          <div className="space-y-3">
-            <div className="h-8 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="h-8 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="h-8 w-5/6 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="h-8 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar Skeleton */}
+        <div className="w-72 bg-white p-6">
+          <div className="space-y-6">
+            <div className="h-6 w-24 animate-pulse rounded bg-slate-200" />
+            <div className="h-10 w-full animate-pulse rounded-lg bg-slate-200" />
+            <div className="h-6 w-24 animate-pulse rounded bg-slate-200" />
+            <div className="h-10 w-full animate-pulse rounded-lg bg-slate-200" />
           </div>
         </div>
 
-        {/* Main Content Area Skeleton */}
-        <div className="flex-1 overflow-hidden p-6">
-          <div className="space-y-4">
-            {Array.from({ length: 5 }, (_, i) => (
-              <div
-                className="h-32 animate-pulse rounded-lg bg-white shadow-sm dark:bg-slate-800"
-                key={`skeleton-${i}`}
-              />
-            ))}
+        {/* Content Skeleton */}
+        <div className="flex flex-1 flex-col overflow-hidden bg-white">
+          {/* Header Skeleton */}
+          <div className="bg-white px-6 py-3 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="h-6 w-24 animate-pulse rounded bg-slate-200" />
+              <div className="h-10 flex-1 animate-pulse rounded-lg bg-slate-200" />
+              <div className="h-5 w-20 animate-pulse rounded bg-slate-200" />
+            </div>
+          </div>
+
+          {/* Grid Skeleton */}
+          <div className="flex-1 overflow-hidden bg-white p-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div
+                  className="h-48 animate-pulse rounded-2xl bg-slate-100 shadow-md"
+                  key={`skeleton-${i}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -111,7 +116,7 @@ function RegistryBrowser() {
     return registryMetadata.map(r => r.name)
   }, [registryMetadata])
 
-  // Convert URL params to SearchTags
+  // Convert URL params to SearchTags for search bar
   const searchTags = useMemo((): SearchTag[] => {
     const tags: SearchTag[] = []
     if (search.q) {
@@ -124,55 +129,36 @@ function RegistryBrowser() {
         value: search.lang,
       })
     }
-    if (search.stars) {
-      tags.push({
-        label: `stars:${search.stars}`,
-        type: 'stars',
-        value: search.stars,
-      })
-    }
-    if (search.archived) {
-      tags.push({
-        label: `is:${search.archived === 'true' ? 'archived' : 'active'}`,
-        type: 'archived',
-        value: search.archived,
-      })
-    }
-    if (search.registry) {
-      tags.push({
-        label: `registry:${search.registry}`,
-        type: 'registry',
-        value: search.registry,
-      })
-    }
     return tags
   }, [search])
 
-  // Update URL when tags change
+  // Filters for the sidebar
+  const currentFilters = useMemo((): FilterValues => {
+    return {
+      archived: search.archived,
+      category: search.category,
+      dateFrom: search.dateFrom,
+      dateTo: search.dateTo,
+      registry: search.registry,
+      sort: search.sort,
+      starsMax: search.starsMax,
+      starsMin: search.starsMin,
+    }
+  }, [search])
+
+  // Update URL when tags change from search bar
   const handleTagsChange = (tags: SearchTag[]) => {
     const newSearch: RegistrySearch = { ...search }
 
-    // Clear existing filters
+    // Clear search-bar-specific filters
     delete newSearch.q
     delete newSearch.lang
-    delete newSearch.stars
-    delete newSearch.archived
-    delete newSearch.registry
 
     // Apply new tags
     tags.forEach(tag => {
       switch (tag.type) {
-        case 'archived':
-          newSearch.archived = tag.value
-          break
         case 'language':
           newSearch.lang = tag.value
-          break
-        case 'registry':
-          newSearch.registry = tag.value
-          break
-        case 'stars':
-          newSearch.stars = tag.value
           break
         case 'text':
           newSearch.q = tag.value
@@ -183,73 +169,48 @@ function RegistryBrowser() {
     void navigate({ search: newSearch })
   }
 
+  // Update URL when filters change from sidebar
+  const handleFiltersChange = (filters: FilterValues) => {
+    const newSearch: RegistrySearch = {
+      ...search,
+      archived: filters.archived,
+      category: filters.category,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      registry: filters.registry,
+      sort: filters.sort || search.sort,
+      starsMax: filters.starsMax,
+      starsMin: filters.starsMin,
+    }
+
+    void navigate({ search: newSearch })
+  }
+
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 via-slate-100 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      {/* Header */}
-      <div className="border-b border-slate-200 bg-white/95 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95">
-        <div className="px-6 py-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                Enhansome Registry
-              </h1>
-              <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">
-                Browse curated awesome lists
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <select
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                onChange={e => {
-                  navigate({
-                    search: {
-                      ...search,
-                      sort: e.target.value as 'name' | 'stars' | 'updated',
-                    },
-                  }).catch((err: unknown) => {
-                    console.log(err)
-                  })
-                }}
-                value={search.sort || 'stars'}
-              >
-                <option value="stars">Most Stars</option>
-                <option value="updated">Recently Updated</option>
-                <option value="name">Alphabetical</option>
-              </select>
-            </div>
-          </div>
+    <div className="flex min-h-screen flex-col bg-white">
+      {/* Main Content - Sidebar + Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Filters Sidebar */}
+        <FiltersSidebar
+          onFiltersChange={handleFiltersChange}
+          registryNames={registryNames}
+          selectedFilters={currentFilters}
+          selectedRegistry={search.registry}
+        />
 
-          {/* Search Bar */}
-          <SearchBar
-            languages={languages}
-            onTagsChange={handleTagsChange}
-            registries={registryNames}
-            tags={searchTags}
-          />
-        </div>
-      </div>
-
-      {/* Main Content - Two Panel Layout */}
-      <div className="relative flex flex-1 overflow-hidden">
-        {/* Left Sidebar */}
-        <div className="w-64 flex-shrink-0">
-          <RegistrySidebar
-            registryNames={registryNames}
-            selectedCategory={search.category || null}
-            selectedRegistry={search.registry || null}
-          />
-        </div>
-
-        {/* Main Content Area */}
+        {/* Content Area */}
         <div className="flex-1 overflow-hidden">
           <RegistryLayout
-            hideArchived={search.archived === 'true'}
-            minStars={
-              search.stars?.startsWith('>')
-                ? parseInt(search.stars.slice(1))
-                : undefined
-            }
+            dateFrom={search.dateFrom}
+            dateTo={search.dateTo}
+            hideArchived={search.archived === 'false'}
+            languages={languages}
+            maxStars={search.starsMax ? parseInt(search.starsMax) : undefined}
+            minStars={search.starsMin ? parseInt(search.starsMin) : undefined}
+            onTagsChange={handleTagsChange}
+            registries={registryNames}
             searchQuery={search.q}
+            searchTags={searchTags}
             selectedCategory={search.category}
             selectedLanguage={search.lang}
             selectedRegistry={search.registry}
