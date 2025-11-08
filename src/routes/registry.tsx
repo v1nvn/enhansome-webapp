@@ -129,17 +129,26 @@ function RegistryBrowser() {
   }
 
   const handleRegistrySelect = (registry: null | string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { category, registry: _, ...restSearch } = search
     void navigate({
       search: {
-        ...search,
-        category: undefined,
+        ...restSearch,
         registry: registry || undefined,
       },
     })
   }
 
   const handleCategorySelect = (category: string) => {
-    void navigate({ search: { ...search, category } })
+    // Extract registry name from category (format: "registry::category")
+    const [registryName] = category.split('::')
+    void navigate({
+      search: {
+        ...search,
+        category,
+        registry: registryName,
+      },
+    })
   }
 
   return (

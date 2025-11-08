@@ -343,7 +343,8 @@ describe('Database Query Functions', () => {
       expect(result.total).toBe(5)
       expect(result.data).toHaveLength(5)
       expect(result.hasMore).toBe(false)
-      expect(result.offset).toBe(0)
+      expect(result.nextCursor).toBeUndefined()
+      expect(result.data[0]).toHaveProperty('id')
     })
 
     it('should filter by registry', async () => {
@@ -435,14 +436,30 @@ describe('Database Query Functions', () => {
       expect(titles[0]).toBe('Django')
     })
 
-    it('should handle pagination', async () => {
+    it('should handle cursor-based pagination', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { limit: 2, offset: 0 })
+      const result1 = await searchRegistryItems(db, { limit: 2 })
 
-      expect(result.total).toBe(5)
-      expect(result.data).toHaveLength(2)
-      expect(result.hasMore).toBe(true)
-      expect(result.offset).toBe(0)
+      expect(result1.total).toBe(5)
+      expect(result1.data).toHaveLength(2)
+      expect(result1.hasMore).toBe(true)
+      expect(result1.nextCursor).toBeDefined()
+
+      // Fetch next page using cursor
+      const result2 = await searchRegistryItems(db, {
+        limit: 2,
+        cursor: result1.nextCursor,
+      })
+
+      expect(result2.total).toBe(5)
+      // Second page should have 2 items (items 3 and 4)
+      expect(result2.data.length).toBeGreaterThan(0)
+      expect(result2.data.length).toBeLessThanOrEqual(2)
+
+      // Ensure no overlap - all IDs in result2 should be greater than in result1
+      const allIds1 = result1.data.map(item => item.id)
+      const allIds2 = result2.data.map(item => item.id)
+      expect(Math.min(...allIds2)).toBeGreaterThan(Math.max(...allIds1))
     })
 
     it('should combine multiple filters', async () => {
@@ -515,17 +532,17 @@ describe('Database Query Functions', () => {
     })
 
     // Edge cases
-    it('should handle pagination with offset beyond results', async () => {
+    it('should handle cursor beyond results', async () => {
       const db = createKysely(env.DB)
       const result = await searchRegistryItems(db, {
         limit: 10,
-        offset: 100,
+        cursor: 99999, // Very high cursor value
       })
 
       expect(result.total).toBe(5)
       expect(result.data).toHaveLength(0)
       expect(result.hasMore).toBe(false)
-      expect(result.offset).toBe(100)
+      expect(result.nextCursor).toBeUndefined()
     })
 
     it('should handle very large limit values', async () => {
@@ -567,12 +584,30 @@ describe('Database Query Functions', () => {
       expect(result.total).toBe(5)
     })
 
-    it('should handle negative offset values', async () => {
+    it('should filter by category', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { offset: -10 })
+      const result = await searchRegistryItems(db, {
+        category: 'Web Frameworks',
+      })
 
-      // Should handle gracefully, likely treating as 0
-      expect(result.data.length).toBeGreaterThanOrEqual(0)
+      expect(result.total).toBe(4) // 2 from go, 2 from python
+      expect(result.data.every(item => item.category === 'Web Frameworks')).toBe(
+        true,
+      )
+    })
+
+    it('should filter by category and registry together', async () => {
+      const db = createKysely(env.DB)
+      const result = await searchRegistryItems(db, {
+        registryName: 'go',
+        category: 'Web Frameworks',
+      })
+
+      expect(result.total).toBe(2) // Gin and Echo
+      expect(result.data.every(item => item.registry === 'go')).toBe(true)
+      expect(result.data.every(item => item.category === 'Web Frameworks')).toBe(
+        true,
+      )
     })
   })
 

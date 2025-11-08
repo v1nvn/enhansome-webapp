@@ -5,8 +5,7 @@ export type Theme = 'dark' | 'light' | 'system'
 const STORAGE_KEY = 'theme-preference'
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    // SSR-safe initialization
+  const [themeState, setThemeState] = useState<Theme>(() => {
     if (typeof window === 'undefined') return 'system'
     return getStoredTheme()
   })
@@ -25,7 +24,7 @@ export function useTheme() {
   }, [])
 
   useEffect(() => {
-    if (theme !== 'system') return
+    if (themeState !== 'system') return
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const handleChange = () => {
@@ -36,11 +35,11 @@ export function useTheme() {
     return () => {
       mediaQuery.removeEventListener('change', handleChange)
     }
-  }, [theme])
+  }, [themeState])
 
   useEffect(() => {
     const root = document.documentElement
-    const newEffective = getEffectiveTheme(theme)
+    const newEffective = getEffectiveTheme(themeState)
 
     if (newEffective === 'dark') {
       root.classList.add('dark')
@@ -50,7 +49,7 @@ export function useTheme() {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
     setEffectiveTheme(newEffective)
-  }, [theme])
+  }, [themeState])
 
   const setTheme = (newTheme: Theme) => {
     // eslint-disable-next-line n/no-unsupported-features/node-builtins
@@ -59,7 +58,7 @@ export function useTheme() {
   }
 
   return {
-    theme,
+    theme: themeState,
     effectiveTheme,
     setTheme,
   }

@@ -209,26 +209,28 @@ export async function searchRegistryItems(
   db: Kysely<Database>,
   params: {
     archived?: boolean
+    category?: string
+    cursor?: number
     language?: string
     limit?: number
     minStars?: number
-    offset?: number
     q?: string
     registryName?: string
     sortBy?: 'name' | 'stars' | 'updated'
   },
 ): Promise<{
-  data: (RegistryItem & { category: string; registry: string })[]
+  data: (RegistryItem & { category: string; id: number; registry: string })[]
   hasMore: boolean
-  offset: number
+  nextCursor?: number
   total: number
 }> {
   const {
     archived,
+    category,
+    cursor,
     language,
-    limit = 100,
+    limit = 20,
     minStars,
-    offset = 0,
     q,
     registryName,
     sortBy = 'stars',
@@ -240,6 +242,10 @@ export async function searchRegistryItems(
   // Apply filters
   if (registryName) {
     query = query.where('registry_name', '=', registryName)
+  }
+
+  if (category) {
+    query = query.where('category', '=', category)
   }
 
   if (language) {
@@ -274,23 +280,29 @@ export async function searchRegistryItems(
     .executeTakeFirst()
   const total = countResult?.total || 0
 
+  // Apply cursor-based pagination
+  if (cursor !== undefined) {
+    query = query.where('id', '>', cursor)
+  }
+
   // Apply sorting
   switch (sortBy) {
     case 'name':
-      query = query.orderBy('title', 'asc')
+      query = query.orderBy('title', 'asc').orderBy('id', 'asc')
       break
     case 'updated':
-      query = query.orderBy('last_commit', 'desc')
+      query = query.orderBy('last_commit', 'desc').orderBy('id', 'asc')
       break
     case 'stars':
     default:
-      query = query.orderBy('stars', 'desc').orderBy('title', 'asc')
+      query = query.orderBy('stars', 'desc').orderBy('id', 'asc')
       break
   }
 
-  // Apply pagination
+  // Fetch limit + 1 to check if there are more results
   const results = await query
     .select([
+      'id',
       'registry_name',
       'category',
       'title',
@@ -302,16 +314,24 @@ export async function searchRegistryItems(
       'last_commit',
       'archived',
     ])
-    .limit(limit)
-    .offset(offset)
+    .limit(limit + 1)
     .execute()
 
+  // Check if there are more results
+  const hasMore = results.length > limit
+  const items = hasMore ? results.slice(0, limit) : results
+
   // Transform to RegistryItem format
-  const items = results.map(row => {
-    const item: RegistryItem & { category: string; registry: string } = {
+  const transformedItems = items.map(row => {
+    const item: RegistryItem & {
+      category: string
+      id: number
+      registry: string
+    } = {
       category: row.category,
       children: [],
       description: row.description,
+      id: row.id,
       registry: row.registry_name,
       title: row.title,
       ...(row.repo_owner && row.repo_name
@@ -330,10 +350,16 @@ export async function searchRegistryItems(
     return item
   })
 
+  // Get the next cursor (last item's id)
+  const nextCursor =
+    hasMore && transformedItems.length > 0
+      ? transformedItems[transformedItems.length - 1]?.id
+      : undefined
+
   return {
-    data: items,
-    hasMore: offset + items.length < total,
-    offset,
+    data: transformedItems,
+    hasMore,
+    nextCursor,
     total,
   }
 }

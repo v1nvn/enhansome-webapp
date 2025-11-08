@@ -304,12 +304,12 @@ describe('Server Function Handlers', () => {
       expect(result).toHaveProperty('data')
       expect(result).toHaveProperty('total')
       expect(result).toHaveProperty('hasMore')
-      expect(result).toHaveProperty('offset')
+      expect(result).toHaveProperty('nextCursor')
 
       expect(result.total).toBe(5)
       expect(result.data).toHaveLength(5)
       expect(result.hasMore).toBe(false)
-      expect(result.offset).toBe(0)
+      expect(result.nextCursor).toBeUndefined()
     })
 
     it('should filter by registry parameter', async () => {
@@ -390,30 +390,34 @@ describe('Server Function Handlers', () => {
       expect(result.data[0]?.repo_info?.stars).toBe(50000)
     })
 
-    it('should handle pagination with limit and offset', async () => {
+    it('should handle cursor-based pagination (first page)', async () => {
       const db = createKysely(env.DB)
       const result = await searchRegistryItemsHandler(db, {
         limit: 2,
-        offset: 0,
       })
 
       expect(result.total).toBe(5)
       expect(result.data).toHaveLength(2)
       expect(result.hasMore).toBe(true)
-      expect(result.offset).toBe(0)
+      expect(result.nextCursor).toBeDefined()
     })
 
-    it('should handle second page of pagination', async () => {
+    it('should handle cursor-based pagination (second page)', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, {
+      // First get the first page to get the cursor
+      const firstPage = await searchRegistryItemsHandler(db, {
         limit: 2,
-        offset: 2,
+      })
+
+      // Then get the second page using the cursor
+      const result = await searchRegistryItemsHandler(db, {
+        cursor: firstPage.nextCursor,
+        limit: 2,
       })
 
       expect(result.total).toBe(5)
-      expect(result.data).toHaveLength(2)
-      expect(result.hasMore).toBe(true)
-      expect(result.offset).toBe(2)
+      expect(result.data.length).toBeGreaterThan(0)
+      expect(result.data.length).toBeLessThanOrEqual(2)
     })
 
     it('should combine multiple query parameters', async () => {

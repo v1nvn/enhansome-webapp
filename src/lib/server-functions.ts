@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
 // eslint-disable-next-line import-x/no-unresolved
 import { env } from 'cloudflare:workers'
@@ -166,19 +166,20 @@ export const metadataQueryOptions = () =>
 
 export interface SearchParams {
   archived?: boolean
+  category?: string
+  cursor?: number
   language?: string
   limit?: number
   minStars?: number
-  offset?: number
   q?: string
   registryName?: string
   sortBy?: 'name' | 'stars' | 'updated'
 }
 
 export interface SearchResult {
-  data: (RegistryItem & { category: string; registry: string })[]
+  data: (RegistryItem & { category: string; id: number; registry: string })[]
   hasMore: boolean
-  offset: number
+  nextCursor?: number
   total: number
 }
 
@@ -190,10 +191,11 @@ export async function searchRegistryItemsHandler(
     // Execute search with defaults
     const results = await searchRegistryItems(db, {
       archived: data.archived,
+      category: data.category,
+      cursor: data.cursor,
       language: data.language,
-      limit: data.limit ?? 100,
+      limit: data.limit ?? 20,
       minStars: data.minStars,
-      offset: data.offset ?? 0,
       q: data.q,
       registryName: data.registryName,
       sortBy: data.sortBy ?? 'stars',
@@ -222,6 +224,19 @@ export const searchQueryOptions = (params: SearchParams) =>
     queryFn: () => searchRegistryItemsFn({ data: params }),
     queryKey: ['search', params],
     staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+
+export const searchInfiniteQueryOptions = (
+  baseParams: Omit<SearchParams, 'cursor'>,
+) =>
+  infiniteQueryOptions({
+    queryKey: ['search', baseParams] as const,
+    queryFn: ({ pageParam }: { pageParam: number | undefined }) =>
+      searchRegistryItemsFn({ data: { ...baseParams, cursor: pageParam } }),
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: lastPage => lastPage.nextCursor,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    placeholderData: previousData => previousData, // Keep previous data while loading
   })
 
 // ============================================================================

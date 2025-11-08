@@ -52,6 +52,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         {}
         <script
+          // eslint-disable-next-line @eslint-react/dom/no-dangerously-set-innerhtml
           dangerouslySetInnerHTML={{
             __html: `
               (function() {

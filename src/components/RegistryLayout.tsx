@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 
-import type { SearchResult } from '@/lib/server-functions'
-
-import { searchQueryOptions } from '@/lib/server-functions'
+import { searchInfiniteQueryOptions } from '@/lib/server-functions'
 
 import { ItemsList } from './ItemsList'
 
@@ -19,7 +17,7 @@ interface RegistryLayoutProps {
   sortBy: 'name' | 'stars' | 'updated'
 }
 
-const PAGE_SIZE = 100
+const PAGE_SIZE = 20
 
 export function RegistryLayout({
   hideArchived = false,
@@ -30,17 +28,21 @@ export function RegistryLayout({
   selectedRegistry,
   sortBy,
 }: RegistryLayoutProps) {
-  const [offset, setOffset] = useState(0)
-  const [pages, setPages] = useState<SearchResult[]>([])
+  // Extract category name from the key (format: "registry::category")
+  const categoryName = useMemo(() => {
+    if (!selectedCategory) return undefined
+    const [, category] = selectedCategory.split('::')
+    return category
+  }, [selectedCategory])
 
-  // Build search params object
+  // Build search params object (without cursor)
   const searchParams = useMemo(
     () => ({
       archived: hideArchived ? false : undefined,
+      category: categoryName,
       language: selectedLanguage,
       limit: PAGE_SIZE,
       minStars: minStars > 0 ? minStars : undefined,
-      offset,
       q: searchQuery?.trim(),
       registryName: selectedRegistry,
       sortBy,
@@ -48,93 +50,60 @@ export function RegistryLayout({
     [
       searchQuery,
       selectedRegistry,
+      categoryName,
       selectedLanguage,
       hideArchived,
       minStars,
       sortBy,
-      offset,
     ],
   )
 
-  // Build base search params (without offset) for reset detection
-  const baseSearchParams = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { offset: _, ...base } = searchParams
-    return JSON.stringify(base)
-  }, [searchParams])
+  // Fetch from search API using infinite query
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery(searchInfiniteQueryOptions(searchParams))
 
-  // Fetch from search API
-  const { data: searchResult, isFetching } = useQuery({
-    ...searchQueryOptions(searchParams),
-    enabled: offset < pages.length * PAGE_SIZE || pages.length === 0,
-  })
-
-  // Reset pages when base params change
-  useEffect(() => {
-    setOffset(0)
-    setPages([])
-  }, [baseSearchParams])
-
-  // Add new page to pages array when data arrives
-  useEffect(() => {
-    if (searchResult && !pages.find(p => p.offset === searchResult.offset)) {
-      setPages(prev => [...prev, searchResult])
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchResult])
-
-  // Combine all pages
+  // Combine all pages - no client-side filtering!
   const allItems = useMemo(() => {
-    return pages.flatMap(page => page.data)
-  }, [pages])
+    return data?.pages.flatMap(page => page.data) ?? []
+  }, [data?.pages])
 
-  const hasMore = pages.length > 0 ? pages[pages.length - 1]?.hasMore : false
-  const total = pages.length > 0 ? pages[pages.length - 1]?.total : 0
+  const total = data?.pages[data.pages.length - 1]?.total ?? 0
 
-  // Apply category filter (client-side only for category)
-  const filteredItems = useMemo(() => {
-    if (!selectedCategory) {
-      return allItems
-    }
-
-    const [registry, categoryName] = selectedCategory.split('::')
-    return allItems.filter(
-      item => item.registry === registry && item.category === categoryName,
-    )
-  }, [allItems, selectedCategory])
+  // Calculate pagination info
+  const currentPage = data?.pages.length ?? 0
+  const totalPages = Math.ceil(total / PAGE_SIZE)
 
   const handleLoadMore = () => {
-    setOffset(prev => prev + PAGE_SIZE)
+    void fetchNextPage()
   }
 
   // Get header text
   const headerText = useMemo(() => {
-    if (selectedCategory) {
-      const [, categoryName] = selectedCategory.split('::')
+    if (categoryName) {
       return categoryName
     }
     if (selectedRegistry) {
       return selectedRegistry
     }
     return 'All Items'
-  }, [selectedCategory, selectedRegistry])
+  }, [categoryName, selectedRegistry])
 
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+      <div className="border-b border-slate-200 bg-white/50 px-6 py-4 dark:border-slate-700 dark:bg-slate-800/50">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
           {headerText}
         </h2>
         <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">
-          {filteredItems.length} of {total} items
+          Showing {allItems.length} of {total} items
         </p>
       </div>
 
       {/* Items List */}
       <div className="flex-1 overflow-hidden">
         <ItemsList
-          items={filteredItems}
+          items={allItems}
           onItemSelect={() => {
             // TODO: Open modal or navigate to detail page
           }}
@@ -143,24 +112,58 @@ export function RegistryLayout({
         />
       </div>
 
-      {/* Load More Button */}
-      {!selectedCategory && hasMore && (
-        <div className="border-t border-slate-200 bg-white/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
-          <button
-            className="w-full rounded-lg bg-cyan-500 px-4 py-3 font-semibold text-white transition-colors hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-700"
-            disabled={isFetching}
-            onClick={handleLoadMore}
-            type="button"
-          >
-            {isFetching ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Loading...
+      {/* Pagination Controls */}
+      {totalPages > 0 && (
+        <div className="border-t border-slate-200 bg-white/50 px-6 py-4 dark:border-slate-700 dark:bg-slate-800/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-900 dark:text-white">
+                Page {currentPage} of {totalPages}
               </span>
-            ) : (
-              `Load More (${allItems.length} of ${total})`
-            )}
-          </button>
+              <span className="text-sm text-slate-500 dark:text-gray-500">
+                • {allItems.length} loaded of {total} total
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {hasNextPage && (
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-700"
+                  disabled={isFetchingNextPage}
+                  onClick={handleLoadMore}
+                  type="button"
+                >
+                  {isFetchingNextPage ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      Next Page
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M9 5l7 7-7 7"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                        />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              )}
+              {!hasNextPage && currentPage > 0 && (
+                <span className="text-sm text-slate-500 dark:text-gray-500">
+                  No more items
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
