@@ -7,6 +7,7 @@ import { RegistryLayout } from '@/components/RegistryLayout'
 import { RegistrySidebar } from '@/components/RegistrySidebar'
 import { SearchBar, type SearchTag } from '@/components/SearchBar'
 import {
+  categoriesQueryOptions,
   languagesQueryOptions,
   metadataQueryOptions,
 } from '@/lib/server-functions'
@@ -32,13 +33,21 @@ export const Route = createFileRoute('/registry')({
     sort: (search.sort as 'name' | 'stars' | 'updated' | undefined) || 'stars',
     stars: search.stars as string | undefined,
   }),
-  loader: async ({ context }) => {
-    // Preload metadata and languages
+  loaderDeps: ({ search }) => ({
+    registry: search.registry,
+  }),
+  loader: async ({ context, deps }) => {
+    // Preload metadata, registry-specific languages, and registry-specific categories
+    // This ensures all data is ready before component renders (SWR pattern)
     await Promise.all([
       context.queryClient.ensureQueryData(metadataQueryOptions()),
-      context.queryClient.ensureQueryData(languagesQueryOptions()),
+      context.queryClient.ensureQueryData(languagesQueryOptions(deps.registry)),
+      context.queryClient.ensureQueryData(
+        categoriesQueryOptions(deps.registry),
+      ),
     ])
   },
+  pendingComponent: () => <div>OHNO</div>,
   head: () => ({
     meta: [{ title: 'Enhansome Registry Browser' }],
   }),
@@ -51,8 +60,10 @@ function RegistryBrowser() {
   // Fetch registry metadata for registry names
   const { data: registryMetadata } = useSuspenseQuery(metadataQueryOptions())
 
-  // Fetch languages from API
-  const { data: languages } = useSuspenseQuery(languagesQueryOptions())
+  // Fetch registry-specific languages from API
+  const { data: languages } = useSuspenseQuery(
+    languagesQueryOptions(search.registry),
+  )
 
   const registryNames = useMemo(() => {
     return registryMetadata.map(r => r.name)
