@@ -60,7 +60,7 @@ export function ItemsList({
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-900/50" ref={parentRef}>
+    <div className="h-full overflow-y-auto bg-slate-100/50 dark:bg-slate-900/50" ref={parentRef}>
       <div
         style={{
           height: `${rowVirtualizer.getTotalSize()}px`,
@@ -88,7 +88,7 @@ export function ItemsList({
                 className={`mx-3 my-2 cursor-pointer rounded-lg border p-4 transition-all ${
                   isSelected
                     ? 'border-cyan-500 bg-cyan-500/10'
-                    : 'border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-700/50'
+                    : 'border-slate-200 bg-white/50 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-slate-600 dark:hover:bg-slate-700/50'
                 }`}
                 onClick={() => {
                   onItemSelect(item)
@@ -103,27 +103,27 @@ export function ItemsList({
                 tabIndex={0}
               >
                 {/* Title */}
-                <h3 className="mb-2 line-clamp-1 font-semibold text-white">
+                <h3 className="mb-2 line-clamp-1 font-semibold text-slate-900 dark:text-white">
                   {item.title}
                 </h3>
 
                 {/* Description */}
                 {item.description && (
-                  <p className="mb-3 line-clamp-2 text-sm text-gray-400">
+                  <p className="mb-3 line-clamp-2 text-sm text-slate-600 dark:text-gray-400">
                     {item.description}
                   </p>
                 )}
 
                 {/* Metadata */}
                 {item.repo_info && (
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-gray-500">
                     <div className="flex items-center gap-1">
                       <Star className="h-3 w-3" />
                       <span>{item.repo_info.stars.toLocaleString()}</span>
                     </div>
 
                     {item.repo_info.language && (
-                      <div className="rounded bg-slate-700 px-2 py-0.5 text-gray-300">
+                      <div className="rounded bg-slate-200 px-2 py-0.5 text-slate-700 dark:bg-slate-700 dark:text-gray-300">
                         {item.repo_info.language}
                       </div>
                     )}
@@ -136,7 +136,7 @@ export function ItemsList({
                     )}
 
                     {item.repo_info.archived && (
-                      <div className="rounded bg-orange-500/20 px-2 py-0.5 text-orange-300">
+                      <div className="rounded bg-orange-500/20 px-2 py-0.5 text-orange-600 dark:text-orange-300">
                         Archived
                       </div>
                     )}
@@ -144,7 +144,7 @@ export function ItemsList({
                 )}
 
                 {item.children.length > 0 && (
-                  <div className="mt-2 text-xs text-cyan-400">
+                  <div className="mt-2 text-xs text-cyan-500 dark:text-cyan-400">
                     +{item.children.length} sub-items
                   </div>
                 )}
@@ -156,7 +156,7 @@ export function ItemsList({
 
       {/* Empty state */}
       {sortedItems.length === 0 && (
-        <div className="flex h-full items-center justify-center text-gray-400">
+        <div className="flex h-full items-center justify-center text-slate-600 dark:text-gray-400">
           <p>No items in this category</p>
         </div>
       )}

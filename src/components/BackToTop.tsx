@@ -35,7 +35,7 @@ export function BackToTop() {
   return (
     <button
       aria-label="Back to top"
-      className="fixed bottom-8 right-8 z-50 rounded-full bg-cyan-500 p-3 text-white shadow-lg transition-all duration-300 hover:scale-110 hover:bg-cyan-600"
+      className="fixed bottom-8 right-8 z-50 rounded-full bg-cyan-500 p-3 text-white shadow-lg transition-all duration-300 hover:scale-110 hover:bg-cyan-600 dark:bg-cyan-600 dark:hover:bg-cyan-700"
       onClick={scrollToTop}
       type="button"
     >

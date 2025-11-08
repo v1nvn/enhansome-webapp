@@ -122,9 +122,9 @@ export function RegistryLayout({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-slate-700 bg-slate-800/50 p-4">
-        <h2 className="text-xl font-bold text-white">{headerText}</h2>
-        <p className="mt-1 text-sm text-gray-400">
+      <div className="border-b border-slate-200 bg-white/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{headerText}</h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">
           {filteredItems.length} of {total} items
         </p>
       </div>
@@ -143,9 +143,9 @@ export function RegistryLayout({
 
       {/* Load More Button */}
       {!selectedCategory && hasMore && (
-        <div className="border-t border-slate-700 bg-slate-800/50 p-4">
+        <div className="border-t border-slate-200 bg-white/50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
           <button
-            className="w-full rounded-lg bg-cyan-500 px-4 py-3 font-semibold text-white transition-colors hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg bg-cyan-500 px-4 py-3 font-semibold text-white transition-colors hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-cyan-600 dark:hover:bg-cyan-700"
             disabled={isFetching}
             onClick={handleLoadMore}
             type="button"

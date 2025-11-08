@@ -31,10 +31,10 @@ export function RegistrySection({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-600 bg-slate-800/40 shadow-lg backdrop-blur-sm">
+    <div className="overflow-hidden rounded-xl border border-slate-300 bg-white/40 shadow-lg backdrop-blur-sm dark:border-slate-600 dark:bg-slate-800/40">
       {/* Section Header */}
       <button
-        className="sticky top-0 z-30 flex w-full items-center justify-between border-b border-slate-700/50 bg-slate-800/95 px-6 py-5 backdrop-blur-md transition-all duration-200 hover:bg-slate-700/40"
+        className="sticky top-0 z-30 flex w-full items-center justify-between border-b border-slate-200/50 bg-white/95 px-6 py-5 backdrop-blur-md transition-all duration-200 hover:bg-slate-100/40 dark:border-slate-700/50 dark:bg-slate-800/95 dark:hover:bg-slate-700/40"
         onClick={() => {
           setLocalExpanded(!isExpanded)
         }}
@@ -42,21 +42,21 @@ export function RegistrySection({
       >
         <div className="flex flex-1 items-center gap-4 text-left">
           {isExpanded ? (
-            <ChevronDown className="h-6 w-6 flex-shrink-0 text-cyan-400" />
+            <ChevronDown className="h-6 w-6 flex-shrink-0 text-cyan-500 dark:text-cyan-400" />
           ) : (
-            <ChevronRight className="h-6 w-6 flex-shrink-0 text-gray-400" />
+            <ChevronRight className="h-6 w-6 flex-shrink-0 text-slate-600 dark:text-gray-400" />
           )}
           <div className="min-w-0 flex-1">
-            <h3 className="mb-1 text-2xl font-bold text-white">{title}</h3>
+            <h3 className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">{title}</h3>
             {description && (
-              <p className="line-clamp-1 text-sm text-gray-300">
+              <p className="line-clamp-1 text-sm text-slate-700 dark:text-gray-300">
                 {description}
               </p>
             )}
           </div>
         </div>
         <div className="ml-4 flex items-center gap-2">
-          <span className="rounded-full bg-cyan-500/20 px-3 py-1 text-sm font-medium text-cyan-300">
+          <span className="rounded-full bg-cyan-500/20 px-3 py-1 text-sm font-medium text-cyan-600 dark:text-cyan-300">
             {items.length}
           </span>
         </div>

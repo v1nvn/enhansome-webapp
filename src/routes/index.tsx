@@ -14,24 +14,24 @@ function Home() {
   const { data: registries } = useSuspenseQuery(metadataQueryOptions())
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* Hero Section */}
       <section className="relative overflow-hidden px-6 py-20 text-center">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10"></div>
         <div className="relative mx-auto max-w-5xl">
           <div className="mb-6 flex items-center justify-center gap-4">
-            <Database className="h-16 w-16 text-cyan-400" />
-            <h1 className="text-5xl font-bold text-white md:text-6xl">
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+            <Database className="h-16 w-16 text-cyan-500 dark:text-cyan-400" />
+            <h1 className="text-5xl font-bold text-slate-900 dark:text-white md:text-6xl">
+              <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent dark:from-cyan-400 dark:to-blue-400">
                 Enhansome
               </span>{' '}
-              <span className="text-gray-300">Registry</span>
+              <span className="text-slate-700 dark:text-gray-300">Registry</span>
             </h1>
           </div>
-          <p className="mb-4 text-xl font-light text-gray-300 md:text-2xl">
+          <p className="mb-4 text-xl font-light text-slate-700 dark:text-gray-300 md:text-2xl">
             Curated awesome lists with enhanced metadata
           </p>
-          <p className="mx-auto mb-8 max-w-3xl text-lg text-gray-400">
+          <p className="mx-auto mb-8 max-w-3xl text-lg text-slate-600 dark:text-gray-400">
             Browse {registries.length} carefully curated collections of the best
             tools, libraries, and resources for developers.
           </p>
@@ -47,54 +47,54 @@ function Home() {
 
       {/* Registries Grid */}
       <section className="mx-auto max-w-7xl px-6 py-16">
-        <h2 className="mb-8 text-3xl font-bold text-white">
+        <h2 className="mb-8 text-3xl font-bold text-slate-900 dark:text-white">
           Available Registries
         </h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {registries.map(registry => (
             <Link
-              className="group rounded-xl border border-slate-700 bg-slate-800/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10"
+              className="group rounded-xl border border-slate-300 bg-white/80 p-6 backdrop-blur-sm transition-all duration-300 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 dark:border-slate-700 dark:bg-slate-800/50"
               key={registry.name}
               search={{ registry: registry.name }}
               to="/registry"
             >
               <div className="mb-4 flex items-start justify-between">
-                <h3 className="text-2xl font-semibold text-white transition-colors group-hover:text-cyan-400">
+                <h3 className="text-2xl font-semibold text-slate-900 transition-colors group-hover:text-cyan-500 dark:text-white dark:group-hover:text-cyan-400">
                   {registry.title}
                 </h3>
-                <ArrowRight className="h-5 w-5 text-gray-400 transition-all group-hover:translate-x-1 group-hover:text-cyan-400" />
+                <ArrowRight className="h-5 w-5 text-slate-400 transition-all group-hover:translate-x-1 group-hover:text-cyan-500 dark:text-gray-400 dark:group-hover:text-cyan-400" />
               </div>
 
               {registry.description && (
-                <p className="mb-6 text-gray-400">{registry.description}</p>
+                <p className="mb-6 text-slate-600 dark:text-gray-400">{registry.description}</p>
               )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2 text-sm">
-                  <Database className="h-4 w-4 text-cyan-400" />
-                  <span className="text-gray-300">
+                  <Database className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
+                  <span className="text-slate-700 dark:text-gray-300">
                     {registry.stats.totalRepos} repositories
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
-                  <Star className="h-4 w-4 text-yellow-400" />
-                  <span className="text-gray-300">
+                  <Star className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />
+                  <span className="text-slate-700 dark:text-gray-300">
                     {registry.stats.totalStars} stars
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
-                  <GitBranch className="h-4 w-4 text-purple-400" />
-                  <span className="text-gray-300">
+                  <GitBranch className="h-4 w-4 text-purple-500 dark:text-purple-400" />
+                  <span className="text-slate-700 dark:text-gray-300">
                     {registry.stats.languages.length} languages
                   </span>
                 </div>
 
                 {registry.stats.latestUpdate && (
                   <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-blue-400" />
-                    <span className="text-gray-300">
+                    <Calendar className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                    <span className="text-slate-700 dark:text-gray-300">
                       {new Date(
                         registry.stats.latestUpdate,
                       ).toLocaleDateString()}
@@ -104,18 +104,18 @@ function Home() {
               </div>
 
               {registry.stats.languages.length > 0 && (
-                <div className="mt-4 border-t border-slate-700 pt-4">
+                <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
                   <div className="flex flex-wrap gap-2">
                     {registry.stats.languages.slice(0, 5).map(lang => (
                       <span
-                        className="rounded bg-slate-700 px-2 py-1 text-xs text-gray-300"
+                        className="rounded bg-slate-200 px-2 py-1 text-xs text-slate-700 dark:bg-slate-700 dark:text-gray-300"
                         key={lang}
                       >
                         {lang}
                       </span>
                     ))}
                     {registry.stats.languages.length > 5 && (
-                      <span className="px-2 py-1 text-xs text-gray-500">
+                      <span className="px-2 py-1 text-xs text-slate-500 dark:text-gray-500">
                         +{registry.stats.languages.length - 5} more
                       </span>
                     )}

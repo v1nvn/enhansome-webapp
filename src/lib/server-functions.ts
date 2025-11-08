@@ -186,7 +186,6 @@ export async function searchRegistryItemsHandler(
   db: ReturnType<typeof createKysely>,
   data: SearchParams,
 ): Promise<SearchResult> {
-  console.info('Searching registry items...', data)
   try {
     // Execute search with defaults
     const results = await searchRegistryItems(db, {
