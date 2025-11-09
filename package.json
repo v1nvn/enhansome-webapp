@@ -18,7 +18,7 @@
     "test:ui:watch": "vitest --config vitest.ui.config.ts",
     "lint": "eslint",
     "format": "eslint --fix",
-    "deploy": "wrangler deploy",
+    "deploy": "npm run build && wrangler deploy --config dist/server/wrangler.json",
     "cf-typegen": "wrangler types",
     "postinstall": "npm run cf-typegen",
     "db:shell": "wrangler d1 execute enhansome-registry --local",
@@ -91,6 +91,6 @@
     "vite": "^7.1.9",
     "vitest": "3.0.9",
     "web-vitals": "^5.1.0",
-    "wrangler": "^4.42.2"
+    "wrangler": "^4.46.0"
   }
 }

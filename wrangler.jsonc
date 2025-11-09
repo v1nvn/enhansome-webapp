@@ -2,20 +2,24 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "enhansome",
   "compatibility_date": "2025-09-02",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "main": "src/server.ts",
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
   },
   "triggers": {
-    "crons": ["0 6 * * *"]
+    "crons": [
+      "0 6 * * *"
+    ]
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "enhansome-registry",
-      "database_id": "REPLACE_WITH_DATABASE_ID",
+      "database_id": "04fe9647-edfe-44f9-9b6e-99e66dba2f26",
       "migrations_dir": "migrations",
       "migrations_table": "d1_migrations"
     }
