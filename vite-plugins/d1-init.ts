@@ -7,6 +7,7 @@ import type { Plugin } from 'vite'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { getPlatformProxy } from 'wrangler'
+import { D1Database } from '@cloudflare/workers-types/experimental'
 
 const execAsync = promisify(exec)
 
@@ -42,11 +43,11 @@ export function d1InitPlugin() {
         // 2. Get platform proxy to access D1 binding
         console.log('  🔌 Connecting to D1...')
         platformProxy = await getPlatformProxy({
-          configPath: './wrangler.json',
+          configPath: './wrangler.jsonc',
         })
 
         // 3. Access the D1 database binding
-        const db = platformProxy.env.DB as D1Database
+        const db = (platformProxy.env as {DB: D1Database}).DB as D1Database
 
         if (!db) {
           throw new Error('DB binding not found in environment')

@@ -21,6 +21,8 @@
     "deploy": "npm run build && wrangler deploy --config dist/server/wrangler.json",
     "cf-typegen": "wrangler types",
     "postinstall": "npm run cf-typegen",
+    "db:migrate": "wrangler d1 migrations apply enhansome-registry --local",
+    "db:migrate:remote": "wrangler d1 migrations apply enhansome-registry --remote",
     "db:shell": "wrangler d1 execute enhansome-registry --local",
     "db:shell:remote": "wrangler d1 execute enhansome-registry --remote"
   },

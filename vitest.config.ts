@@ -39,7 +39,7 @@ export default defineWorkersProject(async () => {
       poolOptions: {
         workers: {
           wrangler: {
-            configPath: './wrangler.json',
+            configPath: './wrangler.jsonc',
           },
           miniflare: {
             d1Databases: ['DB'],
