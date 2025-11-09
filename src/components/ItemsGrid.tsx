@@ -57,7 +57,7 @@ export function ItemsGrid({ items, sortBy }: ItemsGridProps) {
         >
           {/* Title and Archive Badge */}
           <div className="mb-3">
-            <h3 className="mb-2 line-clamp-2 text-base font-semibold text-slate-900 group-hover:text-indigo-600">
+            <h3 className="mb-2 line-clamp-2 text-base font-semibold text-slate-900 group-hover:text-cyan-500">
               {item.title}
             </h3>
             {item.repo_info?.archived && (
@@ -100,14 +100,14 @@ export function ItemsGrid({ items, sortBy }: ItemsGridProps) {
 
               {/* Sub-items Badge */}
               {item.children.length > 0 && (
-                <div className="text-xs font-medium text-indigo-600">
+                <div className="text-xs font-medium text-cyan-600">
                   +{item.children.length} sub-items
                 </div>
               )}
 
               {/* Link Button */}
               <a
-                className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-indigo-700"
+                className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-cyan-600"
                 href={`https://github.com/${item.repo_info.owner}/${item.repo_info.repo}`}
                 rel="noopener noreferrer"
                 target="_blank"

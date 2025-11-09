@@ -97,7 +97,7 @@ export function FiltersSidebar({
 
   // Helper to render filter tags when collapsed
   const renderFilterTag = (label: string, onRemove: () => void) => (
-    <div className="group/tag mt-2 inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 transition-all duration-200 ease-in-out hover:bg-white hover:shadow-sm">
+    <div className="group/tag mt-2 inline-flex items-center gap-1 rounded-md bg-cyan-50 px-2 py-0.5 text-xs font-medium text-cyan-700 transition-all duration-200 ease-in-out hover:bg-white hover:shadow-sm">
       <span className="truncate">{label}</span>
       <button
         className="cursor-pointer rounded p-0.5 transition-all duration-200 ease-in-out hover:bg-red-50 group-hover/tag:scale-110"
@@ -154,7 +154,7 @@ export function FiltersSidebar({
                   <button
                     className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
                       selectedFilters.sort === option.value
-                        ? 'bg-indigo-100 font-medium text-indigo-700 shadow-sm'
+                        ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
                         : 'text-slate-600 hover:bg-white hover:shadow-sm'
                     }`}
                     key={option.value}
@@ -196,7 +196,7 @@ export function FiltersSidebar({
                 <div className="relative mt-3">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-slate-400 transition-colors duration-150" />
                   <input
-                    className="w-full rounded-lg bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full rounded-lg bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     id="registry-search"
                     onChange={e => {
                       setRegistrySearch(e.target.value)
@@ -212,7 +212,7 @@ export function FiltersSidebar({
                       <button
                         className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
                           !selectedFilters.registry
-                            ? 'bg-indigo-100 font-medium text-indigo-700 shadow-sm'
+                            ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
                             : 'text-slate-600 hover:bg-white hover:shadow-sm'
                         }`}
                         onClick={() => {
@@ -230,7 +230,7 @@ export function FiltersSidebar({
                         <button
                           className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
                             selectedFilters.registry === name
-                              ? 'bg-indigo-100 font-medium text-indigo-700 shadow-sm'
+                              ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
                               : 'text-slate-600 hover:bg-white hover:shadow-sm'
                           }`}
                           key={name}
@@ -283,7 +283,7 @@ export function FiltersSidebar({
                 <div className="relative mt-3">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-slate-400 transition-colors duration-150" />
                   <input
-                    className="w-full rounded-lg bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full rounded-lg bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
                     id="category-search"
                     onChange={e => {
                       setCategorySearch(e.target.value)
@@ -299,7 +299,7 @@ export function FiltersSidebar({
                       <button
                         className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
                           !selectedFilters.category
-                            ? 'bg-indigo-100 font-medium text-indigo-700 shadow-sm'
+                            ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
                             : 'text-slate-600 hover:bg-white hover:shadow-sm'
                         }`}
                         onClick={() => {
@@ -313,7 +313,7 @@ export function FiltersSidebar({
                         <button
                           className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
                             selectedFilters.category === cat.key
-                              ? 'bg-indigo-100 font-medium text-indigo-700 shadow-sm'
+                              ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
                               : 'text-slate-600 hover:bg-white hover:shadow-sm'
                           }`}
                           key={cat.key}
@@ -372,7 +372,7 @@ export function FiltersSidebar({
             {isExpanded('stars') && (
               <div className="mt-3 flex items-center gap-2">
                 <input
-                  className="flex-1 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   id="stars-min"
                   min="0"
                   onChange={e => {
@@ -384,7 +384,7 @@ export function FiltersSidebar({
                 />
                 <span className="text-slate-400">—</span>
                 <input
-                  className="flex-1 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="flex-1 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   min="0"
                   onChange={e => {
                     handleFilterChange('starsMax', e.target.value || undefined)
@@ -425,7 +425,7 @@ export function FiltersSidebar({
             {isExpanded('date') && (
               <div className="mt-3 space-y-2">
                 <input
-                  className="w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   id="date-from"
                   onChange={e => {
                     handleFilterChange('dateFrom', e.target.value || undefined)
@@ -435,7 +435,7 @@ export function FiltersSidebar({
                   value={selectedFilters.dateFrom || ''}
                 />
                 <input
-                  className="w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   onChange={e => {
                     handleFilterChange('dateTo', e.target.value || undefined)
                   }}
@@ -475,7 +475,7 @@ export function FiltersSidebar({
               )}
             {isExpanded('status') && (
               <select
-                className="mt-3 w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mt-3 w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 id="status-select"
                 onChange={e => {
                   handleFilterChange('archived', e.target.value || undefined)
@@ -494,7 +494,7 @@ export function FiltersSidebar({
       {/* Reset Button */}
       <div className="p-4">
         <button
-          className="w-full cursor-pointer rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-indigo-700 hover:shadow-md active:scale-95"
+          className="w-full cursor-pointer rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-600 hover:shadow-md active:scale-95"
           onClick={() => {
             onFiltersChange({})
           }}

@@ -115,7 +115,7 @@ export function RegistryLayout({
         <div className="bg-white px-6 py-4">
           <div className="flex items-center justify-center">
             <button
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-cyan-500 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isFetchingNextPage}
               onClick={handleLoadMore}
               type="button"
@@ -128,7 +128,7 @@ export function RegistryLayout({
               ) : (
                 <>
                   <span>Load More</span>
-                  <span className="text-indigo-200">
+                  <span className="text-cyan-200">
                     ({allItems.length} / {total})
                   </span>
                 </>
