@@ -3,10 +3,14 @@
  * Fetches JSON files from enhansome-registry repo and indexes them into D1
  */
 
+import JSZip from 'jszip'
+
 import type { RegistryData, RegistryItem } from '@/types/registry'
 
-const REGISTRY_REPO_URL =
-  'https://raw.githubusercontent.com/v1nvn/enhansome-registry/main/data'
+const REGISTRY_ARCHIVE_URL =
+  'https://github.com/v1nvn/enhansome-registry/archive/refs/heads/main.zip'
+const REGISTRY_RAW_BASE_URL =
+  'https://raw.githubusercontent.com/v1nvn/enhansome-registry/main'
 
 interface FlattenedItem {
   category: string
@@ -14,47 +18,134 @@ interface FlattenedItem {
 }
 
 /**
- * Extract registry name from filename
- * Example: "v1nvn_enhansome-go.json" -> "go"
+ * Discover all available registries by fetching and scanning the repo archive
+ * Returns array of registry paths like ["v1nvn/enhansome-go", "v1nvn/enhansome-mcp-servers"]
+ * @param archiveUrl - Optional override URL for testing (defaults to REGISTRY_ARCHIVE_URL)
  */
-export function extractRegistryName(filename: string): string {
-  return filename.replace('v1nvn_enhansome-', '').replace('.json', '')
+export async function discoverRegistries(
+  archiveUrl?: string,
+): Promise<string[]> {
+  const url = archiveUrl || REGISTRY_ARCHIVE_URL
+  console.log('Discovering registries from GitHub archive...')
+
+  try {
+    // Fetch the repo archive
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch archive: ${response.status}`)
+    }
+
+    // Get zip data as ArrayBuffer
+    const zipData = await response.arrayBuffer()
+    const zip = await JSZip.loadAsync(zipData)
+
+    // Discover all repos/*/*/index.json paths
+    const registries: string[] = []
+
+    // Dynamic prefix detection - find the repos/ directory
+    // Zip could be named "enhansome-registry-main" or "enhansome-registry-<sha>"
+    let repoPrefix = ''
+    for (const path of Object.keys(zip.files)) {
+      if (path.includes('/repos/') && path.endsWith('/index.json')) {
+        const prefixEnd = path.indexOf('/repos/')
+        repoPrefix = path.slice(0, prefixEnd + 1) // Include trailing slash
+        break
+      }
+    }
+
+    if (!repoPrefix) {
+      throw new Error('Could not find repos/ directory in archive')
+    }
+
+    for (const [path, file] of Object.entries(zip.files)) {
+      // Skip files not in repos/ directory
+      if (!path.startsWith(`${repoPrefix}repos/`)) continue
+      // Skip directories
+      if (file.dir) continue
+
+      // Check if it's an index.json file
+      if (path.endsWith('/index.json')) {
+        // Extract owner/repo from path
+        // Path format: enhansome-registry-<sha>/repos/owner/repo/index.json
+        const relativePath = path.slice(`${repoPrefix}repos/`.length)
+        const parts = relativePath.split('/')
+        if (parts.length >= 2) {
+          const owner = parts[0]
+          const repo = parts[1]
+          registries.push(`${owner}/${repo}`)
+        }
+      }
+    }
+
+    console.log(`  ✓ Discovered ${registries.length} registries`)
+    return registries
+  } catch (error) {
+    console.error('Error discovering registries:', error)
+    throw error
+  }
+}
+
+/**
+ * Normalize registry name from owner/repo or identifier
+ * Examples:
+ *   "v1nvn/enhansome-go" -> "go"
+ *   "enhansome-mcp-servers" -> "mcp-servers"
+ */
+export function extractRegistryName(identifier: string): string {
+  // Handle "owner/repo" format
+  const parts = identifier.split('/')
+  const repo = parts.length > 1 ? parts[1] : identifier
+  // Remove 'enhansome-' prefix
+  return repo.replace(/^enhansome-/, '')
 }
 
 /**
  * Fetch all registry JSON files from enhansome-registry repo
- * Known registries from allowlist
+ * Uses dynamic discovery to find all available registries
  */
 export async function fetchRegistryFiles(): Promise<Map<string, RegistryData>> {
-  // Registry files to fetch
-  const registries = [
-    'v1nvn_enhansome-selfhosted.json',
-    'v1nvn_enhansome-go.json',
-    'v1nvn_enhansome-mcp-servers.json',
-    'v1nvn_enhansome-ffmpeg.json',
-  ]
-
   const files = new Map<string, RegistryData>()
 
+  // Step 1: Discover all available registries
+  const registries = await discoverRegistries()
+
+  // Step 2: Fetch data.json for each discovered registry
   await Promise.all(
-    registries.map(async filename => {
+    registries.map(async ownerRepo => {
       try {
-        const url = `${REGISTRY_REPO_URL}/${filename}`
+        const url = constructRegistryDataUrl(ownerRepo)
         const response = await fetch(url)
 
         if (!response.ok) {
-          console.error(
-            `Failed to fetch ${filename}: ${response.status} ${response.statusText}`,
+          console.warn(
+            `  ✗ Skipped ${ownerRepo}: ${response.status} (data.json not found)`,
           )
           return
         }
 
-        const data = await response.json()
-        const registryName = extractRegistryName(filename)
+        const jsonData: unknown = await response.json()
+
+        // Validate JSON structure
+        if (
+          !jsonData ||
+          typeof jsonData !== 'object' ||
+          !('items' in jsonData) ||
+          !('metadata' in jsonData)
+        ) {
+          console.warn(`  ✗ Skipped ${ownerRepo}: Invalid data structure`)
+          return
+        }
+
+        const data = jsonData as RegistryData
+
+        // Extract registry name: "v1nvn/enhansome-go" -> "go"
+        const registryName = extractRegistryName(ownerRepo)
+
         files.set(registryName, data)
         console.log(`  ✓ Fetched ${registryName}`)
       } catch (error) {
-        console.error(`Error fetching ${filename}:`, error)
+        console.error(`  ✗ Error fetching ${ownerRepo}:`, error)
+        // Continue with other registries
       }
     }),
   )
@@ -226,4 +317,11 @@ export async function indexRegistry(
     .run()
 
   console.log(`  ✓ Successfully indexed ${registryName}`)
+}
+
+/**
+ * Construct the data.json URL for a registry
+ */
+function constructRegistryDataUrl(ownerRepo: string): string {
+  return `${REGISTRY_RAW_BASE_URL}/repos/${ownerRepo}/data.json`
 }

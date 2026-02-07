@@ -1,8 +1,18 @@
-import { render as rtlRender, RenderOptions, screen, waitFor, within } from '@testing-library/react'
+import {
+  render as rtlRender,
+  RenderOptions,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { ReactElement, ReactNode } from 'react'
-import { ThemeProvider } from '@/contexts/ThemeContext'
 
 // Wrapper component for tests that need router
 function RouterWrapper({ children }: { children: ReactNode }) {
@@ -22,22 +32,20 @@ function RouterWrapper({ children }: { children: ReactNode }) {
 
 // Combined wrapper for tests that need both router and theme
 function AllProvidersWrapper({ children }: { children: ReactNode }) {
-  return (
-    <ThemeProvider>
-      <RouterWrapper>{children}</RouterWrapper>
-    </ThemeProvider>
-  )
+  return <RouterWrapper>{children}</RouterWrapper>
 }
 
 // Custom render function that wraps components with any providers needed
-function render(ui: ReactElement, options?: RenderOptions & { withRouter?: boolean }) {
-  const { withRouter, ...renderOptions} = options || {}
+function render(
+  ui: ReactElement,
+  options?: RenderOptions & { withRouter?: boolean },
+) {
+  const { withRouter, ...renderOptions } = options || {}
 
-  const Wrapper = withRouter ? AllProvidersWrapper : ThemeProvider
 
   return {
     user: userEvent.setup(),
-    ...rtlRender(ui, { wrapper: Wrapper, ...renderOptions }),
+    ...rtlRender(ui, { wrapper: AllProvidersWrapper, ...renderOptions }),
   }
 }
 

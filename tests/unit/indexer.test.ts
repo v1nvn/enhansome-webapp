@@ -3,22 +3,20 @@ import { extractRegistryName, flattenItems } from '@/lib/indexer'
 import type { RegistryData } from '@/types/registry'
 
 describe('extractRegistryName', () => {
-  it('should extract registry name from standard filename', () => {
-    const filename = 'v1nvn_enhansome-go.json'
-    const result = extractRegistryName(filename)
-    expect(result).toBe('go')
+  it('should extract from owner/repo format', () => {
+    expect(extractRegistryName('v1nvn/enhansome-go')).toBe('go')
   })
 
-  it('should handle filenames with multiple hyphens', () => {
-    const filename = 'v1nvn_enhansome-mcp-servers.json'
-    const result = extractRegistryName(filename)
-    expect(result).toBe('mcp-servers')
+  it('should extract from repo name with prefix', () => {
+    expect(extractRegistryName('enhansome-mcp-servers')).toBe('mcp-servers')
   })
 
-  it('should handle simple filenames', () => {
-    const filename = 'v1nvn_enhansome-selfhosted.json'
-    const result = extractRegistryName(filename)
-    expect(result).toBe('selfhosted')
+  it('should handle multiple hyphens', () => {
+    expect(extractRegistryName('enhansome-free-for-dev')).toBe('free-for-dev')
+  })
+
+  it('should return name as-is if no prefix', () => {
+    expect(extractRegistryName('selfhosted')).toBe('selfhosted')
   })
 })
 
