@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ItemsList } from '@/components/ItemsList'
-import { createMockRegistryItem, render, screen } from '../../helpers/test-utils.tsx'
+import { createMockRegistryItem, render, screen, waitFor } from '../../helpers/test-utils.tsx'
 import type { RegistryItem } from '@/types/registry'
 
 describe('ItemsList', () => {
@@ -44,53 +44,61 @@ describe('ItemsList', () => {
     mockOnItemSelect.mockClear()
   })
 
-  it('renders all items', () => {
+  it('renders all items', async () => {
     render(
       <div style={{ height: '600px' }}>
         <ItemsList {...defaultProps} />
       </div>
     )
 
-    expect(screen.getByText('Item A')).toBeInTheDocument()
-    expect(screen.getByText('Item B')).toBeInTheDocument()
-    expect(screen.getByText('Item C')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Item A')).toBeInTheDocument()
+      expect(screen.getByText('Item B')).toBeInTheDocument()
+      expect(screen.getByText('Item C')).toBeInTheDocument()
+    })
   })
 
-  it('sorts items by name', () => {
+  it('sorts items by name', async () => {
     render(
       <div style={{ height: '600px' }}>
         <ItemsList {...defaultProps} sortBy="name" />
       </div>
     )
 
-    const items = screen.getAllByRole('button')
-    expect(items[0]).toHaveTextContent('Item A')
-    expect(items[1]).toHaveTextContent('Item B')
-    expect(items[2]).toHaveTextContent('Item C')
+    await waitFor(() => {
+      const items = screen.getAllByRole('button')
+      expect(items[0]).toHaveTextContent('Item A')
+      expect(items[1]).toHaveTextContent('Item B')
+      expect(items[2]).toHaveTextContent('Item C')
+    })
   })
 
-  it('sorts items by stars', () => {
+  it('sorts items by stars', async () => {
     render(
       <div style={{ height: '600px' }}>
         <ItemsList {...defaultProps} sortBy="stars" />
       </div>
     )
 
-    const items = screen.getAllByRole('button')
-    // Item B has 5000 stars, should be first
-    expect(items[0]).toHaveTextContent('Item B')
+    await waitFor(() => {
+      const items = screen.getAllByRole('button')
+      // Item B has 5000 stars, should be first
+      expect(items[0]).toHaveTextContent('Item B')
+    })
   })
 
-  it('sorts items by updated date', () => {
+  it('sorts items by updated date', async () => {
     render(
       <div style={{ height: '600px' }}>
         <ItemsList {...defaultProps} sortBy="updated" />
       </div>
     )
 
-    const items = screen.getAllByRole('button')
-    // Item C has the most recent commit
-    expect(items[0]).toHaveTextContent('Item C')
+    await waitFor(() => {
+      const items = screen.getAllByRole('button')
+      // Item C has the most recent commit
+      expect(items[0]).toHaveTextContent('Item C')
+    })
   })
 
   it('calls onItemSelect when item is clicked', async () => {
@@ -100,15 +108,17 @@ describe('ItemsList', () => {
       </div>
     )
 
-    const item = screen.getByText('Item A')
+    const item = await waitFor(() => screen.getByText('Item A'))
     await user.click(item)
 
-    expect(mockOnItemSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Item A' }),
-    )
+    await waitFor(() => {
+      expect(mockOnItemSelect).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Item A' }),
+      )
+    })
   })
 
-  it('highlights selected item', () => {
+  it('highlights selected item', async () => {
     const selectedItem = defaultItems[0]
     render(
       <div style={{ height: '600px' }}>
@@ -116,42 +126,50 @@ describe('ItemsList', () => {
       </div>
     )
 
-    const itemButton = screen.getByText('Item A').closest('div[role="button"]')
-    expect(itemButton).toHaveClass('border-cyan-500')
-    expect(itemButton).toHaveClass('bg-cyan-500/10')
+    await waitFor(() => {
+      const itemButton = screen.getByText('Item A').closest('div[role="button"]')
+      expect(itemButton).toHaveClass('border-cyan-500')
+      expect(itemButton).toHaveClass('bg-cyan-500/10')
+    })
   })
 
-  it('renders item description', () => {
+  it('renders item description', async () => {
     render(
       <div style={{ height: '600px' }}>
         <ItemsList {...defaultProps} />
       </div>
     )
-    expect(screen.getAllByText('Test description')).toHaveLength(3)
+    await waitFor(() => {
+      expect(screen.getAllByText('Test description')).toHaveLength(3)
+    })
   })
 
-  it('renders item stars', () => {
+  it('renders item stars', async () => {
     render(
       <div style={{ height: '600px' }}>
         <ItemsList {...defaultProps} />
       </div>
     )
-    expect(screen.getByText('1,234')).toBeInTheDocument()
-    expect(screen.getByText('5,000')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('1,234')).toBeInTheDocument()
+      expect(screen.getByText('5,000')).toBeInTheDocument()
+    })
   })
 
-  it('renders item language', () => {
+  it('renders item language', async () => {
     render(
       <div style={{ height: '600px' }}>
         <ItemsList {...defaultProps} />
       </div>
     )
-    expect(screen.getByText('TypeScript')).toBeInTheDocument()
-    expect(screen.getByText('Go')).toBeInTheDocument()
-    expect(screen.getByText('Python')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('TypeScript')).toBeInTheDocument()
+      expect(screen.getByText('Go')).toBeInTheDocument()
+      expect(screen.getByText('Python')).toBeInTheDocument()
+    })
   })
 
-  it('formats dates correctly', () => {
+  it('formats dates correctly', async () => {
     const today = new Date().toISOString()
     const yesterday = new Date(Date.now() - 86400000).toISOString()
     const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString()
@@ -198,12 +216,14 @@ describe('ItemsList', () => {
       </div>
     )
 
-    expect(screen.getByText('Today')).toBeInTheDocument()
-    expect(screen.getByText('Yesterday')).toBeInTheDocument()
-    expect(screen.getByText('7d ago')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Today')).toBeInTheDocument()
+      expect(screen.getByText('Yesterday')).toBeInTheDocument()
+      expect(screen.getByText('7d ago')).toBeInTheDocument()
+    })
   })
 
-  it('shows archived badge for archived items', () => {
+  it('shows archived badge for archived items', async () => {
     const archivedItem = createMockRegistryItem({
       repo_info: {
         archived: true,
@@ -222,10 +242,12 @@ describe('ItemsList', () => {
       </div>
     )
 
-    expect(screen.getByText('Archived')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Archived')).toBeInTheDocument()
+    })
   })
 
-  it('shows sub-items count when item has children', () => {
+  it('shows sub-items count when item has children', async () => {
     const itemWithChildren = createMockRegistryItem({
       children: [
         createMockRegistryItem({ title: 'Child 1' }),
@@ -241,17 +263,21 @@ describe('ItemsList', () => {
       </div>
     )
 
-    expect(screen.getByText('+3 sub-items')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('+3 sub-items')).toBeInTheDocument()
+    })
   })
 
-  it('shows empty state when no items', () => {
+  it('shows empty state when no items', async () => {
     render(
       <div style={{ height: '600px' }}>
         <ItemsList {...defaultProps} items={[]} />
       </div>
     )
 
-    expect(screen.getByText('No items in this category')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('No items found')).toBeInTheDocument()
+    })
   })
 
   it('handles keyboard navigation', async () => {
@@ -261,15 +287,17 @@ describe('ItemsList', () => {
       </div>
     )
 
-    const itemButton = screen.getByText('Item A').closest<HTMLButtonElement>('div[role="button"]')
-    expect(itemButton).not.toBeNull()
-    itemButton!.focus()
+    await waitFor(async () => {
+      const itemButton = screen.getByText('Item A').closest<HTMLButtonElement>('div[role="button"]')
+      expect(itemButton).not.toBeNull()
+      itemButton!.focus()
 
-    await user.keyboard('{Enter}')
+      await user.keyboard('{Enter}')
 
-    expect(mockOnItemSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Item A' }),
-    )
+      expect(mockOnItemSelect).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Item A' }),
+      )
+    })
   })
 
   it('handles space key for selection', async () => {
@@ -279,18 +307,20 @@ describe('ItemsList', () => {
       </div>
     )
 
-    const itemButton = screen.getByText('Item A').closest<HTMLButtonElement>('div[role="button"]')
-    expect(itemButton).not.toBeNull()
-    itemButton!.focus()
+    await waitFor(async () => {
+      const itemButton = screen.getByText('Item A').closest<HTMLButtonElement>('div[role="button"]')
+      expect(itemButton).not.toBeNull()
+      itemButton!.focus()
 
-    await user.keyboard(' ')
+      await user.keyboard(' ')
 
-    expect(mockOnItemSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Item A' }),
-    )
+      expect(mockOnItemSelect).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Item A' }),
+      )
+    })
   })
 
-  it('renders without repo_info', () => {
+  it('renders without repo_info', async () => {
     const itemNoRepo = createMockRegistryItem({
       repo_info: undefined,
       title: 'No Repo Item',
@@ -302,6 +332,8 @@ describe('ItemsList', () => {
       </div>
     )
 
-    expect(screen.getByText('No Repo Item')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('No Repo Item')).toBeInTheDocument()
+    })
   })
 })

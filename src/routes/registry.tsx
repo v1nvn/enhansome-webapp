@@ -54,36 +54,37 @@ export const Route = createFileRoute('/registry')({
     ])
   },
   pendingComponent: () => (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="bg-background flex min-h-screen flex-col">
       {/* Main Content Skeleton */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar Skeleton */}
-        <div className="w-72 bg-white p-6">
-          <div className="space-y-6">
-            <div className="h-6 w-24 animate-pulse rounded bg-slate-200" />
-            <div className="h-10 w-full animate-pulse rounded-lg bg-slate-200" />
-            <div className="h-6 w-24 animate-pulse rounded bg-slate-200" />
-            <div className="h-10 w-full animate-pulse rounded-lg bg-slate-200" />
+        <div className="border-border bg-card w-80 border-r p-6">
+          <div className="space-y-4">
+            <div className="bg-muted h-6 w-24 animate-pulse rounded" />
+            <div className="space-y-2">
+              <div className="bg-muted h-10 w-full animate-pulse rounded-lg" />
+              <div className="bg-muted h-10 w-full animate-pulse rounded-lg" />
+              <div className="bg-muted h-10 w-full animate-pulse rounded-lg" />
+            </div>
           </div>
         </div>
 
         {/* Content Skeleton */}
-        <div className="flex flex-1 flex-col overflow-hidden bg-white">
+        <div className="bg-muted/30 flex flex-1 flex-col overflow-hidden">
           {/* Header Skeleton */}
-          <div className="bg-white px-6 py-3 shadow-sm">
+          <div className="border-border bg-card/80 border-b px-6 py-4 backdrop-blur-md">
             <div className="flex items-center gap-4">
-              <div className="h-6 w-24 animate-pulse rounded bg-slate-200" />
-              <div className="h-10 flex-1 animate-pulse rounded-lg bg-slate-200" />
-              <div className="h-5 w-20 animate-pulse rounded bg-slate-200" />
+              <div className="bg-muted h-10 flex-1 animate-pulse rounded-lg" />
+              <div className="bg-muted h-8 w-20 animate-pulse rounded-lg" />
             </div>
           </div>
 
           {/* Grid Skeleton */}
-          <div className="flex-1 overflow-hidden bg-white p-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }, (_, i) => (
+          <div className="flex-1 overflow-hidden p-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }, (_, i) => (
                 <div
-                  className="h-48 animate-pulse rounded-2xl bg-slate-100 shadow-md"
+                  className="bg-card h-56 animate-pulse rounded-2xl"
                   key={`skeleton-${i}`}
                 />
               ))}
@@ -164,7 +165,7 @@ function RegistryBrowser() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="bg-background flex min-h-screen flex-col">
       {/* Main Content - Sidebar + Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Filters Sidebar */}

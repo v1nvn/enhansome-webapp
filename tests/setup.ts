@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom/vitest'
 import { vi } from 'vitest'
 
+// Mock CSS imports
+vi.mock('*.css', () => ({}))
+vi.mock('*.scss', () => ({}))
+
 // Mock localStorage
 const localStorageMock = (() => {
   let store: Record<string, string> = {}

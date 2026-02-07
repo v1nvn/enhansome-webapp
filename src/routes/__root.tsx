@@ -33,11 +33,16 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         name: 'viewport',
       },
       {
-        content: 'light',
+        content: 'light dark',
         name: 'color-scheme',
       },
       {
-        title: 'TanStack Start Starter',
+        title: 'Enhansome - Curated Developer Resources',
+      },
+      {
+        content:
+          'Discover exceptional developer tools, libraries, and frameworks from curated awesome lists with enhanced metadata.',
+        name: 'description',
       },
     ],
   }),
@@ -51,7 +56,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="antialiased">
         <Header />
         {children}
         <TanStackDevtools

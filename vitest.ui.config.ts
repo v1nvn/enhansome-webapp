@@ -13,5 +13,10 @@ export default defineConfig({
     globals: true,
     include: ['tests/unit/components/**/*.test.{ts,tsx}'],
     setupFiles: ['./tests/setup.ts'],
+    css: {
+      modules: {
+        classNameStrategy: 'non-scoped',
+      },
+    },
   },
 })

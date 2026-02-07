@@ -97,17 +97,17 @@ export function FiltersSidebar({
 
   // Helper to render filter tags when collapsed
   const renderFilterTag = (label: string, onRemove: () => void) => (
-    <div className="group/tag mt-2 inline-flex items-center gap-1 rounded-md bg-cyan-50 px-2 py-0.5 text-xs font-medium text-cyan-700 transition-all duration-200 ease-in-out hover:bg-white hover:shadow-sm">
+    <div className="group/tag bg-accent/30 text-foreground hover:bg-accent/50 mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-all">
       <span className="truncate">{label}</span>
       <button
-        className="cursor-pointer rounded p-0.5 transition-all duration-200 ease-in-out hover:bg-red-50 group-hover/tag:scale-110"
+        className="hover:bg-primary/20 hover:text-primary rounded-md p-0.5 transition-all group-hover/tag:scale-110"
         onClick={e => {
           e.stopPropagation()
           onRemove()
         }}
         type="button"
       >
-        <X className="h-3 w-3 transition-colors duration-200 ease-in-out group-hover/tag:font-bold group-hover/tag:text-red-600" />
+        <X className="h-3 w-3" />
       </button>
     </div>
   )
@@ -119,13 +119,23 @@ export function FiltersSidebar({
   }
 
   return (
-    <div className="flex h-full w-72 flex-col bg-white">
+    <div className="bg-card flex h-full w-80 flex-col">
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="space-y-4">
+        <div className="space-y-3">
+          {/* Section Header */}
+          <div className="mb-4">
+            <h2 className="font-display text-foreground text-xl font-bold">
+              Filters
+            </h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Refine your search
+            </p>
+          </div>
+
           {/* Sort */}
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="bg-muted/30 rounded-xl p-4">
             <button
-              className="flex w-full cursor-pointer items-center justify-between text-sm font-semibold text-slate-900"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
               onClick={() => {
                 toggleSection('sort')
               }}
@@ -133,9 +143,9 @@ export function FiltersSidebar({
             >
               <span>Sort By</span>
               {isExpanded('sort') ? (
-                <ChevronDown className="h-4 w-4 text-slate-600" />
+                <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-slate-600" />
+                <ChevronRight className="text-muted-foreground h-4 w-4" />
               )}
             </button>
             {!isExpanded('sort') &&
@@ -145,17 +155,17 @@ export function FiltersSidebar({
                 handleFilterChange('sort', 'stars')
               })}
             {isExpanded('sort') && (
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 space-y-1.5">
                 {[
                   { label: 'Most Stars', value: 'stars' },
                   { label: 'Recently Updated', value: 'updated' },
                   { label: 'Alphabetical', value: 'name' },
                 ].map(option => (
                   <button
-                    className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
+                    className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
                       selectedFilters.sort === option.value
-                        ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
-                        : 'text-slate-600 hover:bg-white hover:shadow-sm'
+                        ? 'bg-primary text-primary-foreground font-medium shadow-sm'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                     key={option.value}
                     onClick={() => {
@@ -171,9 +181,9 @@ export function FiltersSidebar({
           </div>
 
           {/* Registry */}
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="bg-muted/30 rounded-xl p-4">
             <button
-              className="flex w-full cursor-pointer items-center justify-between text-sm font-semibold text-slate-900"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
               onClick={() => {
                 toggleSection('registry')
               }}
@@ -181,9 +191,9 @@ export function FiltersSidebar({
             >
               <span>Registry</span>
               {isExpanded('registry') ? (
-                <ChevronDown className="h-4 w-4 text-slate-600" />
+                <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-slate-600" />
+                <ChevronRight className="text-muted-foreground h-4 w-4" />
               )}
             </button>
             {!isExpanded('registry') &&
@@ -194,14 +204,14 @@ export function FiltersSidebar({
             {isExpanded('registry') && (
               <>
                 <div className="relative mt-3">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-slate-400 transition-colors duration-150" />
+                  <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                   <input
-                    className="w-full rounded-lg bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="border-border bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary focus:ring-primary/20 w-full rounded-lg border px-3 py-2 pl-9 text-sm transition-all focus:outline-none focus:ring-2"
                     id="registry-search"
                     onChange={e => {
                       setRegistrySearch(e.target.value)
                     }}
-                    placeholder="Search..."
+                    placeholder="Search registries..."
                     type="text"
                     value={registrySearch}
                   />
@@ -210,10 +220,10 @@ export function FiltersSidebar({
                   {filteredRegistries.length > 0 ? (
                     <>
                       <button
-                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
+                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
                           !selectedFilters.registry
-                            ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
-                            : 'text-slate-600 hover:bg-white hover:shadow-sm'
+                            ? 'bg-primary text-primary-foreground font-medium'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                         }`}
                         onClick={() => {
                           onFiltersChange({
@@ -228,10 +238,10 @@ export function FiltersSidebar({
                       </button>
                       {filteredRegistries.map(name => (
                         <button
-                          className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
+                          className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
                             selectedFilters.registry === name
-                              ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
-                              : 'text-slate-600 hover:bg-white hover:shadow-sm'
+                              ? 'bg-primary text-primary-foreground font-medium'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                           }`}
                           key={name}
                           onClick={() => {
@@ -248,7 +258,7 @@ export function FiltersSidebar({
                       ))}
                     </>
                   ) : (
-                    <div className="py-4 text-center text-sm text-slate-500">
+                    <div className="text-muted-foreground py-4 text-center text-sm">
                       No registries found
                     </div>
                   )}
@@ -258,9 +268,9 @@ export function FiltersSidebar({
           </div>
 
           {/* Categories */}
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="bg-muted/30 rounded-xl p-4">
             <button
-              className="flex w-full cursor-pointer items-center justify-between text-sm font-semibold text-slate-900"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
               onClick={() => {
                 toggleSection('categories')
               }}
@@ -268,9 +278,9 @@ export function FiltersSidebar({
             >
               <span>Category</span>
               {isExpanded('categories') ? (
-                <ChevronDown className="h-4 w-4 text-slate-600" />
+                <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-slate-600" />
+                <ChevronRight className="text-muted-foreground h-4 w-4" />
               )}
             </button>
             {!isExpanded('categories') &&
@@ -281,14 +291,14 @@ export function FiltersSidebar({
             {isExpanded('categories') && (
               <>
                 <div className="relative mt-3">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-slate-400 transition-colors duration-150" />
+                  <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                   <input
-                    className="w-full rounded-lg bg-white py-2 pl-9 pr-3 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="border-border bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary focus:ring-primary/20 w-full rounded-lg border px-3 py-2 pl-9 text-sm transition-all focus:outline-none focus:ring-2"
                     id="category-search"
                     onChange={e => {
                       setCategorySearch(e.target.value)
                     }}
-                    placeholder="Search..."
+                    placeholder="Search categories..."
                     type="text"
                     value={categorySearch}
                   />
@@ -297,10 +307,10 @@ export function FiltersSidebar({
                   {filteredCategories.length > 0 ? (
                     <>
                       <button
-                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
+                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
                           !selectedFilters.category
-                            ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
-                            : 'text-slate-600 hover:bg-white hover:shadow-sm'
+                            ? 'bg-primary text-primary-foreground font-medium'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                         }`}
                         onClick={() => {
                           handleFilterChange('category', undefined)
@@ -311,10 +321,10 @@ export function FiltersSidebar({
                       </button>
                       {filteredCategories.map(cat => (
                         <button
-                          className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-all duration-150 ease-in-out ${
+                          className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-all ${
                             selectedFilters.category === cat.key
-                              ? 'bg-cyan-100 font-medium text-cyan-700 shadow-sm'
-                              : 'text-slate-600 hover:bg-white hover:shadow-sm'
+                              ? 'bg-primary text-primary-foreground font-medium'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                           }`}
                           key={cat.key}
                           onClick={() => {
@@ -328,14 +338,14 @@ export function FiltersSidebar({
                           type="button"
                         >
                           <span className="truncate">{cat.category}</span>
-                          <span className="ml-2 text-xs text-slate-500">
+                          <span className="bg-muted-foreground/20 ml-2 rounded-full px-2 py-0.5 text-xs">
                             {cat.count}
                           </span>
                         </button>
                       ))}
                     </>
                   ) : (
-                    <div className="py-4 text-center text-sm text-slate-500">
+                    <div className="text-muted-foreground py-4 text-center text-sm">
                       No categories found
                     </div>
                   )}
@@ -345,9 +355,9 @@ export function FiltersSidebar({
           </div>
 
           {/* Stars Range */}
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="bg-muted/30 rounded-xl p-4">
             <button
-              className="flex w-full cursor-pointer items-center justify-between text-sm font-semibold text-slate-900"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
               onClick={() => {
                 toggleSection('stars')
               }}
@@ -355,9 +365,9 @@ export function FiltersSidebar({
             >
               <span>Stars</span>
               {isExpanded('stars') ? (
-                <ChevronDown className="h-4 w-4 text-slate-600" />
+                <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-slate-600" />
+                <ChevronRight className="text-muted-foreground h-4 w-4" />
               )}
             </button>
             {!isExpanded('stars') &&
@@ -372,7 +382,7 @@ export function FiltersSidebar({
             {isExpanded('stars') && (
               <div className="mt-3 flex items-center gap-2">
                 <input
-                  className="flex-1 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="border-border/50 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border focus:border-primary focus:ring-primary/20 flex-1 rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
                   id="stars-min"
                   min="0"
                   onChange={e => {
@@ -382,9 +392,9 @@ export function FiltersSidebar({
                   type="number"
                   value={selectedFilters.starsMin || ''}
                 />
-                <span className="text-slate-400">—</span>
+                <span className="text-muted-foreground">—</span>
                 <input
-                  className="flex-1 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out placeholder:text-slate-400 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="border-border/50 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border focus:border-primary focus:ring-primary/20 flex-1 rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
                   min="0"
                   onChange={e => {
                     handleFilterChange('starsMax', e.target.value || undefined)
@@ -398,9 +408,9 @@ export function FiltersSidebar({
           </div>
 
           {/* Date Range */}
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="bg-muted/30 rounded-xl p-4">
             <button
-              className="flex w-full cursor-pointer items-center justify-between text-sm font-semibold text-slate-900"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
               onClick={() => {
                 toggleSection('date')
               }}
@@ -408,9 +418,9 @@ export function FiltersSidebar({
             >
               <span>Last Updated</span>
               {isExpanded('date') ? (
-                <ChevronDown className="h-4 w-4 text-slate-600" />
+                <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-slate-600" />
+                <ChevronRight className="text-muted-foreground h-4 w-4" />
               )}
             </button>
             {!isExpanded('date') &&
@@ -425,7 +435,7 @@ export function FiltersSidebar({
             {isExpanded('date') && (
               <div className="mt-3 space-y-2">
                 <input
-                  className="w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="border-border/50 bg-card text-foreground hover:border-border focus:border-primary focus:ring-primary/20 w-full cursor-pointer rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
                   id="date-from"
                   onChange={e => {
                     handleFilterChange('dateFrom', e.target.value || undefined)
@@ -435,7 +445,7 @@ export function FiltersSidebar({
                   value={selectedFilters.dateFrom || ''}
                 />
                 <input
-                  className="w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="border-border/50 bg-card text-foreground hover:border-border focus:border-primary focus:ring-primary/20 w-full cursor-pointer rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
                   onChange={e => {
                     handleFilterChange('dateTo', e.target.value || undefined)
                   }}
@@ -448,9 +458,9 @@ export function FiltersSidebar({
           </div>
 
           {/* Status */}
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="bg-muted/30 rounded-xl p-4">
             <button
-              className="flex w-full cursor-pointer items-center justify-between text-sm font-semibold text-slate-900"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
               onClick={() => {
                 toggleSection('status')
               }}
@@ -458,9 +468,9 @@ export function FiltersSidebar({
             >
               <span>Status</span>
               {isExpanded('status') ? (
-                <ChevronDown className="h-4 w-4 text-slate-600" />
+                <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
-                <ChevronRight className="h-4 w-4 text-slate-600" />
+                <ChevronRight className="text-muted-foreground h-4 w-4" />
               )}
             </button>
             {!isExpanded('status') &&
@@ -475,7 +485,7 @@ export function FiltersSidebar({
               )}
             {isExpanded('status') && (
               <select
-                className="mt-3 w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition-all duration-150 ease-in-out hover:shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="border-border/50 bg-card text-foreground hover:border-border focus:border-primary focus:ring-primary/20 mt-3 w-full cursor-pointer rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
                 id="status-select"
                 onChange={e => {
                   handleFilterChange('archived', e.target.value || undefined)
@@ -494,7 +504,7 @@ export function FiltersSidebar({
       {/* Reset Button */}
       <div className="p-4">
         <button
-          className="w-full cursor-pointer rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-cyan-600 hover:shadow-md active:scale-95"
+          className="border-border text-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground w-full cursor-pointer rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition-all active:scale-95"
           onClick={() => {
             onFiltersChange({})
           }}

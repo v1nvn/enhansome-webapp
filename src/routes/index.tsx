@@ -14,120 +14,186 @@ function Home() {
   const { data: registries } = useSuspenseQuery(metadataQueryOptions())
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden px-6 py-20 text-center">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10"></div>
-        <div className="relative mx-auto max-w-5xl">
-          <div className="mb-6 flex items-center justify-center gap-4">
-            <Database className="h-16 w-16 text-cyan-500 dark:text-cyan-400" />
-            <h1 className="text-5xl font-bold text-slate-900 md:text-6xl dark:text-white">
-              <span className="bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent dark:from-cyan-400 dark:to-blue-400">
-                Enhansome
-              </span>{' '}
-              <span className="text-slate-700 dark:text-gray-300">
-                Registry
+    <div className="bg-background min-h-screen">
+      {/* Hero Section - Editorial Style */}
+      <section className="border-border relative overflow-hidden border-b">
+        {/* Decorative Background Elements */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="bg-accent absolute right-0 top-0 h-[500px] w-[500px] -translate-y-1/4 translate-x-1/4 rounded-full blur-3xl" />
+          <div className="bg-primary/20 absolute bottom-0 left-0 h-[400px] w-[400px] -translate-x-1/4 translate-y-1/4 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 md:py-32 lg:px-8">
+          <div className="mx-auto max-w-4xl text-center">
+            {/* Badge */}
+            <div className="border-border bg-card text-muted-foreground mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-sm">
+              <span className="bg-primary h-2 w-2 animate-pulse rounded-full" />
+              <span>{registries.length} Curated Collections</span>
+            </div>
+
+            {/* Main Headline */}
+            <h1 className="font-display text-foreground mb-6 text-5xl font-bold leading-tight tracking-tight md:text-7xl lg:text-8xl">
+              Discover Exceptional
+              <span className="from-primary via-primary to-accent mt-2 block bg-gradient-to-r bg-clip-text text-transparent">
+                Developer Tools
               </span>
             </h1>
+
+            {/* Subtitle */}
+            <p className="font-body text-muted-foreground mx-auto mb-10 max-w-2xl text-lg leading-relaxed md:text-xl">
+              Browse carefully curated awesome lists with enhanced metadata.
+              Find the best libraries, frameworks, and resources for your next
+              project.
+            </p>
+
+            {/* CTA Button */}
+            <Link
+              className="bg-primary text-primary-foreground shadow-primary/25 hover:shadow-primary/30 group inline-flex items-center gap-3 rounded-lg px-8 py-4 font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl"
+              to="/registry"
+            >
+              <span>Explore Registries</span>
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </Link>
           </div>
-          <p className="mb-4 text-xl font-light text-slate-700 md:text-2xl dark:text-gray-300">
-            Curated awesome lists with enhanced metadata
-          </p>
-          <p className="mx-auto mb-8 max-w-3xl text-lg text-slate-600 dark:text-gray-400">
-            Browse {registries.length} carefully curated collections of the best
-            tools, libraries, and resources for developers.
-          </p>
-          <Link
-            className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-8 py-3 font-semibold text-white shadow-lg shadow-cyan-500/50 transition-colors hover:bg-cyan-600"
-            to="/registry"
-          >
-            Browse All Repositories
-            <ArrowRight className="h-5 w-5" />
-          </Link>
         </div>
       </section>
 
-      {/* Registries Grid */}
-      <section className="mx-auto max-w-7xl px-6 py-16">
-        <h2 className="mb-8 text-3xl font-bold text-slate-900 dark:text-white">
-          Available Registries
-        </h2>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {registries.map(registry => (
-            <Link
-              className="group rounded-xl border border-slate-300 bg-white/80 p-6 backdrop-blur-sm transition-all duration-300 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/10 dark:border-slate-700 dark:bg-slate-800/50"
-              key={registry.name}
-              search={{ registry: registry.name }}
-              to="/registry"
-            >
-              <div className="mb-4 flex items-start justify-between">
-                <h3 className="text-2xl font-semibold text-slate-900 transition-colors group-hover:text-cyan-500 dark:text-white dark:group-hover:text-cyan-400">
-                  {registry.title}
-                </h3>
-                <ArrowRight className="h-5 w-5 text-slate-400 transition-all group-hover:translate-x-1 group-hover:text-cyan-500 dark:text-gray-400 dark:group-hover:text-cyan-400" />
-              </div>
+      {/* Registries Grid - Editorial Card Layout */}
+      <section className="border-border bg-muted/30 border-b">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+          {/* Section Header */}
+          <div className="mb-12 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-primary mb-2 text-sm font-semibold uppercase tracking-widest">
+                Browse Collections
+              </p>
+              <h2 className="font-display text-foreground text-3xl font-bold md:text-4xl">
+                Available Registries
+              </h2>
+            </div>
+            <div className="hidden text-right sm:block">
+              <p className="text-muted-foreground text-sm">
+                {registries
+                  .reduce((sum, r) => sum + r.stats.totalRepos, 0)
+                  .toLocaleString()}{' '}
+                total repositories
+              </p>
+            </div>
+          </div>
 
-              {registry.description && (
-                <p className="mb-6 text-slate-600 dark:text-gray-400">
-                  {registry.description}
-                </p>
-              )}
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {registries.map((registry, index) => (
+              <Link
+                className="border-border bg-card group relative overflow-hidden rounded-2xl border p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
+                key={registry.name}
+                search={{ registry: registry.name }}
+                style={{
+                  animationDelay: `${index * 50}ms`,
+                }}
+                to="/registry"
+              >
+                {/* Decorative corner accent */}
+                <div className="bg-primary/5 group-hover:bg-primary/10 absolute right-0 top-0 h-24 w-24 -translate-y-12 translate-x-12 rounded-full transition-colors" />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <Database className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
-                  <span className="text-slate-700 dark:text-gray-300">
-                    {registry.stats.totalRepos} repositories
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm">
-                  <Star className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />
-                  <span className="text-slate-700 dark:text-gray-300">
-                    {registry.stats.totalStars} stars
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm">
-                  <GitBranch className="h-4 w-4 text-purple-500 dark:text-purple-400" />
-                  <span className="text-slate-700 dark:text-gray-300">
-                    {registry.stats.languages.length} languages
-                  </span>
-                </div>
-
-                {registry.stats.latestUpdate && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                    <span className="text-slate-700 dark:text-gray-300">
-                      {new Date(
-                        registry.stats.latestUpdate,
-                      ).toLocaleDateString()}
-                    </span>
+                <div className="relative">
+                  {/* Card Header */}
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="font-display text-foreground group-hover:text-primary text-2xl font-bold transition-colors">
+                        {registry.title}
+                      </h3>
+                      {registry.description && (
+                        <p className="text-muted-foreground mt-2 line-clamp-2 text-sm">
+                          {registry.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors">
+                      <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                    </div>
                   </div>
-                )}
-              </div>
 
-              {registry.stats.languages.length > 0 && (
-                <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
-                  <div className="flex flex-wrap gap-2">
-                    {registry.stats.languages.slice(0, 5).map(lang => (
-                      <span
-                        className="rounded bg-slate-200 px-2 py-1 text-xs text-slate-700 dark:bg-slate-700 dark:text-gray-300"
-                        key={lang}
-                      >
-                        {lang}
-                      </span>
-                    ))}
-                    {registry.stats.languages.length > 5 && (
-                      <span className="px-2 py-1 text-xs text-slate-500 dark:text-gray-500">
-                        +{registry.stats.languages.length - 5} more
-                      </span>
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-muted/50 flex items-center gap-2 rounded-lg px-3 py-2">
+                      <Database className="text-primary h-4 w-4" />
+                      <div className="flex flex-col">
+                        <span className="text-foreground text-lg font-bold">
+                          {registry.stats.totalRepos.toLocaleString()}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          Repos
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-muted/50 flex items-center gap-2 rounded-lg px-3 py-2">
+                      <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                      <div className="flex flex-col">
+                        <span className="text-foreground text-lg font-bold">
+                          {registry.stats.totalStars.toLocaleString()}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          Stars
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-muted/50 flex items-center gap-2 rounded-lg px-3 py-2">
+                      <GitBranch className="text-chart-3 h-4 w-4" />
+                      <div className="flex flex-col">
+                        <span className="text-foreground text-lg font-bold">
+                          {registry.stats.languages.length}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          Languages
+                        </span>
+                      </div>
+                    </div>
+
+                    {registry.stats.latestUpdate && (
+                      <div className="bg-muted/50 flex items-center gap-2 rounded-lg px-3 py-2">
+                        <Calendar className="text-chart-4 h-4 w-4" />
+                        <div className="flex flex-col">
+                          <span className="text-foreground text-xs font-bold">
+                            {new Date(
+                              registry.stats.latestUpdate,
+                            ).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            Updated
+                          </span>
+                        </div>
+                      </div>
                     )}
                   </div>
+
+                  {/* Languages Tags */}
+                  {registry.stats.languages.length > 0 && (
+                    <div className="border-border mt-4 flex flex-wrap gap-2 border-t pt-4">
+                      {registry.stats.languages.slice(0, 4).map(lang => (
+                        <span
+                          className="bg-accent/30 text-foreground rounded-full px-3 py-1 text-xs font-medium"
+                          key={lang}
+                        >
+                          {lang}
+                        </span>
+                      ))}
+                      {registry.stats.languages.length > 4 && (
+                        <span className="bg-muted text-muted-foreground rounded-full px-3 py-1 text-xs font-medium">
+                          +{registry.stats.languages.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-            </Link>
-          ))}
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
     </div>

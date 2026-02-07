@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { RegistryItemTree } from '@/components/RegistryItemTree'
-import { createMockRegistryItem, render, screen } from '../../helpers/test-utils.tsx'
+import { createMockRegistryItem, render, screen, waitFor } from '../../helpers/test-utils.tsx'
 
 describe('RegistryItemTree', () => {
   const defaultProps = {
@@ -10,19 +10,23 @@ describe('RegistryItemTree', () => {
     section: 'Web Frameworks',
   }
 
-  it('renders the item', () => {
+  it('renders the item', async () => {
     render(<RegistryItemTree {...defaultProps} />)
 
-    expect(screen.getByText('Parent Item')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Parent Item')).toBeInTheDocument()
+    })
   })
 
-  it('renders item description', () => {
+  it('renders item description', async () => {
     render(<RegistryItemTree {...defaultProps} />)
 
-    expect(screen.getByText('Test description')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Test description')).toBeInTheDocument()
+    })
   })
 
-  it('renders children recursively', () => {
+  it('renders children recursively', async () => {
     const itemWithChildren = createMockRegistryItem({
       children: [
         createMockRegistryItem({ title: 'Child 1' }),
@@ -33,12 +37,14 @@ describe('RegistryItemTree', () => {
 
     render(<RegistryItemTree {...defaultProps} item={itemWithChildren} />)
 
-    expect(screen.getByText('Parent Item')).toBeInTheDocument()
-    expect(screen.getByText('Child 1')).toBeInTheDocument()
-    expect(screen.getByText('Child 2')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Parent Item')).toBeInTheDocument()
+      expect(screen.getByText('Child 1')).toBeInTheDocument()
+      expect(screen.getByText('Child 2')).toBeInTheDocument()
+    })
   })
 
-  it('renders nested children', () => {
+  it('renders nested children', async () => {
     const itemWithNestedChildren = createMockRegistryItem({
       children: [
         createMockRegistryItem({
@@ -51,12 +57,14 @@ describe('RegistryItemTree', () => {
 
     render(<RegistryItemTree {...defaultProps} item={itemWithNestedChildren} />)
 
-    expect(screen.getByText('Parent Item')).toBeInTheDocument()
-    expect(screen.getByText('Child')).toBeInTheDocument()
-    expect(screen.getByText('Grandchild')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Parent Item')).toBeInTheDocument()
+      expect(screen.getByText('Child')).toBeInTheDocument()
+      expect(screen.getByText('Grandchild')).toBeInTheDocument()
+    })
   })
 
-  it('applies indentation for nested levels', () => {
+  it('applies indentation for nested levels', async () => {
     const itemWithChildren = createMockRegistryItem({
       children: [createMockRegistryItem({ title: 'Child' })],
       title: 'Parent Item',
@@ -67,19 +75,23 @@ describe('RegistryItemTree', () => {
     )
 
     // Child should have ml-8 class for indentation
-    const childContainers = container.querySelectorAll('.ml-8')
-    expect(childContainers.length).toBeGreaterThan(0)
+    await waitFor(() => {
+      const childContainers = container.querySelectorAll('.ml-8')
+      expect(childContainers.length).toBeGreaterThan(0)
+    })
   })
 
-  it('does not apply indentation at level 0', () => {
+  it('does not apply indentation at level 0', async () => {
     const { container } = render(<RegistryItemTree {...defaultProps} />)
 
     // Top level should not have ml-8
-    const topLevel = container.firstChild as HTMLElement
-    expect(topLevel.className).not.toContain('ml-8')
+    await waitFor(() => {
+      const topLevel = container.firstChild as HTMLElement
+      expect(topLevel.className).not.toContain('ml-8')
+    })
   })
 
-  it('passes registry and section to child items', () => {
+  it('passes registry and section to child items', async () => {
     const itemWithChildren = createMockRegistryItem({
       children: [createMockRegistryItem({ title: 'Child' })],
       title: 'Parent',
@@ -88,11 +100,13 @@ describe('RegistryItemTree', () => {
     render(<RegistryItemTree {...defaultProps} item={itemWithChildren} />)
 
     // Both parent and child should show registry and section info
-    const registryLabels = screen.getAllByText('awesome-go')
-    expect(registryLabels.length).toBeGreaterThanOrEqual(2)
+    await waitFor(() => {
+      const registryLabels = screen.getAllByText('awesome-go')
+      expect(registryLabels.length).toBeGreaterThanOrEqual(2)
+    })
   })
 
-  it('renders items without children', () => {
+  it('renders items without children', async () => {
     const itemNoChildren = createMockRegistryItem({
       children: [],
       title: 'Single Item',
@@ -100,18 +114,22 @@ describe('RegistryItemTree', () => {
 
     render(<RegistryItemTree {...defaultProps} item={itemNoChildren} />)
 
-    expect(screen.getByText('Single Item')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Single Item')).toBeInTheDocument()
+    })
   })
 
-  it('renders with custom level', () => {
+  it('renders with custom level', async () => {
     const { container } = render(<RegistryItemTree {...defaultProps} level={2} />)
 
     // Should have indentation applied
-    const topLevel = container.firstChild as HTMLElement
-    expect(topLevel.className).toContain('ml-8')
+    await waitFor(() => {
+      const topLevel = container.firstChild as HTMLElement
+      expect(topLevel.className).toContain('ml-8')
+    })
   })
 
-  it('properly spaces child items', () => {
+  it('properly spaces child items', async () => {
     const itemWithChildren = createMockRegistryItem({
       children: [
         createMockRegistryItem({ title: 'Child 1' }),
@@ -125,7 +143,9 @@ describe('RegistryItemTree', () => {
     )
 
     // Children container should have spacing
-    const childrenContainer = container.querySelector('.space-y-4')
-    expect(childrenContainer).toBeInTheDocument()
+    await waitFor(() => {
+      const childrenContainer = container.querySelector('.space-y-4')
+      expect(childrenContainer).toBeInTheDocument()
+    })
   })
 })

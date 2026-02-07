@@ -1,16 +1,29 @@
 import { Link } from '@tanstack/react-router'
+import { BookOpen } from 'lucide-react'
 
 export default function Header() {
   return (
-    <header className="bg-white py-3 pl-8 shadow-sm">
-      <h1 className="text-2xl font-black">
-        <Link
-          className="cursor-pointer bg-gradient-to-r from-cyan-500 to-blue-500 bg-clip-text text-transparent transition-opacity hover:opacity-80"
-          to="/"
-        >
-          Enhansome
-        </Link>
-      </h1>
+    <header className="border-border bg-card/80 sticky top-0 z-50 border-b backdrop-blur-md">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center gap-3">
+          <Link
+            className="group flex items-center gap-3 transition-transform hover:scale-105"
+            to="/"
+          >
+            <div className="bg-primary text-primary-foreground flex h-10 w-10 items-center justify-center rounded-lg shadow-lg transition-shadow group-hover:shadow-xl">
+              <BookOpen className="h-5 w-5" strokeWidth={2.5} />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="font-display text-foreground text-2xl font-bold leading-tight tracking-tight">
+                Enhansome
+              </h1>
+              <span className="text-muted-foreground text-[10px] font-medium uppercase tracking-widest">
+                Registry
+              </span>
+            </div>
+          </Link>
+        </div>
+      </div>
     </header>
   )
 }

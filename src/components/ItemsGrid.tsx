@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { Calendar, ExternalLink, Star } from 'lucide-react'
+import { Archive, Calendar, ExternalLink, Star, Users } from 'lucide-react'
 
 import type { RegistryItem } from '@/types/registry'
 
@@ -42,8 +42,18 @@ export function ItemsGrid({ items, sortBy }: ItemsGridProps) {
 
   if (sortedItems.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-slate-500">
-        <p>No results found</p>
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center">
+          <div className="bg-muted mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+            <Archive className="text-muted-foreground h-8 w-8" />
+          </div>
+          <p className="font-display text-foreground text-lg font-semibold">
+            No repositories found
+          </p>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Try adjusting your filters or search query
+          </p>
+        </div>
       </div>
     )
   }
@@ -52,39 +62,48 @@ export function ItemsGrid({ items, sortBy }: ItemsGridProps) {
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {sortedItems.map(item => (
         <div
-          className="group relative flex flex-col rounded-2xl bg-white p-5 shadow-md transition-all hover:shadow-lg"
+          className="border-border bg-card group relative flex flex-col overflow-hidden rounded-2xl border p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
           key={`${item.title}-${item.repo_info?.owner || ''}-${item.repo_info?.repo || ''}`}
         >
+          {/* Decorative accent */}
+          <div className="bg-primary absolute left-0 top-0 h-1 w-0 transition-all duration-300 group-hover:w-full" />
+
           {/* Title and Archive Badge */}
           <div className="mb-3">
-            <h3 className="mb-2 line-clamp-2 text-base font-semibold text-slate-900 group-hover:text-cyan-500">
+            <h3 className="font-display text-foreground group-hover:text-primary mb-2 line-clamp-2 text-lg font-semibold leading-tight transition-colors">
               {item.title}
             </h3>
-            {item.repo_info?.archived && (
-              <span className="inline-block rounded-md bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
-                Archived
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {item.repo_info?.archived && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                  <Archive className="h-3 w-3" />
+                  Archived
+                </span>
+              )}
+              {item.children.length > 0 && (
+                <span className="bg-accent/30 text-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium">
+                  <Users className="h-3 w-3" />+{item.children.length}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Description */}
-          {item.description && (
-            <p className="mb-4 line-clamp-2 flex-1 text-sm text-slate-600">
-              {item.description}
-            </p>
-          )}
+          <p className="text-muted-foreground mb-4 line-clamp-2 flex-1 text-sm leading-relaxed">
+            {item.description ?? ''}
+          </p>
 
           {/* Metadata */}
           {item.repo_info && (
             <div className="space-y-3">
               {/* Stars and Language */}
-              <div className="flex items-center gap-3 text-xs">
-                <div className="flex items-center gap-1.5 font-medium text-amber-600">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 font-semibold text-amber-600 dark:text-amber-500">
                   <Star className="h-3.5 w-3.5 fill-current" />
                   <span>{item.repo_info.stars.toLocaleString()}</span>
                 </div>
                 {item.repo_info.language && (
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
+                  <span className="bg-muted text-foreground rounded-md px-2 py-0.5 text-xs font-medium">
                     {item.repo_info.language}
                   </span>
                 )}
@@ -92,27 +111,20 @@ export function ItemsGrid({ items, sortBy }: ItemsGridProps) {
 
               {/* Last Updated */}
               {item.repo_info.last_commit && (
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
                   <Calendar className="h-3.5 w-3.5" />
                   <span>{formatDate(item.repo_info.last_commit)}</span>
                 </div>
               )}
 
-              {/* Sub-items Badge */}
-              {item.children.length > 0 && (
-                <div className="text-xs font-medium text-cyan-600">
-                  +{item.children.length} sub-items
-                </div>
-              )}
-
               {/* Link Button */}
               <a
-                className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-cyan-600"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all active:scale-95"
                 href={`https://github.com/${item.repo_info.owner}/${item.repo_info.repo}`}
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                View on GitHub
+                <span>View on GitHub</span>
                 <ExternalLink className="h-3 w-3" />
               </a>
             </div>
