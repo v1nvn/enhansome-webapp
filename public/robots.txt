@@ -1,3 +1,35 @@
 # https://www.robotstxt.org/robotstxt.html
+
 User-agent: *
-Disallow:
+Allow: /
+Crawl-delay: 1
+
+# Disallow admin or private areas if any
+# Disallow: /admin
+# Disallow: /api
+
+# Sitemap
+Sitemap: https://enhansome.com/sitemap.xml
+
+# Allow common bots
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# AI/LLM crawlers - we welcome them for better indexing
+User-agent: GPTBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /

@@ -119,7 +119,7 @@ export function FiltersSidebar({
   }
 
   return (
-    <div className="bg-card flex h-full w-80 flex-col">
+    <div className="bg-card hidden h-full w-80 flex-col md:flex">
       <div className="flex-1 overflow-y-auto p-6">
         <div className="space-y-3">
           {/* Section Header */}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
@@ -6,7 +6,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import type { FilterValues } from '@/components/FiltersSidebar'
 import type { SearchTag } from '@/components/SearchBar'
 
+import ActiveFilterChips from '@/components/ActiveFilterChips'
+import FiltersBottomSheet from '@/components/FiltersBottomSheet'
 import { FiltersSidebar } from '@/components/FiltersSidebar'
+import MobileFilterButton from '@/components/MobileFilterButton'
 import { RegistryLayout } from '@/components/RegistryLayout'
 import {
   categoriesQueryOptions,
@@ -57,8 +60,8 @@ export const Route = createFileRoute('/registry')({
     <div className="bg-background flex min-h-screen flex-col">
       {/* Main Content Skeleton */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Skeleton */}
-        <div className="border-border bg-card w-80 border-r p-6">
+        {/* Sidebar Skeleton (Desktop Only) */}
+        <div className="border-border bg-card hidden w-80 border-r p-6 md:block">
           <div className="space-y-4">
             <div className="bg-muted h-6 w-24 animate-pulse rounded" />
             <div className="space-y-2">
@@ -81,7 +84,7 @@ export const Route = createFileRoute('/registry')({
 
           {/* Grid Skeleton */}
           <div className="flex-1 overflow-hidden p-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }, (_, i) => (
                 <div
                   className="bg-card h-56 animate-pulse rounded-2xl"
@@ -91,6 +94,11 @@ export const Route = createFileRoute('/registry')({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile Filter Button Skeleton */}
+      <div className="fixed bottom-6 right-6 md:hidden">
+        <div className="bg-muted h-14 w-14 animate-pulse rounded-2xl" />
       </div>
     </div>
   ),
@@ -102,6 +110,9 @@ export const Route = createFileRoute('/registry')({
 function RegistryBrowser() {
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
+
+  // Mobile bottom sheet state
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false)
 
   // Fetch registry metadata for registry names
   const { data: registryMetadata } = useSuspenseQuery(metadataQueryOptions())
@@ -117,12 +128,39 @@ function RegistryBrowser() {
       category: search.category,
       dateFrom: search.dateFrom,
       dateTo: search.dateTo,
+      lang: search.lang,
       registry: search.registry,
       sort: search.sort,
       starsMax: search.starsMax,
       starsMin: search.starsMin,
     }
   }, [search])
+
+  // Count active filters for mobile badge
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (currentFilters.sort && currentFilters.sort !== 'stars') count++
+    if (currentFilters.registry) count++
+    if (currentFilters.category) count++
+    if (currentFilters.lang) count++
+    if (currentFilters.starsMin || currentFilters.starsMax) count++
+    if (currentFilters.dateFrom || currentFilters.dateTo) count++
+    if (currentFilters.archived) count++
+    return count
+  }, [currentFilters])
+
+  // Remove individual filter on mobile
+  const handleRemoveFilter = (key: keyof FilterValues) => {
+    handleFiltersChange({
+      ...currentFilters,
+      [key]: undefined,
+    })
+  }
+
+  // Clear all filters on mobile
+  const handleClearAllFilters = () => {
+    handleFiltersChange({})
+  }
 
   // Update URL when tags change from search bar
   const handleTagsChange = (tags: SearchTag[]) => {
@@ -168,7 +206,7 @@ function RegistryBrowser() {
     <div className="bg-background flex min-h-screen flex-col">
       {/* Main Content - Sidebar + Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Filters Sidebar */}
+        {/* Filters Sidebar (Desktop Only) */}
         <FiltersSidebar
           onFiltersChange={handleFiltersChange}
           registryNames={registryNames}
@@ -178,6 +216,15 @@ function RegistryBrowser() {
 
         {/* Content Area */}
         <div className="flex-1 overflow-hidden">
+          {/* Active Filter Chips (Mobile Only) */}
+          <div className="bg-muted/30 px-6 pt-4 md:hidden">
+            <ActiveFilterChips
+              filters={currentFilters}
+              onClearAll={handleClearAllFilters}
+              onRemoveFilter={handleRemoveFilter}
+            />
+          </div>
+
           <RegistryLayout
             dateFrom={search.dateFrom}
             dateTo={search.dateTo}
@@ -193,6 +240,26 @@ function RegistryBrowser() {
           />
         </div>
       </div>
+
+      {/* Mobile Filter Button */}
+      <MobileFilterButton
+        activeCount={activeFilterCount}
+        onClick={() => {
+          setIsBottomSheetOpen(true)
+        }}
+      />
+
+      {/* Mobile Bottom Sheet */}
+      <FiltersBottomSheet
+        isOpen={isBottomSheetOpen}
+        onClose={() => {
+          setIsBottomSheetOpen(false)
+        }}
+        onFiltersChange={handleFiltersChange}
+        registryNames={registryNames}
+        selectedFilters={currentFilters}
+        selectedRegistry={search.registry}
+      />
     </div>
   )
 }

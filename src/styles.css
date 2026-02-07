@@ -199,3 +199,13 @@ code {
   background-color: oklch(0.65 0.20 35 / 0.4);
   color: oklch(0.95 0.005 85);
 }
+
+/* Hide scrollbar for horizontal scrolling elements */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

@@ -59,7 +59,7 @@ export function ItemsGrid({ items, sortBy }: ItemsGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {sortedItems.map(item => (
         <div
           className="border-border bg-card group relative flex flex-col overflow-hidden rounded-2xl border p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"

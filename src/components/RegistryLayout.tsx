@@ -91,8 +91,8 @@ export function RegistryLayout({
   return (
     <div className="bg-background flex h-full flex-col">
       {/* Header with Search Bar */}
-      <div className="bg-card/80 px-6 py-4 backdrop-blur-md">
-        <div className="flex items-center gap-4">
+      <div className="bg-card/80 px-4 py-4 backdrop-blur-md sm:px-6">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex-1">
             <SearchBar onTagsChange={onTagsChange} />
           </div>
@@ -108,13 +108,13 @@ export function RegistryLayout({
       </div>
 
       {/* Items Grid with Scroll */}
-      <div className="bg-muted/30 flex-1 overflow-y-auto p-6">
+      <div className="bg-muted/30 flex-1 overflow-y-auto p-4 sm:p-6">
         <ItemsGrid items={allItems} sortBy={sortBy} />
       </div>
 
       {/* Pagination Controls */}
       {hasNextPage && (
-        <div className="bg-card/80 px-6 py-4 backdrop-blur-md">
+        <div className="bg-card/80 px-4 py-4 backdrop-blur-md sm:px-6">
           <div className="flex items-center justify-center">
             <button
               className="bg-primary text-primary-foreground shadow-primary/20 hover:shadow-primary/30 group inline-flex cursor-pointer items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
