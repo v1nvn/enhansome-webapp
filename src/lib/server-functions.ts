@@ -496,20 +496,9 @@ export const indexingHistoryQueryOptions = () =>
 export const triggerIndexRegistries = createServerFn({ method: 'POST' })
   .middleware([adminAuthMiddleware])
   .handler(async () => {
-    const db = createKysely(env.DB)
-
-    // Check if already running via latest status
-    const latestStatus = await db
-      .selectFrom('indexing_latest')
-      .where('status', '=', 'running')
-      .execute()
-
-    if (latestStatus.length > 0) {
-      throw new Error('Indexing already in progress')
-    }
-
     // Trigger indexing with 'manual' source
     // Note: createdBy is tracked via auth now, not passed separately
+    // Note: indexAllRegistries already checks if indexing is in progress
     const result = await indexAllRegistries(env.DB, 'manual', undefined)
 
     return {

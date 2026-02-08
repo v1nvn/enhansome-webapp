@@ -128,7 +128,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
     it('should be initialized with idle status', async () => {
       const result = await env.DB.prepare(
-        'SELECT * FROM indexing_latest WHERE id = 1',
+        'SELECT * FROM indexing_latest ORDER BY updated_at DESC LIMIT 1',
       ).first()
 
       expect(result).toBeDefined()
@@ -159,7 +159,7 @@ describe('Admin Indexing with Progress Tracking', () => {
         .execute()
 
       const result = await env.DB.prepare(
-        'SELECT * FROM indexing_latest WHERE id = 1',
+        'SELECT * FROM indexing_latest ORDER BY updated_at DESC LIMIT 1',
       ).first()
 
       expect(result?.status).toBe('running')
@@ -564,7 +564,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Status should be running or completed (it might be very fast)
       const latestResult = await env.DB
-        .prepare('SELECT status FROM indexing_latest WHERE id = 1')
+        .prepare('SELECT status FROM indexing_latest ORDER BY updated_at DESC LIMIT 1')
         .first<{ status: string }>()
 
       expect(latestResult?.status).toMatch(/^(running|completed)$/)

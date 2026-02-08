@@ -199,8 +199,11 @@ export async function indexAllRegistries(
   )
 
   // Check if indexing is already in progress
+  // Use ORDER BY updated_at DESC LIMIT 1 instead of hardcoded id = 1 for robustness
   const latestResult = await db
-    .prepare('SELECT status FROM indexing_latest WHERE id = 1')
+    .prepare(
+      'SELECT status FROM indexing_latest ORDER BY updated_at DESC LIMIT 1',
+    )
     .first<{ status: string }>()
 
   if (latestResult?.status === 'running') {
