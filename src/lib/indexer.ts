@@ -177,51 +177,118 @@ export function flattenItems(data: RegistryData): {
 }
 
 /**
- * Index all registries
- * Returns summary of success/failure
+ * Index all registries with progress tracking and history
+ * @param db - D1 database instance
+ * @param triggerSource - 'manual' or 'scheduled'
+ * @param createdBy - API key identifier (last 4 chars) for manual runs, optional
+ * @returns Summary of success/failure
  */
-export async function indexAllRegistries(db: D1Database): Promise<{
+export async function indexAllRegistries(
+  db: D1Database,
+  triggerSource: 'manual' | 'scheduled' = 'scheduled',
+  createdBy?: string,
+): Promise<{
   errors: string[]
   failed: number
   success: number
 }> {
-  console.log('Starting D1 indexing process...')
+  console.log(
+    `Starting D1 indexing process... (source: ${triggerSource}${
+      createdBy ? ` by ${createdBy}` : ''
+    })`,
+  )
 
-  const files = await fetchRegistryFiles()
-  console.log(`Found ${files.size} registry files to index`)
+  // Check if indexing is already in progress
+  const latestResult = await db
+    .prepare('SELECT status FROM indexing_latest WHERE id = 1')
+    .first<{ status: string }>()
 
-  let success = 0
-  let failed = 0
-  const errors: string[] = []
-
-  for (const [registryName, data] of files.entries()) {
-    try {
-      await indexRegistry(db, registryName, data)
-      success++
-    } catch (error) {
-      failed++
-      const errorMsg = error instanceof Error ? error.message : String(error)
-      errors.push(`${registryName}: ${errorMsg}`)
-      console.error(`Error indexing ${registryName}:`, error)
-
-      // Log error to sync_log
-      try {
-        await db
-          .prepare(
-            `INSERT INTO sync_log (registry_name, status, error_message)
-             VALUES (?, ?, ?)`,
-          )
-          .bind(registryName, 'error', errorMsg)
-          .run()
-      } catch (logError) {
-        console.error('Failed to log error to sync_log:', logError)
-      }
-    }
+  if (latestResult?.status === 'running') {
+    console.log('Indexing already in progress, skipping...')
+    return { success: 0, failed: 0, errors: ['Indexing already in progress'] }
   }
 
-  console.log(`\n✓ Indexing complete: ${success} succeeded, ${failed} failed`)
+  // Create history entry and update latest status
+  const historyId = await createHistoryEntry(db, triggerSource, createdBy)
+  await updateLatestStatus(db, 'running', historyId)
 
-  return { success, failed, errors }
+  try {
+    const files = await fetchRegistryFiles()
+    console.log(`Found ${files.size} registry files to index`)
+
+    // Update history with total count
+    await db
+      .prepare('UPDATE indexing_history SET total_registries = ? WHERE id = ?')
+      .bind(files.size, historyId)
+      .run()
+
+    let success = 0
+    let failed = 0
+    const errors: string[] = []
+
+    for (const [registryName, data] of files.entries()) {
+      try {
+        // Update progress: which registry we're processing
+        await db
+          .prepare(
+            `UPDATE indexing_history
+             SET current_registry = ?, processed_registries = processed_registries + 1
+             WHERE id = ?`,
+          )
+          .bind(registryName, historyId)
+          .run()
+
+        // Update latest status timestamp
+        await db
+          .prepare('UPDATE indexing_latest SET updated_at = ? WHERE id = 1')
+          .bind(new Date().toISOString())
+          .run()
+
+        await indexRegistry(db, registryName, data)
+        success++
+      } catch (error) {
+        failed++
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        errors.push(`${registryName}: ${errorMsg}`)
+        console.error(`Error indexing ${registryName}:`, error)
+
+        // Log error to sync_log
+        try {
+          await db
+            .prepare(
+              `INSERT INTO sync_log (registry_name, status, error_message) VALUES (?, ?, ?)`,
+            )
+            .bind(registryName, 'error', errorMsg)
+            .run()
+        } catch (logError) {
+          console.error('Failed to log error to sync_log:', logError)
+        }
+      }
+    }
+
+    // Mark as completed
+    await completeHistoryEntry(
+      db,
+      historyId,
+      'completed',
+      success,
+      failed,
+      errors,
+    )
+    await updateLatestStatus(db, 'completed')
+
+    console.log(`\n✓ Indexing complete: ${success} succeeded, ${failed} failed`)
+
+    return { success, failed, errors }
+  } catch (error) {
+    // Mark as failed
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    await completeHistoryEntry(db, historyId, 'failed', 0, 0, [], errorMsg)
+    await updateLatestStatus(db, 'failed')
+
+    console.error('❌ Indexing failed:', error)
+    throw error
+  }
 }
 
 /**
@@ -320,8 +387,72 @@ export async function indexRegistry(
 }
 
 /**
+ * Complete an indexing history entry
+ */
+async function completeHistoryEntry(
+  db: D1Database,
+  historyId: number,
+  status: 'completed' | 'failed',
+  success: number,
+  failed: number,
+  errors: string[],
+  errorMessage?: string,
+): Promise<void> {
+  const completedAt = new Date().toISOString()
+  const statusClause =
+    status === 'completed'
+      ? `status = 'completed', completed_at = ?, success_count = ?, failed_count = ?, errors = ?, current_registry = NULL`
+      : `status = 'failed', completed_at = ?, error_message = ?, current_registry = NULL`
+
+  const params =
+    status === 'completed'
+      ? [completedAt, success, failed, JSON.stringify(errors), historyId]
+      : [completedAt, errorMessage, historyId]
+
+  await db
+    .prepare(`UPDATE indexing_history SET ${statusClause} WHERE id = ?`)
+    .bind(...params)
+    .run()
+}
+
+/**
  * Construct the data.json URL for a registry
  */
 function constructRegistryDataUrl(ownerRepo: string): string {
   return `${REGISTRY_RAW_BASE_URL}/repos/${ownerRepo}/data.json`
+}
+
+/**
+ * Create a new indexing history entry and return its ID
+ */
+async function createHistoryEntry(
+  db: D1Database,
+  triggerSource: 'manual' | 'scheduled',
+  createdBy?: string,
+): Promise<number> {
+  const result = await db
+    .prepare(
+      `INSERT INTO indexing_history (trigger_source, status, started_at, created_by) VALUES (?, ?, ?, ?)`,
+    )
+    .bind(triggerSource, 'running', new Date().toISOString(), createdBy || null)
+    .run()
+  return result.meta.last_row_id
+}
+
+/**
+ * Update the indexing_latest table status
+ */
+async function updateLatestStatus(
+  db: D1Database,
+  status: 'completed' | 'failed' | 'running',
+  historyId?: number,
+): Promise<void> {
+  const historyIdClause =
+    historyId !== undefined ? `history_id = ${historyId},` : ''
+  await db
+    .prepare(
+      `UPDATE indexing_latest SET ${historyIdClause} status = ?, updated_at = ? WHERE id = 1`,
+    )
+    .bind(status, new Date().toISOString())
+    .run()
 }

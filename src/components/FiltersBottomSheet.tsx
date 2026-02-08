@@ -3,8 +3,9 @@ import { memo, useEffect, useRef, useState } from 'react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { ChevronDown, Search, X } from 'lucide-react'
 
-import type { Category, FilterValues } from './FiltersSidebar'
 import { categoriesQueryOptions } from '@/lib/server-functions'
+
+import type { Category, FilterValues } from './FiltersSidebar'
 
 interface FiltersBottomSheetProps {
   isOpen: boolean
@@ -26,7 +27,7 @@ function FiltersBottomSheet({
   const [categorySearch, setCategorySearch] = useState('')
   const [registrySearch, setRegistrySearch] = useState('')
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    () => new Set(['sort', 'registry', 'categories']),
+    () => new Set(['categories', 'registry', 'sort']),
   )
   const sheetRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -40,15 +41,31 @@ function FiltersBottomSheet({
   )
 
   // Filter registries by search
-  const filteredRegistries = categorySearch.trim() === '' ? registryNames : registryNames.filter(name => name.toLowerCase().includes(registrySearch.toLowerCase()))
+  const filteredRegistries =
+    categorySearch.trim() === ''
+      ? registryNames
+      : registryNames.filter(name =>
+          name.toLowerCase().includes(registrySearch.toLowerCase()),
+        )
 
   // Filter categories by search
-  const filteredCategories = categorySearch.trim() === '' ? categories : categories.filter(cat => cat.category.toLowerCase().includes(categorySearch.toLowerCase()))
+  const filteredCategories =
+    categorySearch.trim() === ''
+      ? categories
+      : categories.filter(cat =>
+          cat.category.toLowerCase().includes(categorySearch.toLowerCase()),
+        )
 
   // Get selected category display name
-  const selectedCategoryName = !selectedFilters.category ? null : categories.find(c => c.key === selectedFilters.category)?.category || selectedFilters.category
+  const selectedCategoryName = !selectedFilters.category
+    ? null
+    : categories.find(c => c.key === selectedFilters.category)?.category ||
+      selectedFilters.category
 
-  const handleFilterChange = (key: keyof FilterValues, value: string | undefined) => {
+  const handleFilterChange = (
+    key: keyof FilterValues,
+    value: string | undefined,
+  ) => {
     onFiltersChange({
       ...selectedFilters,
       [key]: value,
@@ -78,7 +95,10 @@ function FiltersBottomSheet({
 
   // Touch/drag handling for swipe-to-dismiss
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.target === contentRef.current || contentRef.current?.contains(e.target as Node)) {
+    if (
+      e.target === contentRef.current ||
+      contentRef.current?.contains(e.target as Node)
+    ) {
       // Only enable drag if at the top of scrollable content
       const target = e.target as HTMLElement
       if (target.scrollTop === 0) {
@@ -127,7 +147,9 @@ function FiltersBottomSheet({
       }
     }
     window.addEventListener('keydown', handleEscape)
-    return () => window.removeEventListener('keydown', handleEscape)
+    return () => {
+      window.removeEventListener('keydown', handleEscape)
+    }
   }, [isOpen, onClose])
 
   const sortLabels = {
@@ -137,7 +159,9 @@ function FiltersBottomSheet({
   }
 
   // Transform value for slide animation
-  const transformValue = isDragging ? `translateY(${currentY}px)` : 'translateY(0)'
+  const transformValue = isDragging
+    ? `translateY(${currentY}px)`
+    : 'translateY(0)'
   const opacityValue = isDragging ? Math.max(0, 1 - currentY / 300) : 1
 
   if (!isOpen) return null
@@ -152,20 +176,20 @@ function FiltersBottomSheet({
     >
       {/* Backdrop */}
       <div
-        className="bg-black/50 absolute inset-0 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
         style={{ opacity: isOpen ? opacityValue : 0 }}
       />
 
       {/* Bottom Sheet */}
       <div
-        ref={sheetRef}
         className="bg-card relative max-h-[85vh] w-full rounded-t-3xl shadow-2xl transition-transform"
+        ref={sheetRef}
         style={{
           transform: transformValue,
         }}
       >
         {/* Drag Handle */}
-        <div className="flex justify-center pt-3 pb-2">
+        <div className="flex justify-center pb-2 pt-3">
           <button
             className="hover:bg-muted-foreground/20 rounded-full p-2 transition-colors"
             onClick={onClose}
@@ -176,9 +200,11 @@ function FiltersBottomSheet({
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 pb-4 pt-2">
+        <div className="border-border flex items-center justify-between border-b px-6 pb-4 pt-2">
           <div>
-            <h2 className="font-display text-foreground text-xl font-bold">Filters</h2>
+            <h2 className="font-display text-foreground text-xl font-bold">
+              Filters
+            </h2>
             <p className="text-muted-foreground text-sm">Refine your search</p>
           </div>
           <button
@@ -192,8 +218,8 @@ function FiltersBottomSheet({
 
         {/* Scrollable Content */}
         <div
-          ref={contentRef}
           className="overflow-y-auto px-6 pb-6 pt-4"
+          ref={contentRef}
           style={{ maxHeight: 'calc(85vh - 120px)' }}
         >
           <div className="space-y-3">
@@ -426,7 +452,10 @@ function FiltersBottomSheet({
                     id="stars-min"
                     min="0"
                     onChange={e => {
-                      handleFilterChange('starsMin', e.target.value || undefined)
+                      handleFilterChange(
+                        'starsMin',
+                        e.target.value || undefined,
+                      )
                     }}
                     placeholder="Min"
                     type="number"
@@ -437,7 +466,10 @@ function FiltersBottomSheet({
                     className="border-border/50 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border focus:border-primary focus:ring-primary/20 flex-1 rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
                     min="0"
                     onChange={e => {
-                      handleFilterChange('starsMax', e.target.value || undefined)
+                      handleFilterChange(
+                        'starsMax',
+                        e.target.value || undefined,
+                      )
                     }}
                     placeholder="Max"
                     type="number"
@@ -469,7 +501,10 @@ function FiltersBottomSheet({
                     className="border-border/50 bg-card text-foreground hover:border-border focus:border-primary focus:ring-primary/20 w-full cursor-pointer rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
                     id="date-from"
                     onChange={e => {
-                      handleFilterChange('dateFrom', e.target.value || undefined)
+                      handleFilterChange(
+                        'dateFrom',
+                        e.target.value || undefined,
+                      )
                     }}
                     placeholder="From"
                     type="date"
@@ -523,7 +558,7 @@ function FiltersBottomSheet({
         </div>
 
         {/* Reset Button */}
-        <div className="border-t border-border px-6 py-4">
+        <div className="border-border border-t px-6 py-4">
           <button
             className="border-border text-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground w-full cursor-pointer rounded-xl border-2 px-4 py-3 text-sm font-semibold transition-all active:scale-95"
             onClick={() => {

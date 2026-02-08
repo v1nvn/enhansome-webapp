@@ -13,6 +13,8 @@ import {
   getRegistryStats,
   searchRegistryItems,
 } from './db'
+import { indexAllRegistries } from './indexer'
+import { adminAuthMiddleware } from './middleware'
 
 // ============================================================================
 // Registry API
@@ -310,4 +312,208 @@ export const categoriesQueryOptions = (registryName?: string) =>
     queryFn: () => fetchCategories({ data: { registry: registryName } }),
     queryKey: ['categories', registryName],
     staleTime: 60 * 60 * 1000, // 1 hour
+  })
+
+// ============================================================================
+// Admin API
+// ============================================================================
+
+/**
+ * Validate admin API key
+ * Returns success if API key is valid, throws error otherwise
+ */
+export const validateAdminApiKey = createServerFn({ method: 'POST' })
+  .middleware([adminAuthMiddleware])
+  .handler(async () => {
+    // If we reach here, middleware validated the API key successfully
+    return { success: true }
+  })
+
+export interface IndexingHistoryEntry {
+  completedAt?: string
+  createdBy?: string
+  currentRegistry?: string
+  errorMessage?: string
+  errors?: string[]
+  failedCount?: number
+  id: number
+  processedRegistries?: number
+  startedAt: string
+  status: 'completed' | 'failed' | 'running'
+  successCount?: number
+  totalRegistries?: number
+  triggerSource: 'manual' | 'scheduled'
+}
+
+export interface IndexingStatus {
+  current: IndexingHistoryEntry | null
+  isRunning: boolean
+}
+
+export interface IndexRegistriesResult {
+  errors: string[]
+  failed: number
+  success: number
+  timestamp: string
+}
+
+/**
+ * Transform database row to IndexingHistoryEntry
+ */
+interface HistoryRow {
+  completed_at: null | string
+  created_by: null | string
+  current_registry: null | string
+  error_message: null | string
+  errors: null | string
+  failed_count: number
+  id: number
+  processed_registries: number
+  started_at: string
+  status: 'completed' | 'failed' | 'running'
+  success_count: number
+  total_registries: null | number
+  trigger_source: 'manual' | 'scheduled'
+}
+
+/**
+ * Get current indexing status (latest run)
+ */
+export async function getIndexingStatusHandler(
+  db: ReturnType<typeof createKysely>,
+): Promise<IndexingStatus> {
+  const result = await db
+    .selectFrom('indexing_latest')
+    .innerJoin(
+      'indexing_history',
+      'indexing_history.id',
+      'indexing_latest.history_id',
+    )
+    .select([
+      'indexing_history.id',
+      'indexing_history.trigger_source',
+      'indexing_history.status',
+      'indexing_history.started_at',
+      'indexing_history.completed_at',
+      'indexing_history.total_registries',
+      'indexing_history.processed_registries',
+      'indexing_history.current_registry',
+      'indexing_history.success_count',
+      'indexing_history.failed_count',
+      'indexing_history.errors',
+      'indexing_history.error_message',
+      'indexing_history.created_by',
+      'indexing_latest.status as latest_status',
+    ])
+    .execute()
+
+  if (result.length === 0) {
+    return { current: null, isRunning: false }
+  }
+
+  const row = result[0]
+  return {
+    current: historyRowToEntry(row),
+    isRunning: row.latest_status === 'running',
+  }
+}
+
+function historyRowToEntry(row: HistoryRow): IndexingHistoryEntry {
+  return {
+    id: row.id,
+    triggerSource: row.trigger_source,
+    status: row.status,
+    startedAt: row.started_at,
+    completedAt: row.completed_at ?? undefined,
+    totalRegistries: row.total_registries ?? undefined,
+    processedRegistries: row.processed_registries,
+    currentRegistry: row.current_registry ?? undefined,
+    successCount: row.success_count,
+    failedCount: row.failed_count,
+    errors: row.errors ? (JSON.parse(row.errors) as string[]) : undefined,
+    errorMessage: row.error_message ?? undefined,
+    createdBy: row.created_by ?? undefined,
+  }
+}
+
+export const getIndexingStatus = createServerFn({ method: 'GET' })
+  .middleware([adminAuthMiddleware])
+  .handler(async () => {
+    const db = createKysely(env.DB)
+    return getIndexingStatusHandler(db)
+  })
+
+export const indexingStatusQueryOptions = () =>
+  queryOptions<IndexingStatus>({
+    queryFn: () => getIndexingStatus(),
+    queryKey: ['indexing-status'],
+    refetchInterval: query => {
+      // Poll every 2 seconds if running, every 10 seconds otherwise
+      return query.state.data?.isRunning ? 2000 : 10000
+    },
+  })
+
+/**
+ * Get indexing history (past runs)
+ */
+export interface IndexingHistoryParams {
+  limit?: number
+  offset?: number
+}
+
+export async function getIndexingHistoryHandler(
+  db: ReturnType<typeof createKysely>,
+): Promise<IndexingHistoryEntry[]> {
+  const history = await db
+    .selectFrom('indexing_history')
+    .selectAll()
+    .orderBy('started_at', 'desc')
+    .limit(50)
+    .execute()
+
+  return history.map(historyRowToEntry)
+}
+
+export const getIndexingHistory = createServerFn({ method: 'GET' })
+  .middleware([adminAuthMiddleware])
+  .handler(async () => {
+    const db = createKysely(env.DB)
+    return getIndexingHistoryHandler(db)
+  })
+
+export const indexingHistoryQueryOptions = () =>
+  queryOptions<IndexingHistoryEntry[]>({
+    queryFn: () => getIndexingHistory(),
+    queryKey: ['indexing-history'],
+    staleTime: 30 * 1000, // 30 seconds
+  })
+
+/**
+ * Trigger registry indexing on-demand
+ * Requires X-Admin-API-Key header with valid API key from env.ADMIN_API_KEYS
+ * Returns 409 Conflict if indexing is already in progress
+ */
+export const triggerIndexRegistries = createServerFn({ method: 'POST' })
+  .middleware([adminAuthMiddleware])
+  .handler(async () => {
+    const db = createKysely(env.DB)
+
+    // Check if already running via latest status
+    const latestStatus = await db
+      .selectFrom('indexing_latest')
+      .where('status', '=', 'running')
+      .execute()
+
+    if (latestStatus.length > 0) {
+      throw new Error('Indexing already in progress')
+    }
+
+    // Trigger indexing with 'manual' source
+    // Note: createdBy is tracked via auth now, not passed separately
+    const result = await indexAllRegistries(env.DB, 'manual', undefined)
+
+    return {
+      ...result,
+      timestamp: new Date().toISOString(),
+    } satisfies IndexRegistriesResult
   })

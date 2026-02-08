@@ -9,9 +9,40 @@ import type { Generated } from 'kysely'
  * Database schema interface
  */
 export interface Database {
+  indexing_history: IndexingHistoryTable
+  indexing_latest: IndexingLatestTable
   registry_items: RegistryItemsTable
   registry_metadata: RegistryMetadataTable
   sync_log: SyncLogTable
+}
+
+/**
+ * Indexing history table schema
+ */
+export interface IndexingHistoryTable {
+  completed_at: null | string
+  created_by: null | string
+  current_registry: null | string
+  error_message: null | string
+  errors: null | string
+  failed_count: number
+  id: Generated<number>
+  processed_registries: number
+  started_at: string
+  status: 'completed' | 'failed' | 'running'
+  success_count: number
+  total_registries: null | number
+  trigger_source: 'manual' | 'scheduled'
+}
+
+/**
+ * Indexing latest status table schema
+ */
+export interface IndexingLatestTable {
+  history_id: null | number
+  id: 1 // Single-row table with id = 1
+  status: 'completed' | 'failed' | 'idle' | 'running'
+  updated_at: string
 }
 
 /**

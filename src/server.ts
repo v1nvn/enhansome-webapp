@@ -32,7 +32,7 @@ export default {
     console.log(`  Cron expression: ${event.cron}`)
 
     try {
-      const result = await indexAllRegistries(env.DB)
+      const result = await indexAllRegistries(env.DB, 'scheduled')
 
       console.log(
         `✅ Indexing complete: ${result.success} registries indexed, ${result.failed} failed`,

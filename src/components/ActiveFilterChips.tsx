@@ -6,19 +6,29 @@ import type { FilterValues } from './FiltersSidebar'
 
 interface ActiveFilterChipsProps {
   filters: FilterValues
-  onRemoveFilter: (key: keyof FilterValues) => void
   onClearAll: () => void
+  onRemoveFilter: (key: keyof FilterValues) => void
 }
 
-function ActiveFilterChips({ filters, onRemoveFilter, onClearAll }: ActiveFilterChipsProps) {
+function ActiveFilterChips({
+  filters,
+  onRemoveFilter,
+  onClearAll,
+}: ActiveFilterChipsProps) {
   const activeFilters = useMemo(() => {
-    const chips: Array<{ key: keyof FilterValues; label: string; value: string }> = []
+    const chips: { key: keyof FilterValues; label: string; value: string }[] =
+      []
 
     if (filters.sort && filters.sort !== 'stars') {
       chips.push({
         key: 'sort',
         label: 'Sort',
-        value: filters.sort === 'name' ? 'A-Z' : filters.sort === 'updated' ? 'Updated' : 'Stars',
+        value:
+          filters.sort === 'name'
+            ? 'A-Z'
+            : filters.sort === 'updated'
+              ? 'Updated'
+              : 'Stars',
       })
     }
 
@@ -32,7 +42,8 @@ function ActiveFilterChips({ filters, onRemoveFilter, onClearAll }: ActiveFilter
 
     if (filters.category) {
       // Extract just the category name (format: "registry::category")
-      const categoryName = filters.category.split('::').pop() || filters.category
+      const categoryName =
+        filters.category.split('::').pop() || filters.category
       chips.push({
         key: 'category',
         label: 'Category',
@@ -79,12 +90,14 @@ function ActiveFilterChips({ filters, onRemoveFilter, onClearAll }: ActiveFilter
 
   return (
     <div className="md:hidden">
-      <div className="flex items-center gap-2 overflow-x-auto pb-3 scrollbar-hide">
+      <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto pb-3">
         {activeFilters.map(chip => (
           <button
             className="bg-accent/50 hover:bg-accent/70 text-foreground group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
             key={chip.key}
-            onClick={() => onRemoveFilter(chip.key)}
+            onClick={() => {
+              onRemoveFilter(chip.key)
+            }}
             type="button"
           >
             <span className="text-muted-foreground">{chip.label}:</span>

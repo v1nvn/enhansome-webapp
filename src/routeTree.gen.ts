@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegistryRouteImport } from './routes/registry'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRegistriesRouteImport } from './routes/admin.index-registries'
 
 const RegistryRoute = RegistryRouteImport.update({
   id: '/registry',
@@ -22,31 +23,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRegistriesRoute = AdminIndexRegistriesRouteImport.update({
+  id: '/admin/index-registries',
+  path: '/admin/index-registries',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/registry': typeof RegistryRoute
+  '/admin/index-registries': typeof AdminIndexRegistriesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/registry': typeof RegistryRoute
+  '/admin/index-registries': typeof AdminIndexRegistriesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/registry': typeof RegistryRoute
+  '/admin/index-registries': typeof AdminIndexRegistriesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/registry'
+  fullPaths: '/' | '/registry' | '/admin/index-registries'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/registry'
-  id: '__root__' | '/' | '/registry'
+  to: '/' | '/registry' | '/admin/index-registries'
+  id: '__root__' | '/' | '/registry' | '/admin/index-registries'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   RegistryRoute: typeof RegistryRoute
+  AdminIndexRegistriesRoute: typeof AdminIndexRegistriesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/index-registries': {
+      id: '/admin/index-registries'
+      path: '/admin/index-registries'
+      fullPath: '/admin/index-registries'
+      preLoaderRoute: typeof AdminIndexRegistriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   RegistryRoute: RegistryRoute,
+  AdminIndexRegistriesRoute: AdminIndexRegistriesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

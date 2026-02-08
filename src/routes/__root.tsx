@@ -91,7 +91,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         name: 'description',
       },
       {
-        content: 'developer tools, open source, awesome lists, github repositories, software libraries, frameworks, developer resources, curated tools',
+        content:
+          'developer tools, open source, awesome lists, github repositories, software libraries, frameworks, developer resources, curated tools',
         name: 'keywords',
       },
       {
@@ -144,15 +145,18 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
       // LLM / AI-friendly structured data
       {
-        content: 'Enhansome is a curated registry of developer resources, tools, libraries, and frameworks sourced from high-quality awesome lists. It provides enhanced metadata including GitHub stars, last commit dates, programming languages, categories, and powerful search capabilities with intelligent filtering by registry, category, stars, dates, and project status.',
+        content:
+          'Enhansome is a curated registry of developer resources, tools, libraries, and frameworks sourced from high-quality awesome lists. It provides enhanced metadata including GitHub stars, last commit dates, programming languages, categories, and powerful search capabilities with intelligent filtering by registry, category, stars, dates, and project status.',
         name: 'ai-summary',
       },
       {
-        content: 'developer resources, software engineering, open source discovery, github, awesome lists, registry, searchable database',
+        content:
+          'developer resources, software engineering, open source discovery, github, awesome lists, registry, searchable database',
         name: 'ai-topics',
       },
       {
-        content: 'technology, programming, software-development, developer-tools, open-source',
+        content:
+          'technology, programming, software-development, developer-tools, open-source',
         name: 'ai-categories',
       },
       // Additional SEO
