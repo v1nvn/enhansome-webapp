@@ -1,46 +1,17 @@
 import { describe, it, expect } from 'vitest'
 import {
-  discoverRegistries,
   fetchRegistryFiles,
   extractRegistryName,
 } from '@/lib/indexer'
-
-// Use deterministic commit SHA for integration tests
-const TEST_ARCHIVE_URL =
-  'https://github.com/v1nvn/enhansome-registry/archive/dc22be07d65168379a3d12825730ecf5ee2dc32d.zip'
+import { TEST_ARCHIVE_URL } from './test_utils'
 
 describe('Registry Discovery with Real Data', () => {
   // These tests use real network requests to GitHub
   // They may be slower and require internet connectivity
 
-  describe('discoverRegistries', () => {
-    it('should discover registries from GitHub archive', async () => {
-      const registries = await discoverRegistries(TEST_ARCHIVE_URL)
-
-      // Should discover multiple registries
-      expect(registries.length).toBeGreaterThan(0)
-
-      // Each registry should be in "owner/repo" format
-      for (const registry of registries) {
-        expect(registry).toMatch(/^[^/]+\/[^/]+$/)
-      }
-
-      // Known registries that should exist
-      expect(registries).toContain('v1nvn/enhansome-go')
-      expect(registries).toContain('v1nvn/enhansome-mcp-servers')
-    })
-
-    it('should return unique registry paths', async () => {
-      const registries = await discoverRegistries(TEST_ARCHIVE_URL)
-      const uniqueRegistries = new Set(registries)
-
-      expect(registries.length).toBe(uniqueRegistries.size)
-    })
-  })
-
   describe('fetchRegistryFiles', () => {
     it('should fetch and parse registry data from discovered registries', async () => {
-      const files = await fetchRegistryFiles()
+      const files = await fetchRegistryFiles(TEST_ARCHIVE_URL)
 
       // Should have fetched at least some registries successfully
       expect(files.size).toBeGreaterThan(0)
@@ -62,7 +33,7 @@ describe('Registry Discovery with Real Data', () => {
     })
 
     it('should include known registries', async () => {
-      const files = await fetchRegistryFiles()
+      const files = await fetchRegistryFiles(TEST_ARCHIVE_URL)
 
       // Known registry names (without "enhansome-" prefix)
       const knownRegistries = ['go', 'mcp-servers', 'selfhosted']
@@ -77,7 +48,7 @@ describe('Registry Discovery with Real Data', () => {
     it('should handle registries with missing data.json gracefully', async () => {
       // This test verifies that the function continues even if some registries
       // have missing or invalid data.json files
-      const files = await fetchRegistryFiles()
+      const files = await fetchRegistryFiles(TEST_ARCHIVE_URL)
 
       // Should not throw and should return whatever it could fetch
       expect(files).toBeInstanceOf(Map)

@@ -324,7 +324,7 @@ export const categoriesQueryOptions = (registryName?: string) =>
  */
 export const validateAdminApiKey = createServerFn({ method: 'POST' })
   .middleware([adminAuthMiddleware])
-  .handler(async () => {
+  .handler(() => {
     // If we reach here, middleware validated the API key successfully
     return { success: true }
   })

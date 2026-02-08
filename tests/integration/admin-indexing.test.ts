@@ -10,6 +10,7 @@ import {
   getIndexingHistoryHandler,
   getIndexingStatusHandler,
 } from '@/lib/server-functions'
+import { TEST_ARCHIVE_URL } from './test_utils'
 
 describe('Admin Indexing with Progress Tracking', () => {
   beforeAll(async () => {
@@ -488,6 +489,7 @@ describe('Admin Indexing with Progress Tracking', () => {
         env.DB,
         'manual',
         'test-key',
+        TEST_ARCHIVE_URL,
       )
 
       // Should return early with error
@@ -521,7 +523,12 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Start indexing (this will make real network calls)
       // We just want to verify it creates a history entry
-      const result = await indexerModule.indexAllRegistries(env.DB, 'scheduled')
+      const result = await indexerModule.indexAllRegistries(
+        env.DB,
+        'scheduled',
+        undefined,
+        TEST_ARCHIVE_URL,
+      )
 
       // Should complete with some success count
       expect(result.success).toBeGreaterThan(0)
@@ -557,6 +564,7 @@ describe('Admin Indexing with Progress Tracking', () => {
         env.DB,
         'manual',
         'test-key',
+        TEST_ARCHIVE_URL,
       )
 
       // Wait a bit for indexing to start

@@ -9,80 +9,10 @@ import type { RegistryData, RegistryItem } from '@/types/registry'
 
 const REGISTRY_ARCHIVE_URL =
   'https://github.com/v1nvn/enhansome-registry/archive/refs/heads/main.zip'
-const REGISTRY_RAW_BASE_URL =
-  'https://raw.githubusercontent.com/v1nvn/enhansome-registry/main'
 
 interface FlattenedItem {
   category: string
   data: RegistryItem
-}
-
-/**
- * Discover all available registries by fetching and scanning the repo archive
- * Returns array of registry paths like ["v1nvn/enhansome-go", "v1nvn/enhansome-mcp-servers"]
- * @param archiveUrl - Optional override URL for testing (defaults to REGISTRY_ARCHIVE_URL)
- */
-export async function discoverRegistries(
-  archiveUrl?: string,
-): Promise<string[]> {
-  const url = archiveUrl || REGISTRY_ARCHIVE_URL
-  console.log('Discovering registries from GitHub archive...')
-
-  try {
-    // Fetch the repo archive
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch archive: ${response.status}`)
-    }
-
-    // Get zip data as ArrayBuffer
-    const zipData = await response.arrayBuffer()
-    const zip = await JSZip.loadAsync(zipData)
-
-    // Discover all repos/*/*/index.json paths
-    const registries: string[] = []
-
-    // Dynamic prefix detection - find the repos/ directory
-    // Zip could be named "enhansome-registry-main" or "enhansome-registry-<sha>"
-    let repoPrefix = ''
-    for (const path of Object.keys(zip.files)) {
-      if (path.includes('/repos/') && path.endsWith('/index.json')) {
-        const prefixEnd = path.indexOf('/repos/')
-        repoPrefix = path.slice(0, prefixEnd + 1) // Include trailing slash
-        break
-      }
-    }
-
-    if (!repoPrefix) {
-      throw new Error('Could not find repos/ directory in archive')
-    }
-
-    for (const [path, file] of Object.entries(zip.files)) {
-      // Skip files not in repos/ directory
-      if (!path.startsWith(`${repoPrefix}repos/`)) continue
-      // Skip directories
-      if (file.dir) continue
-
-      // Check if it's an index.json file
-      if (path.endsWith('/index.json')) {
-        // Extract owner/repo from path
-        // Path format: enhansome-registry-<sha>/repos/owner/repo/index.json
-        const relativePath = path.slice(`${repoPrefix}repos/`.length)
-        const parts = relativePath.split('/')
-        if (parts.length >= 2) {
-          const owner = parts[0]
-          const repo = parts[1]
-          registries.push(`${owner}/${repo}`)
-        }
-      }
-    }
-
-    console.log(`  ✓ Discovered ${registries.length} registries`)
-    return registries
-  } catch (error) {
-    console.error('Error discovering registries:', error)
-    throw error
-  }
 }
 
 /**
@@ -101,56 +31,102 @@ export function extractRegistryName(identifier: string): string {
 
 /**
  * Fetch all registry JSON files from enhansome-registry repo
- * Uses dynamic discovery to find all available registries
+ * Downloads the zip archive once and extracts all data.json files directly
+ * @param archiveUrl - Optional override URL for testing (defaults to REGISTRY_ARCHIVE_URL)
  */
-export async function fetchRegistryFiles(): Promise<Map<string, RegistryData>> {
+export async function fetchRegistryFiles(
+  archiveUrl?: string,
+): Promise<Map<string, RegistryData>> {
+  const url = archiveUrl || REGISTRY_ARCHIVE_URL
   const files = new Map<string, RegistryData>()
+  console.log('Fetching registry data from GitHub archive...')
 
-  // Step 1: Discover all available registries
-  const registries = await discoverRegistries()
+  try {
+    // Fetch the repo archive
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch archive: ${response.status}`)
+    }
 
-  // Step 2: Fetch data.json for each discovered registry
-  await Promise.all(
-    registries.map(async ownerRepo => {
-      try {
-        const url = constructRegistryDataUrl(ownerRepo)
-        const response = await fetch(url)
+    // Get zip data as ArrayBuffer
+    const zipData = await response.arrayBuffer()
+    const zip = await JSZip.loadAsync(zipData)
 
-        if (!response.ok) {
-          console.warn(
-            `  ✗ Skipped ${ownerRepo}: ${response.status} (data.json not found)`,
-          )
-          return
-        }
-
-        const jsonData: unknown = await response.json()
-
-        // Validate JSON structure
-        if (
-          !jsonData ||
-          typeof jsonData !== 'object' ||
-          !('items' in jsonData) ||
-          !('metadata' in jsonData)
-        ) {
-          console.warn(`  ✗ Skipped ${ownerRepo}: Invalid data structure`)
-          return
-        }
-
-        const data = jsonData as RegistryData
-
-        // Extract registry name: "v1nvn/enhansome-go" -> "go"
-        const registryName = extractRegistryName(ownerRepo)
-
-        files.set(registryName, data)
-        console.log(`  ✓ Fetched ${registryName}`)
-      } catch (error) {
-        console.error(`  ✗ Error fetching ${ownerRepo}:`, error)
-        // Continue with other registries
+    // Dynamic prefix detection - find the repos/ directory
+    let repoPrefix = ''
+    for (const path of Object.keys(zip.files)) {
+      if (path.includes('/repos/')) {
+        const prefixEnd = path.indexOf('/repos/')
+        repoPrefix = path.slice(0, prefixEnd + 1) // Include trailing slash
+        break
       }
-    }),
-  )
+    }
 
-  return files
+    if (!repoPrefix) {
+      throw new Error('Could not find repos/ directory in archive')
+    }
+
+    let successCount = 0
+    let skippedCount = 0
+
+    // Process all data.json files in repos/
+    for (const [path, file] of Object.entries(zip.files)) {
+      // Skip files not in repos/ directory or directories
+      if (!path.startsWith(`${repoPrefix}repos/`) || file.dir) continue
+
+      // Check if it's a data.json file
+      if (path.endsWith('/data.json')) {
+        try {
+          // Read file content from zip
+          const content = await file.async('text')
+          const jsonData: unknown = JSON.parse(content)
+
+          // Validate JSON structure
+          if (
+            !jsonData ||
+            typeof jsonData !== 'object' ||
+            !('items' in jsonData) ||
+            !('metadata' in jsonData)
+          ) {
+            console.warn(`  ✗ Skipped ${path}: Invalid data structure`)
+            skippedCount++
+            continue
+          }
+
+          const data = jsonData as RegistryData
+
+          // Extract owner/repo from path
+          // Path format: enhansome-registry-<sha>/repos/owner/repo/data.json
+          const relativePath = path.slice(`${repoPrefix}repos/`.length)
+          const parts = relativePath.split('/')
+          if (parts.length >= 2) {
+            const owner = parts[0]
+            const repo = parts[1]
+
+            // Extract registry name: "v1nvn/enhansome-go" -> "go"
+            const registryName = extractRegistryName(`${owner}/${repo}`)
+
+            files.set(registryName, data)
+            successCount++
+            console.log(`  ✓ Loaded ${registryName}`)
+          }
+        } catch (error) {
+          console.error(`  ✗ Error reading ${path}:`, error)
+          skippedCount++
+        }
+      }
+    }
+
+    console.log(
+      `  ✓ Loaded ${successCount} registries from archive${
+        skippedCount > 0 ? ` (${skippedCount} skipped)` : ''
+      }`,
+    )
+    return files
+  } catch (error) {
+    console.error('Error fetching registry files:', error)
+    throw error
+  }
 }
 
 /**
@@ -187,6 +163,7 @@ export async function indexAllRegistries(
   db: D1Database,
   triggerSource: 'manual' | 'scheduled' = 'scheduled',
   createdBy?: string,
+  archiveUrl?: string,
 ): Promise<{
   errors: string[]
   failed: number
@@ -216,7 +193,7 @@ export async function indexAllRegistries(
   await updateLatestStatus(db, 'running', historyId)
 
   try {
-    const files = await fetchRegistryFiles()
+    const files = await fetchRegistryFiles(archiveUrl)
     console.log(`Found ${files.size} registry files to index`)
 
     // Update history with total count
@@ -416,13 +393,6 @@ async function completeHistoryEntry(
     .prepare(`UPDATE indexing_history SET ${statusClause} WHERE id = ?`)
     .bind(...params)
     .run()
-}
-
-/**
- * Construct the data.json URL for a registry
- */
-function constructRegistryDataUrl(ownerRepo: string): string {
-  return `${REGISTRY_RAW_BASE_URL}/repos/${ownerRepo}/data.json`
 }
 
 /**
