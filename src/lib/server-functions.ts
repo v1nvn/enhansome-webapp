@@ -489,20 +489,97 @@ export const indexingHistoryQueryOptions = () =>
   })
 
 /**
+ * Stop/cancel the current indexing operation
+ * @returns Status message indicating success or if nothing was running
+ */
+export async function stopIndexingHandler(
+  db: ReturnType<typeof createKysely>,
+): Promise<{
+  message: string
+  status: 'not_running' | 'stopped'
+  timestamp: string
+}> {
+  // Get the current running job
+  const result = await db
+    .selectFrom('indexing_latest')
+    .innerJoin(
+      'indexing_history',
+      'indexing_history.id',
+      'indexing_latest.history_id',
+    )
+    .select(['indexing_history.id', 'indexing_history.status'])
+    .execute()
+
+  if (result.length === 0 || result[0].status !== 'running') {
+    return {
+      status: 'not_running',
+      message: 'No indexing job is currently running',
+      timestamp: new Date().toISOString(),
+    }
+  }
+
+  const historyId = result[0].id
+  const completedAt = new Date().toISOString()
+
+  // Mark the current job as failed/cancelled
+  await db
+    .updateTable('indexing_history')
+    .set({
+      completed_at: completedAt,
+      current_registry: null,
+      error_message: 'Indexing was manually stopped',
+      status: 'failed',
+    })
+    .where('id', '=', historyId)
+    .execute()
+
+  // Update latest status
+  await db
+    .updateTable('indexing_latest')
+    .set({
+      status: 'failed',
+      updated_at: completedAt,
+    })
+    .where('id', '=', 1)
+    .execute()
+
+  return {
+    status: 'stopped',
+    message: 'Indexing stopped successfully',
+    timestamp: completedAt,
+  }
+}
+
+/**
  * Trigger registry indexing on-demand
  * Requires X-Admin-API-Key header with valid API key from env.ADMIN_API_KEYS
- * Returns 409 Conflict if indexing is already in progress
+ * Returns immediately and runs indexing in the background
  */
 export const triggerIndexRegistries = createServerFn({ method: 'POST' })
   .middleware([adminAuthMiddleware])
-  .handler(async () => {
-    // Trigger indexing with 'manual' source
-    // Note: createdBy is tracked via auth now, not passed separately
-    // Note: indexAllRegistries already checks if indexing is in progress
-    const result = await indexAllRegistries(env.DB, 'manual', undefined)
+  .handler(() => {
+    // Trigger indexing asynchronously in the background
+    // createdBy is tracked via auth middleware
+    void indexAllRegistries(env.DB, 'manual', undefined).catch(
+      (error: unknown) => {
+        console.error('Background indexing failed:', error)
+      },
+    )
 
     return {
-      ...result,
+      status: 'triggered',
+      message: 'Indexing started',
       timestamp: new Date().toISOString(),
-    } satisfies IndexRegistriesResult
+    }
+  })
+
+/**
+ * Stop/cancel the current indexing operation
+ * Requires X-Admin-API-Key header with valid API key from env.ADMIN_API_KEYS
+ */
+export const stopIndexing = createServerFn({ method: 'POST' })
+  .middleware([adminAuthMiddleware])
+  .handler(async () => {
+    const db = createKysely(env.DB)
+    return stopIndexingHandler(db)
   })

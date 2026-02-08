@@ -1,9 +1,10 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { Loader2, RefreshCw } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Loader2, RefreshCw, Square } from 'lucide-react'
 
 import {
   getIndexingStatus,
   indexingStatusQueryOptions,
+  stopIndexing,
   triggerIndexRegistries,
 } from '@/lib/server-functions'
 
@@ -11,6 +12,7 @@ import { useAdminApi } from './AdminApiContext'
 
 export function IndexingTriggerCard() {
   const { apiKey, onClearAuth } = useAdminApi()
+  const queryClient = useQueryClient()
 
   const { data: status } = useQuery({
     ...indexingStatusQueryOptions(),
@@ -31,9 +33,27 @@ export function IndexingTriggerCard() {
       })
     },
     onSuccess: () => {
-      setTimeout(() => {
-        window.location.reload()
-      }, 500)
+      // Invalidate the status query to trigger a refetch
+      // The status will now show "running" immediately
+      void queryClient.invalidateQueries({
+        queryKey: ['indexing-status'],
+      })
+    },
+  })
+
+  const stopMutation = useMutation({
+    mutationFn: async () => {
+      return stopIndexing({
+        headers: {
+          'X-Admin-API-Key': apiKey ?? '',
+        },
+      })
+    },
+    onSuccess: () => {
+      // Invalidate the status query to trigger a refetch
+      void queryClient.invalidateQueries({
+        queryKey: ['indexing-status'],
+      })
     },
   })
 
@@ -59,7 +79,7 @@ export function IndexingTriggerCard() {
               </span>
               <button
                 className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                disabled={isRunning || mutation.isPending}
+                disabled={mutation.isPending || stopMutation.isPending}
                 onClick={onClearAuth}
                 type="button"
               >
@@ -68,31 +88,60 @@ export function IndexingTriggerCard() {
             </div>
           </div>
 
-          {/* Trigger Button */}
-          <button
-            className="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary disabled:hover:bg-primary flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isRunning || mutation.isPending}
-            onClick={() => {
-              mutation.mutate()
-            }}
-            type="button"
-          >
-            {isRunning || mutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Indexing...</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                <span>Trigger Indexing</span>
-              </>
-            )}
-          </button>
+          {/* Trigger/Stop Button */}
+          {isRunning ? (
+            <button
+              className="border-border bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={stopMutation.isPending}
+              onClick={() => {
+                stopMutation.mutate()
+              }}
+              type="button"
+            >
+              {stopMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Stopping...</span>
+                </>
+              ) : (
+                <>
+                  <Square className="h-4 w-4" />
+                  <span>Stop Indexing</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              className="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary disabled:hover:bg-primary flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={mutation.isPending}
+              onClick={() => {
+                mutation.mutate()
+              }}
+              type="button"
+            >
+              {mutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Starting...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Trigger Indexing</span>
+                </>
+              )}
+            </button>
+          )}
 
           {mutation.error && (
             <div className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600">
               {mutation.error.message}
+            </div>
+          )}
+
+          {stopMutation.error && (
+            <div className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600">
+              {stopMutation.error.message}
             </div>
           )}
         </div>

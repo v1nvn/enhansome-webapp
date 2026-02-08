@@ -9,6 +9,7 @@ import { createKysely } from '@/lib/db'
 import {
   getIndexingHistoryHandler,
   getIndexingStatusHandler,
+  stopIndexingHandler,
 } from '@/lib/server-functions'
 import { TEST_ARCHIVE_URL } from './test_utils'
 
@@ -579,6 +580,244 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Wait for indexing to complete
       await indexingPromise
+    })
+  })
+
+  describe('stop indexing', () => {
+    it('should stop a running indexing job', async () => {
+      const db = createKysely(env.DB)
+
+      // Create a running history entry
+      const insertResult = await env.DB.prepare(
+        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, processed_registries, success_count, failed_count, current_registry) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+        .bind(
+          'manual',
+          'running',
+          new Date().toISOString(),
+          5,
+          2,
+          2,
+          0,
+          'go',
+        )
+        .run()
+
+      const historyId = insertResult.meta.last_row_id
+
+      // Update latest status to running
+      await db
+        .updateTable('indexing_latest')
+        .set({
+          history_id: historyId,
+          status: 'running',
+          updated_at: new Date().toISOString(),
+        })
+        .execute()
+
+      // Call stopIndexingHandler
+      const result = await stopIndexingHandler(db)
+
+      expect(result.status).toBe('stopped')
+      expect(result.message).toBe('Indexing stopped successfully')
+
+      // History entry should be marked as failed
+      const history = await db
+        .selectFrom('indexing_history')
+        .where('id', '=', historyId)
+        .selectAll()
+        .execute()
+      expect(history).toHaveLength(1)
+      expect(history[0].status).toBe('failed')
+      expect(history[0].error_message).toBe('Indexing was manually stopped')
+      expect(history[0].completed_at).not.toBeNull()
+      expect(history[0].current_registry).toBeNull()
+
+      // Latest status should be failed
+      const latestResult = await env.DB
+        .prepare('SELECT status FROM indexing_latest ORDER BY updated_at DESC LIMIT 1')
+        .first<{ status: string }>()
+      expect(latestResult?.status).toBe('failed')
+    })
+
+    it('should return not_running status when no job is running', async () => {
+      const db = createKysely(env.DB)
+
+      // Ensure status is idle
+      await db
+        .updateTable('indexing_latest')
+        .set({
+          history_id: null,
+          status: 'idle',
+          updated_at: new Date().toISOString(),
+        })
+        .execute()
+
+      // Try to stop when nothing is running
+      const result = await stopIndexingHandler(db)
+
+      expect(result.status).toBe('not_running')
+      expect(result.message).toBe('No indexing job is currently running')
+    })
+
+    it('should return not_running when job is completed', async () => {
+      const db = createKysely(env.DB)
+
+      // Create a completed history entry
+      const insertResult = await env.DB.prepare(
+        'INSERT INTO indexing_history (trigger_source, status, started_at, completed_at, total_registries, processed_registries, success_count, failed_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+        .bind(
+          'manual',
+          'completed',
+          new Date(Date.now() - 10000).toISOString(),
+          new Date().toISOString(),
+          5,
+          5,
+          5,
+          0,
+        )
+        .run()
+
+      const historyId = insertResult.meta.last_row_id
+
+      // Update latest status to completed
+      await db
+        .updateTable('indexing_latest')
+        .set({
+          history_id: historyId,
+          status: 'completed',
+          updated_at: new Date().toISOString(),
+        })
+        .execute()
+
+      // Try to stop a completed job
+      const result = await stopIndexingHandler(db)
+
+      expect(result.status).toBe('not_running')
+      expect(result.message).toBe('No indexing job is currently running')
+    })
+
+    it('should allow new indexing after stopping', async () => {
+      const db = createKysely(env.DB)
+      const indexerModule = await import('@/lib/indexer')
+
+      // Clear any existing history
+      await db.deleteFrom('indexing_history').execute()
+
+      // Create a running history entry
+      const insertResult = await env.DB.prepare(
+        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, processed_registries, success_count, failed_count, current_registry) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+        .bind(
+          'manual',
+          'running',
+          new Date(Date.now() - 5000).toISOString(), // 5 seconds ago
+          5,
+          2,
+          2,
+          0,
+          'go',
+        )
+        .run()
+
+      const historyId = insertResult.meta.last_row_id
+
+      // Update latest status to running
+      await db
+        .updateTable('indexing_latest')
+        .set({
+          history_id: historyId,
+          status: 'running',
+          updated_at: new Date().toISOString(),
+        })
+        .execute()
+
+      // Stop the job
+      await stopIndexingHandler(db)
+
+      // Verify it was stopped
+      const latestResult = await env.DB
+        .prepare('SELECT status FROM indexing_latest ORDER BY updated_at DESC LIMIT 1')
+        .first<{ status: string }>()
+      expect(latestResult?.status).toBe('failed')
+
+      // Now try to start a new indexing job
+      // This should succeed because the previous job was stopped
+      const result = await indexerModule.indexAllRegistries(
+        env.DB,
+        'scheduled',
+        undefined,
+        TEST_ARCHIVE_URL,
+        undefined,
+      )
+
+      // Should complete without throwing errors
+      expect(result).toBeDefined()
+
+      // Should have created a second history entry
+      const history = await db
+        .selectFrom('indexing_history')
+        .selectAll()
+        .orderBy('started_at', 'asc')
+        .execute()
+      expect(history).toHaveLength(2)
+
+      // First entry (oldest) should be the stopped one
+      expect(history[0].error_message).toBe('Indexing was manually stopped')
+      expect(history[0].status).toBe('failed')
+
+      // Most recent entry should be the new indexing run
+      expect(history[1].status).not.toBe('running')
+      expect(['completed', 'failed']).toContain(history[1].status)
+    })
+
+    it('should preserve trigger_source and created_by when stopping', async () => {
+      const db = createKysely(env.DB)
+
+      // Create a running history entry with specific metadata
+      const insertResult = await env.DB.prepare(
+        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, processed_registries, success_count, failed_count, current_registry, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+        .bind(
+          'manual',
+          'running',
+          new Date().toISOString(),
+          5,
+          2,
+          2,
+          0,
+          'python',
+          'a1b2',
+        )
+        .run()
+
+      const historyId = insertResult.meta.last_row_id
+
+      // Update latest status
+      await db
+        .updateTable('indexing_latest')
+        .set({
+          history_id: historyId,
+          status: 'running',
+          updated_at: new Date().toISOString(),
+        })
+        .execute()
+
+      // Stop the job
+      await stopIndexingHandler(db)
+
+      // Verify metadata is preserved
+      const history = await db
+        .selectFrom('indexing_history')
+        .where('id', '=', historyId)
+        .selectAll()
+        .execute()
+
+      expect(history).toHaveLength(1)
+      expect(history[0].trigger_source).toBe('manual')
+      expect(history[0].created_by).toBe('a1b2')
+      expect(history[0].status).toBe('failed')
     })
   })
 })

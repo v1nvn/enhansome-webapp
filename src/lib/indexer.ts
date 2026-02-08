@@ -157,6 +157,7 @@ export function flattenItems(data: RegistryData): {
  * @param db - D1 database instance
  * @param triggerSource - 'manual' or 'scheduled'
  * @param createdBy - API key identifier (last 4 chars) for manual runs, optional
+ * @param archiveUrl - Optional override URL for testing
  * @returns Summary of success/failure
  */
 export async function indexAllRegistries(
