@@ -1,5 +1,6 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
+import { getRequestHeader } from '@tanstack/react-start/server'
 // eslint-disable-next-line import-x/no-unresolved
 import { env } from 'cloudflare:workers'
 
@@ -13,7 +14,6 @@ import {
   getRegistryStats,
   searchRegistryItems,
 } from './db'
-import { indexAllRegistries } from './indexer'
 import { adminAuthMiddleware } from './middleware'
 
 // ============================================================================
@@ -551,25 +551,46 @@ export async function stopIndexingHandler(
 }
 
 /**
- * Trigger registry indexing on-demand
+ * Trigger registry indexing on-demand via Queue
  * Requires X-Admin-API-Key header with valid API key from env.ADMIN_API_KEYS
- * Returns immediately and runs indexing in the background
+ * Sends message to queue and returns immediately
  */
 export const triggerIndexRegistries = createServerFn({ method: 'POST' })
   .middleware([adminAuthMiddleware])
-  .handler(() => {
-    // Trigger indexing asynchronously in the background
-    // createdBy is tracked via auth middleware
-    void indexAllRegistries(env.DB, 'manual', undefined).catch(
-      (error: unknown) => {
-        console.error('Background indexing failed:', error)
-      },
-    )
+  .handler(async () => {
+    // Extract API key identifier for tracking
+    // Note: API key is already validated by middleware
+    const apiKey = getRequestHeader('X-Admin-API-Key')
+    const createdBy = apiKey ? apiKey.slice(-4) : undefined
 
-    return {
-      status: 'triggered',
-      message: 'Indexing started',
+    // Generate unique job ID
+    const jobId = crypto.randomUUID()
+
+    // Create queue message
+    const message = {
+      jobId,
+      triggerSource: 'manual' as const,
+      createdBy,
       timestamp: new Date().toISOString(),
+    }
+
+    try {
+      // Send message to queue
+      await env.INDEXING_QUEUE.send(message)
+
+      console.log(
+        `✅ Indexing job ${jobId} queued by ${createdBy || 'unknown'}`,
+      )
+
+      return {
+        status: 'queued',
+        message: 'Indexing job queued successfully',
+        jobId,
+        timestamp: message.timestamp,
+      }
+    } catch (error) {
+      console.error('❌ Failed to queue indexing job:', error)
+      throw new Error('Failed to queue indexing job')
     }
   })
 

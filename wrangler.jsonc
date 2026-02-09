@@ -23,5 +23,20 @@
       "migrations_dir": "migrations",
       "migrations_table": "d1_migrations"
     }
-  ]
+  ],
+  "queues": {
+    "producers": [
+      {
+        "queue": "indexing-queue",
+        "binding": "INDEXING_QUEUE"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "indexing-queue",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30
+      }
+    ]
+  }
 }

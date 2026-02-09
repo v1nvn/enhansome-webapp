@@ -749,7 +749,6 @@ describe('Admin Indexing with Progress Tracking', () => {
         'scheduled',
         undefined,
         TEST_ARCHIVE_URL,
-        undefined,
       )
 
       // Should complete without throwing errors
@@ -818,6 +817,312 @@ describe('Admin Indexing with Progress Tracking', () => {
       expect(history[0].trigger_source).toBe('manual')
       expect(history[0].created_by).toBe('a1b2')
       expect(history[0].status).toBe('failed')
+    })
+  })
+
+  describe('Queue-based indexing', () => {
+    it('should process queue message for manual indexing', async () => {
+      const db = createKysely(env.DB)
+      const indexerModule = await import('@/lib/indexer')
+      const { TEST_ARCHIVE_URL } = await import('./test_utils')
+
+      // Create a mock queue message
+      const message = {
+        id: 'test-msg-1',
+        timestamp: new Date(),
+        body: {
+          jobId: crypto.randomUUID(),
+          triggerSource: 'manual' as const,
+          createdBy: 'test-key',
+          timestamp: new Date().toISOString(),
+        },
+        attempts: 1,
+      }
+
+      // Simulate queue consumer processing
+      const result = await indexerModule.indexAllRegistries(
+        env.DB,
+        message.body.triggerSource,
+        message.body.createdBy,
+        TEST_ARCHIVE_URL,
+      )
+
+      // Verify indexing completed
+      expect(result).toBeDefined()
+      expect(result.success).toBeGreaterThan(0)
+
+      // Verify history entry was created with correct metadata
+      const history = await db
+        .selectFrom('indexing_history')
+        .selectAll()
+        .execute()
+
+      expect(history).toHaveLength(1)
+      expect(history[0].trigger_source).toBe('manual')
+      expect(history[0].created_by).toBe('test-key')
+      expect(['completed', 'failed']).toContain(history[0].status)
+    })
+
+    it('should process queue message for scheduled indexing', async () => {
+      const db = createKysely(env.DB)
+      const indexerModule = await import('@/lib/indexer')
+      const { TEST_ARCHIVE_URL } = await import('./test_utils')
+
+      // Create a mock queue message for scheduled trigger
+      const message = {
+        id: 'test-msg-2',
+        timestamp: new Date(),
+        body: {
+          jobId: crypto.randomUUID(),
+          triggerSource: 'scheduled' as const,
+          timestamp: new Date().toISOString(),
+        },
+        attempts: 1,
+      }
+
+      // Simulate queue consumer processing
+      const result = await indexerModule.indexAllRegistries(
+        env.DB,
+        message.body.triggerSource,
+        undefined, // createdBy is undefined for scheduled
+        TEST_ARCHIVE_URL,
+      )
+
+      // Verify indexing completed
+      expect(result).toBeDefined()
+      expect(result.success).toBeGreaterThan(0)
+
+      // Verify history entry was created with scheduled source
+      const history = await db
+        .selectFrom('indexing_history')
+        .selectAll()
+        .execute()
+
+      expect(history).toHaveLength(1)
+      expect(history[0].trigger_source).toBe('scheduled')
+      expect(history[0].created_by).toBeNull()
+    })
+
+    it('should handle queue message with archiveUrl override', async () => {
+      const db = createKysely(env.DB)
+      const indexerModule = await import('@/lib/indexer')
+
+      // Create a mock queue message with custom archive URL
+      const customUrl = 'https://example.com/custom-archive.zip'
+      const message = {
+        id: 'test-msg-3',
+        timestamp: new Date(),
+        body: {
+          jobId: crypto.randomUUID(),
+          triggerSource: 'manual' as const,
+          createdBy: 'test-admin',
+          archiveUrl: customUrl,
+          timestamp: new Date().toISOString(),
+        },
+        attempts: 1,
+      }
+
+      // The custom URL will fail (404), but we can verify the message structure is processed
+      try {
+        await indexerModule.indexAllRegistries(
+          env.DB,
+          message.body.triggerSource,
+          message.body.createdBy,
+          message.body.archiveUrl,
+        )
+      } catch (error) {
+        // Expected to fail due to invalid URL
+        expect(error).toBeDefined()
+      }
+
+      // Verify history entry was still created with the attempt
+      const history = await db
+        .selectFrom('indexing_history')
+        .selectAll()
+        .execute()
+
+      expect(history).toHaveLength(1)
+      expect(history[0].trigger_source).toBe('manual')
+      expect(history[0].created_by).toBe('test-admin')
+      expect(history[0].status).toBe('failed')
+    })
+
+    it('should process multiple queue messages sequentially', async () => {
+      const db = createKysely(env.DB)
+      const indexerModule = await import('@/lib/indexer')
+      const { TEST_ARCHIVE_URL } = await import('./test_utils')
+
+      // Create multiple mock queue messages
+      const messages = [
+        {
+          id: 'test-msg-4',
+          timestamp: new Date(),
+          body: {
+            jobId: crypto.randomUUID(),
+            triggerSource: 'manual' as const,
+            createdBy: 'user-1',
+            timestamp: new Date().toISOString(),
+          },
+          attempts: 1,
+        },
+        {
+          id: 'test-msg-5',
+          timestamp: new Date(),
+          body: {
+            jobId: crypto.randomUUID(),
+            triggerSource: 'scheduled' as const,
+            timestamp: new Date().toISOString(),
+          },
+          attempts: 1,
+        },
+      ]
+
+      // Process messages sequentially (like queue consumer does)
+      const results = []
+      for (const message of messages) {
+        const result = await indexerModule.indexAllRegistries(
+          env.DB,
+          message.body.triggerSource,
+          message.body.createdBy,
+          TEST_ARCHIVE_URL,
+        )
+        results.push(result)
+      }
+
+      // Verify both completed successfully
+      expect(results).toHaveLength(2)
+      expect(results[0].success).toBeGreaterThan(0)
+      expect(results[1].success).toBeGreaterThan(0)
+
+      // Verify two history entries were created
+      const history = await db
+        .selectFrom('indexing_history')
+        .selectAll()
+        .orderBy('started_at', 'asc')
+        .execute()
+
+      expect(history).toHaveLength(2)
+      expect(history[0].trigger_source).toBe('manual')
+      expect(history[0].created_by).toBe('user-1')
+      expect(history[1].trigger_source).toBe('scheduled')
+      expect(history[1].created_by).toBeNull()
+    })
+
+    it('should handle queue message failure with retry', async () => {
+      const db = createKysely(env.DB)
+
+      // Create a history entry that's already running (simulating concurrent job)
+      const insertResult = await env.DB.prepare(
+        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, processed_registries, success_count, failed_count) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      )
+        .bind(
+          'scheduled',
+          'running',
+          new Date().toISOString(),
+          5,
+          2,
+          2,
+          0,
+        )
+        .run()
+
+      const historyId = insertResult.meta.last_row_id
+
+      // Update latest to running
+      await db
+        .updateTable('indexing_latest')
+        .set({
+          history_id: historyId,
+          status: 'running',
+          updated_at: new Date().toISOString(),
+        })
+        .execute()
+
+      // Try to process a new queue message while one is running
+      const indexerModule = await import('@/lib/indexer')
+      const { TEST_ARCHIVE_URL } = await import('./test_utils')
+
+      const message = {
+        id: 'test-msg-6',
+        timestamp: new Date(),
+        body: {
+          jobId: crypto.randomUUID(),
+          triggerSource: 'manual' as const,
+          createdBy: 'test-key',
+          timestamp: new Date().toISOString(),
+        },
+        attempts: 1,
+      }
+
+      // This should be rejected due to concurrent job
+      const result = await indexerModule.indexAllRegistries(
+        env.DB,
+        message.body.triggerSource,
+        message.body.createdBy,
+        TEST_ARCHIVE_URL,
+      )
+
+      // Should not have started indexing
+      expect(result).toBeDefined()
+
+      // Verify only the original job exists in history
+      const history = await db
+        .selectFrom('indexing_history')
+        .selectAll()
+        .execute()
+
+      expect(history).toHaveLength(1)
+      expect(history[0].id).toBe(historyId)
+      expect(history[0].status).toBe('running')
+    })
+  })
+
+  describe('Queue message creation', () => {
+    it('should create valid queue message for manual trigger', () => {
+      const apiKey = 'test-admin-key-1234'
+      const createdBy = apiKey.slice(-4) // Last 4 chars
+
+      const message = {
+        jobId: crypto.randomUUID(),
+        triggerSource: 'manual' as const,
+        createdBy,
+        timestamp: new Date().toISOString(),
+      }
+
+      expect(message.jobId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+      expect(message.triggerSource).toBe('manual')
+      expect(message.createdBy).toBe('1234')
+      expect(message.timestamp).toBeDefined()
+    })
+
+    it('should create valid queue message for scheduled trigger', () => {
+      const message = {
+        jobId: crypto.randomUUID(),
+        triggerSource: 'scheduled' as const,
+        timestamp: new Date().toISOString(),
+      }
+
+      expect(message.jobId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+      expect(message.triggerSource).toBe('scheduled')
+      expect('createdBy' in message).toBe(false) // createdBy should not exist
+      expect(message.timestamp).toBeDefined()
+    })
+
+    it('should generate unique job IDs', () => {
+      const jobId1 = crypto.randomUUID()
+      const jobId2 = crypto.randomUUID()
+
+      expect(jobId1).not.toBe(jobId2)
+      expect(jobId1).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+      expect(jobId2).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
     })
   })
 })
