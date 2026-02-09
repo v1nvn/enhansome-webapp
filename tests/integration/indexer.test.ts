@@ -253,17 +253,6 @@ describe('Full Indexing Pipeline with D1', () => {
       const archivedItems = items.results.filter((item) => item.archived === 1)
       expect(archivedItems).toHaveLength(1)
       expect(archivedItems[0].title).toBe('Archived Project')
-
-      // Verify sync log
-      const syncLogs = await env.DB.prepare(
-        'SELECT * FROM sync_log WHERE registry_name = ?',
-      )
-        .bind(registryName)
-        .all()
-
-      expect(syncLogs.results).toHaveLength(1)
-      expect(syncLogs.results[0].status).toBe('success')
-      expect(syncLogs.results[0].items_synced).toBe(4)
     })
 
     it('should index minimal registry fixture', async () => {

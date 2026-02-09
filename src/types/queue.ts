@@ -2,18 +2,18 @@
  * Queue message schema for indexing jobs
  */
 export interface IndexingQueueMessage {
-  // Unique identifier for this indexing job
-  jobId: string
-
-  // Source of trigger: 'manual' or 'scheduled'
-  triggerSource: 'manual' | 'scheduled'
+  // Optional override URL for testing
+  archiveUrl?: string
 
   // API key identifier (last 4 chars) for manual runs
   createdBy?: string
 
-  // Optional override URL for testing
-  archiveUrl?: string
+  // Unique identifier for this indexing job
+  jobId: string
 
   // Timestamp when message was created
   timestamp: string
+
+  // Source of trigger: 'manual' or 'scheduled'
+  triggerSource: 'manual' | 'scheduled'
 }

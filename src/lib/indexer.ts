@@ -10,9 +10,26 @@ import type { RegistryData, RegistryItem } from '@/types/registry'
 const REGISTRY_ARCHIVE_URL =
   'https://github.com/v1nvn/enhansome-registry/archive/refs/heads/main.zip'
 
+// Batch processing configuration
+const PROGRESS_UPDATE_BATCH_SIZE = 10 // Update progress every N registries
+const SYNC_LOG_BATCH_SIZE = 100 // D1 batch API limit
+
 interface FlattenedItem {
   category: string
   data: RegistryItem
+}
+
+// In-memory tracking structures
+interface ProgressBuffer {
+  currentRegistry: null | string
+  processedCount: number
+}
+
+interface SyncLogEntry {
+  errorMessage?: string
+  itemsSynced?: number
+  registryName: string
+  status: 'error' | 'success'
 }
 
 /**
@@ -31,94 +48,60 @@ export function extractRegistryName(identifier: string): string {
 
 /**
  * Fetch all registry JSON files from enhansome-registry repo
- * Downloads the zip archive once and extracts all data.json files directly
- * @param archiveUrl - Optional override URL for testing (defaults to REGISTRY_ARCHIVE_URL)
+ * Downloads the zip archive and extracts all data.json files
  */
 export async function fetchRegistryFiles(
   archiveUrl?: string,
 ): Promise<Map<string, RegistryData>> {
-  const url = archiveUrl || REGISTRY_ARCHIVE_URL
+  const url = archiveUrl ?? REGISTRY_ARCHIVE_URL
   const files = new Map<string, RegistryData>()
   console.log('Fetching registry data from GitHub archive...')
 
   try {
-    // Fetch the repo archive
     const response = await fetch(url)
     if (!response.ok) {
       throw new Error(`Failed to fetch archive: ${response.status}`)
     }
 
-    // Get zip data as ArrayBuffer
     const zipData = await response.arrayBuffer()
     const zip = await JSZip.loadAsync(zipData)
 
-    // Dynamic prefix detection - find the repos/ directory
-    let repoPrefix = ''
-    for (const path of Object.keys(zip.files)) {
-      if (path.includes('/repos/')) {
-        const prefixEnd = path.indexOf('/repos/')
-        repoPrefix = path.slice(0, prefixEnd + 1) // Include trailing slash
-        break
-      }
-    }
-
-    if (!repoPrefix) {
-      throw new Error('Could not find repos/ directory in archive')
-    }
+    // Detect archive prefix by finding repos/ directory
+    const repoPrefix = findRepoPrefix(zip.files)
+    const reposPrefix = `${repoPrefix}repos/`
 
     let successCount = 0
     let skippedCount = 0
 
-    // Process all data.json files in repos/
     for (const [path, file] of Object.entries(zip.files)) {
-      // Skip files not in repos/ directory or directories
-      if (!path.startsWith(`${repoPrefix}repos/`) || file.dir) continue
+      if (!path.startsWith(reposPrefix) || file.dir) continue
 
-      // Check if it's a data.json file
       if (path.endsWith('/data.json')) {
         try {
-          // Read file content from zip
           const content = await file.async('text')
           const jsonData: unknown = JSON.parse(content)
 
-          // Validate JSON structure
-          if (
-            !jsonData ||
-            typeof jsonData !== 'object' ||
-            !('items' in jsonData) ||
-            !('metadata' in jsonData)
-          ) {
-            console.warn(`  ✗ Skipped ${path}: Invalid data structure`)
+          if (!isValidRegistryData(jsonData)) {
+            console.warn(`  Skipped ${path}: Invalid data structure`)
             skippedCount++
             continue
           }
 
-          const data = jsonData as RegistryData
-
-          // Extract owner/repo from path
-          // Path format: enhansome-registry-<sha>/repos/owner/repo/data.json
-          const relativePath = path.slice(`${repoPrefix}repos/`.length)
-          const parts = relativePath.split('/')
-          if (parts.length >= 2) {
-            const owner = parts[0]
-            const repo = parts[1]
-
-            // Extract registry name: "v1nvn/enhansome-go" -> "go"
-            const registryName = extractRegistryName(`${owner}/${repo}`)
-
-            files.set(registryName, data)
+          const registryName = extractRegistryNameFromPath(path, repoPrefix)
+          if (registryName) {
+            files.set(registryName, jsonData)
             successCount++
-            console.log(`  ✓ Loaded ${registryName}`)
+            console.log(`  Loaded ${registryName}`)
           }
         } catch (error) {
-          console.error(`  ✗ Error reading ${path}:`, error)
+          console.error(`  Error reading ${path}:`, error)
           skippedCount++
         }
       }
     }
 
     console.log(
-      `  ✓ Loaded ${successCount} registries from archive${
+      `  Loaded ${successCount} registries from archive${
         skippedCount > 0 ? ` (${skippedCount} skipped)` : ''
       }`,
     )
@@ -154,11 +137,6 @@ export function flattenItems(data: RegistryData): {
 
 /**
  * Index all registries with progress tracking and history
- * @param db - D1 database instance
- * @param triggerSource - 'manual' or 'scheduled'
- * @param createdBy - API key identifier (last 4 chars) for manual runs, optional
- * @param archiveUrl - Optional override URL for testing
- * @returns Summary of success/failure
  */
 export async function indexAllRegistries(
   db: D1Database,
@@ -176,98 +154,62 @@ export async function indexAllRegistries(
     })`,
   )
 
-  // Check if indexing is already in progress
-  // Use ORDER BY updated_at DESC LIMIT 1 instead of hardcoded id = 1 for robustness
-  const latestResult = await db
-    .prepare(
-      'SELECT status FROM indexing_latest ORDER BY updated_at DESC LIMIT 1',
-    )
-    .first<{ status: string }>()
-
-  if (latestResult?.status === 'running') {
+  if (await isIndexingRunning(db)) {
     console.log('Indexing already in progress, skipping...')
     return { success: 0, failed: 0, errors: ['Indexing already in progress'] }
   }
 
-  // Create history entry and update latest status
   const historyId = await createHistoryEntry(db, triggerSource, createdBy)
   await updateLatestStatus(db, 'running', historyId)
+
+  const progressBuffer = createProgressBuffer()
+  const syncLogBuffer: SyncLogEntry[] = []
 
   try {
     const files = await fetchRegistryFiles(archiveUrl)
     console.log(`Found ${files.size} registry files to index`)
 
-    // Update history with total count
     await db
       .prepare('UPDATE indexing_history SET total_registries = ? WHERE id = ?')
       .bind(files.size, historyId)
       .run()
 
-    let success = 0
-    let failed = 0
-    const errors: string[] = []
+    const result = await processRegistries(db, files, historyId)
 
-    for (const [registryName, data] of files.entries()) {
-      try {
-        // Update progress: which registry we're processing
-        await db
-          .prepare(
-            `UPDATE indexing_history
-             SET current_registry = ?, processed_registries = processed_registries + 1
-             WHERE id = ?`,
-          )
-          .bind(registryName, historyId)
-          .run()
-
-        // Update latest status timestamp
-        await db
-          .prepare('UPDATE indexing_latest SET updated_at = ? WHERE id = 1')
-          .bind(new Date().toISOString())
-          .run()
-
-        await indexRegistry(db, registryName, data)
-        success++
-      } catch (error) {
-        failed++
-        const errorMsg = error instanceof Error ? error.message : String(error)
-        errors.push(`${registryName}: ${errorMsg}`)
-        console.error(`Error indexing ${registryName}:`, error)
-
-        // Log error to sync_log
-        try {
-          await db
-            .prepare(
-              `INSERT INTO sync_log (registry_name, status, error_message) VALUES (?, ?, ?)`,
-            )
-            .bind(registryName, 'error', errorMsg)
-            .run()
-        } catch (logError) {
-          console.error('Failed to log error to sync_log:', logError)
-        }
-      }
+    // Final flush
+    if (progressBuffer.processedCount > 0 || syncLogBuffer.length > 0) {
+      await flushProgressBatch(db, historyId, progressBuffer, syncLogBuffer)
     }
 
-    // Mark as completed
     await completeHistoryEntry(
       db,
       historyId,
       'completed',
-      success,
-      failed,
-      errors,
+      result.success,
+      result.failed,
+      result.errors,
     )
     await updateLatestStatus(db, 'completed')
 
-    console.log(`\n✓ Indexing complete: ${success} succeeded, ${failed} failed`)
-
-    return { success, failed, errors }
+    console.log(
+      `\nIndexing complete: ${result.success} succeeded, ${result.failed} failed`,
+    )
+    return result
   } catch (error) {
-    // Mark as failed
+    // Flush pending progress before marking as failed
+    if (progressBuffer.processedCount > 0 || syncLogBuffer.length > 0) {
+      try {
+        await flushProgressBatch(db, historyId, progressBuffer, syncLogBuffer)
+      } catch (flushError) {
+        console.error('Failed to flush progress on error:', flushError)
+      }
+    }
+
     const errorMsg = error instanceof Error ? error.message : String(error)
     await completeHistoryEntry(db, historyId, 'failed', 0, 0, [], errorMsg)
     await updateLatestStatus(db, 'failed')
 
-    console.error('❌ Indexing failed:', error)
+    console.error('Indexing failed:', error)
     throw error
   }
 }
@@ -279,7 +221,7 @@ export async function indexRegistry(
   db: D1Database,
   registryName: string,
   data: RegistryData,
-): Promise<void> {
+): Promise<number> {
   console.log(`Indexing registry: ${registryName}`)
 
   const { items, totalStars } = flattenItems(data)
@@ -287,10 +229,39 @@ export async function indexRegistry(
     `  Found ${items.length} items, ${totalStars.toLocaleString()} total stars`,
   )
 
-  // Prepare all statements for batch execution
+  const statements = buildRegistryStatements(
+    db,
+    registryName,
+    data,
+    items,
+    totalStars,
+  )
+
+  for (let i = 0; i < statements.length; i += SYNC_LOG_BATCH_SIZE) {
+    const batch = statements.slice(i, i + SYNC_LOG_BATCH_SIZE)
+    await db.batch(batch)
+    console.log(
+      `  Executed batch ${Math.floor(i / SYNC_LOG_BATCH_SIZE) + 1}/${Math.ceil(statements.length / SYNC_LOG_BATCH_SIZE)}`,
+    )
+  }
+
+  console.log(`  Successfully indexed ${registryName}`)
+  return items.length
+}
+
+/**
+ * Build all D1 statements for indexing a registry
+ */
+function buildRegistryStatements(
+  db: D1Database,
+  registryName: string,
+  data: RegistryData,
+  items: FlattenedItem[],
+  totalStars: number,
+): D1PreparedStatement[] {
   const statements: D1PreparedStatement[] = []
 
-  // Clear existing data for this registry
+  // Clear existing data
   statements.push(
     db
       .prepare('DELETE FROM registry_items WHERE registry_name = ?')
@@ -307,8 +278,8 @@ export async function indexRegistry(
     db
       .prepare(
         `INSERT INTO registry_metadata
-        (registry_name, title, description, last_updated, source_repository, total_items, total_stars)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (registry_name, title, description, last_updated, source_repository, total_items, total_stars)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         registryName,
@@ -321,54 +292,35 @@ export async function indexRegistry(
       ),
   )
 
-  // Insert items in batch
+  // Insert items
   for (const item of items) {
     statements.push(
       db
         .prepare(
           `INSERT INTO registry_items
-          (registry_name, category, title, description, repo_owner, repo_name, stars, language, last_commit, archived)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (registry_name, category, title, description, repo_owner, repo_name, stars, language, last_commit, archived)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           registryName,
           item.category,
           item.data.title,
-          item.data.description || null,
-          item.data.repo_info?.owner || null,
-          item.data.repo_info?.repo || null,
-          item.data.repo_info?.stars || 0,
-          item.data.repo_info?.language || null,
-          item.data.repo_info?.last_commit || null,
+          item.data.description ?? null,
+          item.data.repo_info?.owner ?? null,
+          item.data.repo_info?.repo ?? null,
+          item.data.repo_info?.stars ?? 0,
+          item.data.repo_info?.language ?? null,
+          item.data.repo_info?.last_commit ?? null,
           item.data.repo_info?.archived ? 1 : 0,
         ),
     )
   }
 
-  // Execute all statements in batches
-  const batchSize = 100 // D1 batch API limit
-  for (let i = 0; i < statements.length; i += batchSize) {
-    const batch = statements.slice(i, i + batchSize)
-    await db.batch(batch)
-    console.log(
-      `  Executed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(statements.length / batchSize)}`,
-    )
-  }
-
-  // Log sync status
-  await db
-    .prepare(
-      `INSERT INTO sync_log (registry_name, status, items_synced)
-       VALUES (?, ?, ?)`,
-    )
-    .bind(registryName, 'success', items.length)
-    .run()
-
-  console.log(`  ✓ Successfully indexed ${registryName}`)
+  return statements
 }
 
 /**
- * Complete an indexing history entry
+ * Complete an indexing history entry with success or failure status
  */
 async function completeHistoryEntry(
   db: D1Database,
@@ -380,20 +332,34 @@ async function completeHistoryEntry(
   errorMessage?: string,
 ): Promise<void> {
   const completedAt = new Date().toISOString()
-  const statusClause =
-    status === 'completed'
-      ? `status = 'completed', completed_at = ?, success_count = ?, failed_count = ?, errors = ?, current_registry = NULL`
-      : `status = 'failed', completed_at = ?, error_message = ?, current_registry = NULL`
 
-  const params =
-    status === 'completed'
-      ? [completedAt, success, failed, JSON.stringify(errors), historyId]
-      : [completedAt, errorMessage, historyId]
-
-  await db
-    .prepare(`UPDATE indexing_history SET ${statusClause} WHERE id = ?`)
-    .bind(...params)
-    .run()
+  if (status === 'completed') {
+    await db
+      .prepare(
+        `UPDATE indexing_history
+         SET status = 'completed',
+             completed_at = ?,
+             success_count = ?,
+             failed_count = ?,
+             errors = ?,
+             current_registry = NULL
+         WHERE id = ?`,
+      )
+      .bind(completedAt, success, failed, JSON.stringify(errors), historyId)
+      .run()
+  } else {
+    await db
+      .prepare(
+        `UPDATE indexing_history
+         SET status = 'failed',
+             completed_at = ?,
+             error_message = ?,
+             current_registry = NULL
+         WHERE id = ?`,
+      )
+      .bind(completedAt, errorMessage, historyId)
+      .run()
+  }
 }
 
 /**
@@ -414,6 +380,184 @@ async function createHistoryEntry(
 }
 
 /**
+ * Create a new progress buffer
+ */
+function createProgressBuffer(): ProgressBuffer {
+  return {
+    currentRegistry: null,
+    processedCount: 0,
+  }
+}
+
+/**
+ * Extract registry name from archive file path
+ * Path format: <prefix>/repos/owner/repo/data.json
+ */
+function extractRegistryNameFromPath(
+  path: string,
+  repoPrefix: string,
+): null | string {
+  const relativePath = path.slice(`${repoPrefix}repos/`.length)
+  const parts = relativePath.split('/')
+  if (parts.length >= 2) {
+    return extractRegistryName(`${parts[0]}/${parts[1]}`)
+  }
+  return null
+}
+
+/**
+ * Find the archive prefix by locating the repos/ directory
+ */
+function findRepoPrefix(files: Record<string, JSZip.JSZipObject>): string {
+  for (const path of Object.keys(files)) {
+    const reposIndex = path.indexOf('/repos/')
+    if (reposIndex !== -1) {
+      return path.slice(0, reposIndex + 1)
+    }
+  }
+  throw new Error('Could not find repos/ directory in archive')
+}
+
+/**
+ * Flush buffered progress updates and sync_log entries to database in a single batch
+ */
+async function flushProgressBatch(
+  db: D1Database,
+  historyId: number,
+  progress: ProgressBuffer,
+  syncLogEntries: SyncLogEntry[],
+): Promise<void> {
+  if (progress.processedCount === 0 && syncLogEntries.length === 0) {
+    return
+  }
+
+  const statements: D1PreparedStatement[] = []
+
+  // Update indexing_history progress
+  if (progress.processedCount > 0) {
+    statements.push(
+      db
+        .prepare(
+          `UPDATE indexing_history
+           SET current_registry = ?,
+               processed_registries = processed_registries + ?
+           WHERE id = ?`,
+        )
+        .bind(progress.currentRegistry, progress.processedCount, historyId),
+    )
+  }
+
+  // Insert sync_log entries
+  for (const entry of syncLogEntries) {
+    if (entry.status === 'error') {
+      statements.push(
+        db
+          .prepare(
+            'INSERT INTO sync_log (registry_name, status, error_message) VALUES (?, ?, ?)',
+          )
+          .bind(entry.registryName, 'error', entry.errorMessage),
+      )
+    } else {
+      statements.push(
+        db
+          .prepare(
+            'INSERT INTO sync_log (registry_name, status, items_synced) VALUES (?, ?, ?)',
+          )
+          .bind(entry.registryName, 'success', entry.itemsSynced),
+      )
+    }
+  }
+
+  // Update indexing_latest timestamp
+  statements.push(
+    db
+      .prepare('UPDATE indexing_latest SET updated_at = ? WHERE id = 1')
+      .bind(new Date().toISOString()),
+  )
+
+  // Execute in batches (D1 has a 100 statement limit per batch)
+  for (let i = 0; i < statements.length; i += SYNC_LOG_BATCH_SIZE) {
+    const batch = statements.slice(i, i + SYNC_LOG_BATCH_SIZE)
+    await db.batch(batch)
+  }
+
+  console.log(
+    `Flushed batch: ${progress.processedCount} registries, ${syncLogEntries.length} log entries`,
+  )
+}
+
+/**
+ * Check if indexing is currently running
+ */
+async function isIndexingRunning(db: D1Database): Promise<boolean> {
+  const latestResult = await db
+    .prepare(
+      'SELECT status FROM indexing_latest ORDER BY updated_at DESC LIMIT 1',
+    )
+    .first<{ status: string }>()
+  return latestResult?.status === 'running'
+}
+
+/**
+ * Validate that JSON data has required RegistryData structure
+ */
+function isValidRegistryData(data: unknown): data is RegistryData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'items' in data &&
+    'metadata' in data
+  )
+}
+
+/**
+ * Process all registries with batched progress tracking
+ */
+async function processRegistries(
+  db: D1Database,
+  files: Map<string, RegistryData>,
+  historyId: number,
+): Promise<{ errors: string[]; failed: number; success: number }> {
+  const errors: string[] = []
+  let failed = 0
+  let success = 0
+  let registryCount = 0
+  let progressBuffer = createProgressBuffer()
+  let syncLogBuffer: SyncLogEntry[] = []
+
+  for (const [registryName, data] of files.entries()) {
+    try {
+      const itemsSynced = await indexRegistry(db, registryName, data)
+      progressBuffer.currentRegistry = registryName
+      progressBuffer.processedCount++
+      syncLogBuffer.push({ registryName, status: 'success', itemsSynced })
+      success++
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      errors.push(`${registryName}: ${errorMsg}`)
+      console.error(`Error indexing ${registryName}:`, error)
+      syncLogBuffer.push({
+        registryName,
+        status: 'error',
+        errorMessage: errorMsg,
+      })
+      failed++
+    }
+
+    registryCount++
+
+    // Flush batch every N registries
+    if (registryCount % PROGRESS_UPDATE_BATCH_SIZE === 0) {
+      await flushProgressBatch(db, historyId, progressBuffer, syncLogBuffer)
+      progressBuffer = createProgressBuffer()
+      syncLogBuffer = []
+    }
+  }
+
+  return { success, failed, errors }
+}
+
+/**
  * Update the indexing_latest table status
  */
 async function updateLatestStatus(
@@ -421,12 +565,19 @@ async function updateLatestStatus(
   status: 'completed' | 'failed' | 'running',
   historyId?: number,
 ): Promise<void> {
-  const historyIdClause =
-    historyId !== undefined ? `history_id = ${historyId},` : ''
-  await db
-    .prepare(
-      `UPDATE indexing_latest SET ${historyIdClause} status = ?, updated_at = ? WHERE id = 1`,
-    )
-    .bind(status, new Date().toISOString())
-    .run()
+  if (historyId !== undefined) {
+    await db
+      .prepare(
+        'UPDATE indexing_latest SET history_id = ?, status = ?, updated_at = ? WHERE id = 1',
+      )
+      .bind(historyId, status, new Date().toISOString())
+      .run()
+  } else {
+    await db
+      .prepare(
+        'UPDATE indexing_latest SET status = ?, updated_at = ? WHERE id = 1',
+      )
+      .bind(status, new Date().toISOString())
+      .run()
+  }
 }

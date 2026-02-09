@@ -6,6 +6,7 @@
 import handler from '@tanstack/react-start/server-entry'
 
 import type { IndexingQueueMessage } from '@/types/queue'
+
 import { indexAllRegistries } from '@/lib/indexer'
 
 export default {
@@ -46,9 +47,7 @@ export default {
       // Send to queue for processing
       await env.INDEXING_QUEUE.send(message)
 
-      console.log(
-        `✅ Indexing job ${message.jobId} queued from cron trigger`,
-      )
+      console.log(`✅ Indexing job ${message.jobId} queued from cron trigger`)
     } catch (error) {
       console.error('❌ Failed to queue scheduled indexing:', error)
       console.error(
