@@ -5,13 +5,17 @@ import { ChevronDown, ChevronRight, Search, X } from 'lucide-react'
 
 import type { Category } from '@/lib/server-functions'
 
-import { categoriesQueryOptions } from '@/lib/server-functions'
+import {
+  categoriesQueryOptions,
+  languagesQueryOptions,
+} from '@/lib/server-functions'
 
 export interface FilterValues {
   archived?: string
   category?: string
   dateFrom?: string
   dateTo?: string
+  lang?: string
   registry?: string
   sort?: 'name' | 'stars' | 'updated'
   starsMax?: string
@@ -32,6 +36,7 @@ export function FiltersSidebar({
   selectedRegistry,
 }: FiltersSidebarProps) {
   const [categorySearch, setCategorySearch] = useState('')
+  const [languageSearch, setLanguageSearch] = useState('')
   const [registrySearch, setRegistrySearch] = useState('')
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     () => new Set(),
@@ -40,6 +45,11 @@ export function FiltersSidebar({
   // Fetch categories from API
   const { data: categories = [] } = useSuspenseQuery<Category[]>(
     categoriesQueryOptions(selectedRegistry),
+  )
+
+  // Fetch languages from API
+  const { data: languages = [] } = useSuspenseQuery<string[]>(
+    languagesQueryOptions(selectedRegistry),
   )
 
   // Filter registries by search
@@ -63,6 +73,17 @@ export function FiltersSidebar({
       cat.category.toLowerCase().includes(categorySearch.toLowerCase()),
     )
   }, [categories, categorySearch])
+
+  // Filter languages by search
+  const filteredLanguages = useMemo(() => {
+    if (!languageSearch.trim()) {
+      return languages
+    }
+
+    return languages.filter(lang =>
+      lang.toLowerCase().includes(languageSearch.toLowerCase()),
+    )
+  }, [languages, languageSearch])
 
   // Get selected category display name
   const selectedCategoryName = useMemo(() => {
@@ -347,6 +368,85 @@ export function FiltersSidebar({
                   ) : (
                     <div className="text-muted-foreground py-4 text-center text-sm">
                       No categories found
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Language */}
+          <div className="bg-muted/30 rounded-xl p-4">
+            <button
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
+              onClick={() => {
+                toggleSection('language')
+              }}
+              type="button"
+            >
+              <span>Language</span>
+              {isExpanded('language') ? (
+                <ChevronDown className="text-muted-foreground h-4 w-4" />
+              ) : (
+                <ChevronRight className="text-muted-foreground h-4 w-4" />
+              )}
+            </button>
+            {!isExpanded('language') &&
+              selectedFilters.lang &&
+              renderFilterTag(selectedFilters.lang, () => {
+                handleFilterChange('lang', undefined)
+              })}
+            {isExpanded('language') && (
+              <>
+                <div className="relative mt-3">
+                  <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                  <input
+                    className="border-border bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary focus:ring-primary/20 w-full rounded-lg border px-3 py-2 pl-9 text-sm transition-all focus:outline-none focus:ring-2"
+                    id="language-search"
+                    onChange={e => {
+                      setLanguageSearch(e.target.value)
+                    }}
+                    placeholder="Search languages..."
+                    type="text"
+                    value={languageSearch}
+                  />
+                </div>
+                <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
+                  {filteredLanguages.length > 0 ? (
+                    <>
+                      <button
+                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                          !selectedFilters.lang
+                            ? 'bg-primary text-primary-foreground font-medium'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        }`}
+                        onClick={() => {
+                          handleFilterChange('lang', undefined)
+                        }}
+                        type="button"
+                      >
+                        All Languages
+                      </button>
+                      {filteredLanguages.map(lang => (
+                        <button
+                          className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                            selectedFilters.lang === lang
+                              ? 'bg-primary text-primary-foreground font-medium'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          }`}
+                          key={lang}
+                          onClick={() => {
+                            handleFilterChange('lang', lang)
+                          }}
+                          type="button"
+                        >
+                          {lang}
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="text-muted-foreground py-4 text-center text-sm">
+                      No languages found
                     </div>
                   )}
                 </div>

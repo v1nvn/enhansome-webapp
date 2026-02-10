@@ -3,9 +3,13 @@ import { memo, useEffect, useRef, useState } from 'react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { ChevronDown, Search, X } from 'lucide-react'
 
-import { categoriesQueryOptions } from '@/lib/server-functions'
+import {
+  categoriesQueryOptions,
+  type Category,
+  languagesQueryOptions,
+} from '@/lib/server-functions'
 
-import type { Category, FilterValues } from './FiltersSidebar'
+import type { FilterValues } from './FiltersSidebar'
 
 interface FiltersBottomSheetProps {
   isOpen: boolean
@@ -25,9 +29,10 @@ function FiltersBottomSheet({
   selectedRegistry,
 }: FiltersBottomSheetProps) {
   const [categorySearch, setCategorySearch] = useState('')
+  const [languageSearch, setLanguageSearch] = useState('')
   const [registrySearch, setRegistrySearch] = useState('')
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    () => new Set(['categories', 'registry', 'sort']),
+    () => new Set(['categories', 'language', 'registry', 'sort']),
   )
   const sheetRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -38,6 +43,11 @@ function FiltersBottomSheet({
   // Fetch categories from API
   const { data: categories = [] } = useSuspenseQuery<Category[]>(
     categoriesQueryOptions(selectedRegistry),
+  )
+
+  // Fetch languages from API
+  const { data: languages = [] } = useSuspenseQuery<string[]>(
+    languagesQueryOptions(selectedRegistry),
   )
 
   // Filter registries by search
@@ -56,11 +66,13 @@ function FiltersBottomSheet({
           cat.category.toLowerCase().includes(categorySearch.toLowerCase()),
         )
 
-  // Get selected category display name
-  const selectedCategoryName = !selectedFilters.category
-    ? null
-    : categories.find(c => c.key === selectedFilters.category)?.category ||
-      selectedFilters.category
+  // Filter languages by search
+  const filteredLanguages =
+    languageSearch.trim() === ''
+      ? languages
+      : languages.filter(lang =>
+          lang.toLowerCase().includes(languageSearch.toLowerCase()),
+        )
 
   const handleFilterChange = (
     key: keyof FilterValues,
@@ -152,12 +164,6 @@ function FiltersBottomSheet({
     }
   }, [isOpen, onClose])
 
-  const sortLabels = {
-    name: 'Alphabetical',
-    stars: 'Most Stars',
-    updated: 'Recently Updated',
-  }
-
   // Transform value for slide animation
   const transformValue = isDragging
     ? `translateY(${currentY}px)`
@@ -170,14 +176,21 @@ function FiltersBottomSheet({
     <div
       className="fixed inset-0 z-50 flex flex-col justify-end"
       onClick={handleBackdropClick}
+      onKeyUp={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          handleBackdropClick(e as unknown as React.MouseEvent)
+        }
+      }}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
       onTouchStart={handleTouchStart}
+      role="presentation"
+      tabIndex={-1}
     >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-        style={{ opacity: isOpen ? opacityValue : 0 }}
+        style={{ opacity: opacityValue }}
       />
 
       {/* Bottom Sheet */}
@@ -422,6 +435,80 @@ function FiltersBottomSheet({
                     ) : (
                       <div className="text-muted-foreground py-4 text-center text-sm">
                         No categories found
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Language */}
+            <div className="bg-muted/30 rounded-xl p-4">
+              <button
+                className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
+                onClick={() => {
+                  toggleSection('language')
+                }}
+                type="button"
+              >
+                <span>Language</span>
+                {isExpanded('language') ? (
+                  <ChevronDown className="text-muted-foreground h-4 w-4" />
+                ) : (
+                  <ChevronDown className="text-muted-foreground h-4 w-4 rotate-[-90deg]" />
+                )}
+              </button>
+              {isExpanded('language') && (
+                <>
+                  <div className="relative mt-3">
+                    <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                    <input
+                      className="border-border bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary focus:ring-primary/20 w-full rounded-lg border px-3 py-2 pl-9 text-sm transition-all focus:outline-none focus:ring-2"
+                      id="language-search"
+                      onChange={e => {
+                        setLanguageSearch(e.target.value)
+                      }}
+                      placeholder="Search languages..."
+                      type="text"
+                      value={languageSearch}
+                    />
+                  </div>
+                  <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">
+                    {filteredLanguages.length > 0 ? (
+                      <>
+                        <button
+                          className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                            !selectedFilters.lang
+                              ? 'bg-primary text-primary-foreground font-medium'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          }`}
+                          onClick={() => {
+                            handleFilterChange('lang', undefined)
+                          }}
+                          type="button"
+                        >
+                          All Languages
+                        </button>
+                        {filteredLanguages.map(lang => (
+                          <button
+                            className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                              selectedFilters.lang === lang
+                                ? 'bg-primary text-primary-foreground font-medium'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
+                            key={lang}
+                            onClick={() => {
+                              handleFilterChange('lang', lang)
+                            }}
+                            type="button"
+                          >
+                            {lang}
+                          </button>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="text-muted-foreground py-4 text-center text-sm">
+                        No languages found
                       </div>
                     )}
                   </div>

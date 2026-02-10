@@ -7,8 +7,10 @@ import type { FilterValues } from './FiltersSidebar'
 interface ActiveFilterChipsProps {
   filters: FilterValues
   onClearAll: () => void
-  onRemoveFilter: (key: keyof FilterValues) => void
+  onRemoveFilter: (key: FilterKey) => void
 }
+
+type FilterKey = 'date' | 'stars' | keyof FilterValues
 
 function ActiveFilterChips({
   filters,
@@ -16,19 +18,13 @@ function ActiveFilterChips({
   onClearAll,
 }: ActiveFilterChipsProps) {
   const activeFilters = useMemo(() => {
-    const chips: { key: keyof FilterValues; label: string; value: string }[] =
-      []
+    const chips: { key: FilterKey; label: string; value: string }[] = []
 
     if (filters.sort && filters.sort !== 'stars') {
       chips.push({
         key: 'sort',
         label: 'Sort',
-        value:
-          filters.sort === 'name'
-            ? 'A-Z'
-            : filters.sort === 'updated'
-              ? 'Updated'
-              : 'Stars',
+        value: filters.sort === 'name' ? 'A-Z' : 'Updated',
       })
     }
 

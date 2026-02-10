@@ -150,11 +150,25 @@ function RegistryBrowser() {
   }, [currentFilters])
 
   // Remove individual filter on mobile
-  const handleRemoveFilter = (key: keyof FilterValues) => {
-    handleFiltersChange({
-      ...currentFilters,
-      [key]: undefined,
-    })
+  const handleRemoveFilter = (key: 'date' | 'stars' | keyof FilterValues) => {
+    if (key === 'stars') {
+      handleFiltersChange({
+        ...currentFilters,
+        starsMin: undefined,
+        starsMax: undefined,
+      })
+    } else if (key === 'date') {
+      handleFiltersChange({
+        ...currentFilters,
+        dateFrom: undefined,
+        dateTo: undefined,
+      })
+    } else {
+      handleFiltersChange({
+        ...currentFilters,
+        [key]: undefined,
+      })
+    }
   }
 
   // Clear all filters on mobile
@@ -166,16 +180,12 @@ function RegistryBrowser() {
   const handleTagsChange = (tags: SearchTag[]) => {
     const newSearch: RegistrySearch = { ...search }
 
-    // Clear search-bar-specific filters
+    // Clear search query
     delete newSearch.q
-    delete newSearch.lang
 
     // Apply new tags
     tags.forEach(tag => {
       switch (tag.type) {
-        case 'language':
-          newSearch.lang = tag.value
-          break
         case 'text':
           newSearch.q = tag.value
           break
@@ -193,6 +203,7 @@ function RegistryBrowser() {
       category: filters.category,
       dateFrom: filters.dateFrom,
       dateTo: filters.dateTo,
+      lang: filters.lang,
       registry: filters.registry,
       sort: filters.sort || search.sort,
       starsMax: filters.starsMax,
