@@ -15,4 +15,4 @@ todos.json
 .wrangler
 .playwright-mcp
 .serena
-coverage/
+coverage/.worktrees/
