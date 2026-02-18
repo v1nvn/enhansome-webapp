@@ -116,6 +116,7 @@ export interface RegistryMetadataWithStats {
   name: string
   source_repository: string
   stats: {
+    categories?: string[]
     languages: string[]
     latestUpdate: string
     totalRepos: number
@@ -132,6 +133,22 @@ export async function fetchMetadataHandler(
     // Get all registry metadata
     const metadataList = await getRegistryMetadata(db)
 
+    // Get categories for each registry
+    const categoryMap = new Map<string, string[]>()
+    for (const metadata of metadataList) {
+      const categories = await db
+        .selectFrom('registry_items')
+        .select('category')
+        .distinct()
+        .where('registry_name', '=', metadata.registry_name)
+        .orderBy('category', 'asc')
+        .execute()
+      categoryMap.set(
+        metadata.registry_name,
+        categories.map(c => c.category),
+      )
+    }
+
     // Get stats for each registry
     const registriesWithStats: RegistryMetadataWithStats[] = await Promise.all(
       metadataList.map(async metadata => {
@@ -140,7 +157,10 @@ export async function fetchMetadataHandler(
           description: metadata.description,
           name: metadata.registry_name,
           source_repository: metadata.source_repository,
-          stats,
+          stats: {
+            ...stats,
+            categories: categoryMap.get(metadata.registry_name) ?? [],
+          },
           title: metadata.title,
         }
       }),

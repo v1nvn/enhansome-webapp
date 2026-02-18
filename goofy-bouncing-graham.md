@@ -1,7 +1,7 @@
 # Redesign Front Page & Registry Pages for Large Datasets
 
 **Created:** 2025-02-18
-**Status:** In Progress (Phase 1 Complete)
+**Status:** In Progress (Phase 2 Complete)
 
 ## Progress
 
@@ -11,7 +11,15 @@
   - [x] Server functions added to `/src/lib/server-functions.ts`
   - [x] Tests added for new database functions in `tests/integration/db.test.ts`
   - [x] Tests added for new server functions in `tests/integration/server-functions.test.ts`
-- [ ] Phase 2: Home Page Redesign
+- [x] Phase 2: Home Page Redesign
+  - [x] Created `/src/components/home/FeaturedSection.tsx` - 6-8 hand-picked gems with badges
+  - [x] Created `/src/components/home/TrendingSection.tsx` - Rising stars with horizontal scroll
+  - [x] Created `/src/components/home/QuickFilterPills.tsx` - Language and category filter pills
+  - [x] Created `/src/components/home/CategoryExplorer.tsx` - Top categories by count
+  - [x] Created `/src/components/home/HeroSearch.tsx` - Full-width search with autocomplete
+  - [x] Modified `/src/routes/index.tsx` - New layout with hero, featured, trending, filters, categories
+  - [x] Created `/src/components/RegistriesBrowser.tsx` - Browse all registries with grouping
+  - [x] Created `/src/routes/registries.tsx` - Dedicated page for all registries
 - [ ] Phase 3: Registry Browser Enhancements
 - [ ] Phase 4: Detail Pages
 - [ ] Phase 5: Performance Optimization

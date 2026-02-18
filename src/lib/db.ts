@@ -441,7 +441,7 @@ export async function getRepoDetail(
     .where('registry_name', '=', repo.registry_name)
     .where('id', '!=', repo.id)
     .where('archived', '=', 0)
-    .where((eb) =>
+    .where(eb =>
       eb.or([
         eb('repo_owner', 'is not', null),
         eb('repo_name', 'is not', null),

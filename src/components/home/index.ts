@@ -1,0 +1,5 @@
+export { CategoryExplorer } from './CategoryExplorer'
+export { FeaturedSection } from './FeaturedSection'
+export { HeroSearch } from './HeroSearch'
+export { QuickFilterPills } from './QuickFilterPills'
+export { TrendingSection } from './TrendingSection'

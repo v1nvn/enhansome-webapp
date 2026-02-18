@@ -1,199 +1,160 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowRight, Calendar, Database, GitBranch, Star } from 'lucide-react'
+import { ArrowRight, Sparkles } from 'lucide-react'
 
-import { metadataQueryOptions } from '@/lib/server-functions'
+import {
+  CategoryExplorer,
+  FeaturedSection,
+  HeroSearch,
+  QuickFilterPills,
+  TrendingSection,
+} from '@/components/home'
+import {
+  categorySummariesQueryOptions,
+  featuredQueryOptions,
+  metadataQueryOptions,
+  trendingQueryOptions,
+} from '@/lib/server-functions'
 
 export const Route = createFileRoute('/')({
   component: Home,
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(metadataQueryOptions()),
+  loader: ({ context }) => {
+    // Preload all the data we need
+    void context.queryClient.ensureQueryData(metadataQueryOptions())
+    void context.queryClient.ensureQueryData(featuredQueryOptions())
+    void context.queryClient.ensureQueryData(trendingQueryOptions())
+    void context.queryClient.ensureQueryData(categorySummariesQueryOptions())
+  },
 })
 
 function Home() {
   const { data: registries } = useSuspenseQuery(metadataQueryOptions())
+  const { data: featured } = useSuspenseQuery(featuredQueryOptions())
+  const { data: trending } = useSuspenseQuery(trendingQueryOptions())
+  const { data: categories } = useSuspenseQuery(categorySummariesQueryOptions())
+
+  // Get unique languages from all registries
+  const allLanguages = registries.flatMap(r => r.stats.languages)
+  const uniqueLanguages = Array.from(new Set(allLanguages)).sort()
 
   return (
     <div className="bg-background min-h-screen">
-      {/* Hero Section - Editorial Style */}
-      <section className="border-border relative overflow-hidden border-b">
-        {/* Decorative Background Elements */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="bg-accent absolute right-0 top-0 h-[500px] w-[500px] -translate-y-1/4 translate-x-1/4 rounded-full blur-3xl" />
-          <div className="bg-primary/20 absolute bottom-0 left-0 h-[400px] w-[400px] -translate-x-1/4 translate-y-1/4 rounded-full blur-3xl" />
+      {/* Hero Section - Dramatic Editorial Style */}
+      <section className="border-border/50 relative overflow-hidden border-b">
+        {/* Animated decorative background */}
+        <div className="absolute inset-0">
+          {/* Large gradient orbs */}
+          <div
+            className="bg-primary/10 absolute -right-48 top-0 h-[600px] w-[600px] -translate-y-1/3 animate-pulse rounded-full blur-[120px]"
+            style={{ animationDuration: '8s' }}
+          />
+          <div
+            className="bg-accent/10 absolute -left-32 bottom-0 h-[500px] w-[500px] translate-y-1/3 animate-pulse rounded-full blur-[100px]"
+            style={{ animationDuration: '10s', animationDelay: '2s' }}
+          />
+          <div className="from-primary/5 to-accent/5 absolute inset-0 bg-gradient-to-br via-transparent" />
+
+          {/* Subtle grid pattern */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.015]"
+            style={{
+              backgroundImage: `linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)`,
+              backgroundSize: '60px 60px',
+            }}
+          />
         </div>
 
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 md:py-32 lg:px-8">
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 md:py-28 lg:px-8 lg:py-32">
           <div className="mx-auto max-w-4xl text-center">
-            {/* Badge */}
-            <div className="border-border bg-card text-muted-foreground mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-sm">
-              <span className="bg-primary h-2 w-2 animate-pulse rounded-full" />
+            {/* Animated Badge */}
+            <div className="border-border/60 bg-card/80 text-foreground animate-in fade-in slide-in-from-bottom-4 mb-10 inline-flex items-center gap-3 rounded-full border px-5 py-2.5 text-sm font-semibold shadow-lg backdrop-blur-sm duration-700">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="bg-primary absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" />
+                <span className="bg-primary relative inline-flex h-2.5 w-2.5 rounded-full" />
+              </span>
               <span>{registries.length} Curated Collections</span>
+              <span className="text-muted-foreground/40">•</span>
+              <span className="text-muted-foreground/60">Updated weekly</span>
             </div>
 
-            {/* Main Headline */}
-            <h1 className="font-display text-foreground mb-6 text-5xl font-bold leading-tight tracking-tight md:text-7xl lg:text-8xl">
-              Discover Exceptional
-              <span className="from-primary via-primary to-accent mt-2 block bg-gradient-to-r bg-clip-text text-transparent">
+            {/* Main Headline with gradient text */}
+            <h1 className="font-display text-foreground animate-in fade-in slide-in-from-bottom-8 mb-6 text-5xl font-bold leading-[1.05] tracking-tight delay-100 duration-700 md:text-6xl lg:text-7xl xl:text-8xl">
+              Discover
+              <span className="mt-2 block">
+                <span className="relative inline-block">
+                  Exceptional
+                  <span
+                    className="from-primary via-accent to-primary animate-gradient-x absolute inset-0 bg-gradient-to-r bg-clip-text text-transparent"
+                    style={{ backgroundSize: '200% 100%' }}
+                  />
+                </span>
+              </span>
+              <span className="from-foreground via-muted-foreground to-foreground mt-2 block bg-gradient-to-r bg-clip-text text-transparent">
                 Developer Tools
               </span>
             </h1>
 
-            {/* Subtitle */}
-            <p className="font-body text-muted-foreground mx-auto mb-10 max-w-2xl text-lg leading-relaxed md:text-xl">
-              Browse carefully curated awesome lists with enhanced metadata.
-              Find the best libraries, frameworks, and resources for your next
-              project.
+            {/* Enhanced Subtitle */}
+            <p className="font-body text-muted-foreground/90 animate-in fade-in slide-in-from-bottom-6 mx-auto mb-12 max-w-2xl text-lg leading-relaxed delay-200 duration-700 md:text-xl">
+              Explore carefully curated awesome lists with rich metadata.
+              <span className="text-foreground">
+                {' '}
+                Find the best libraries, frameworks,
+              </span>{' '}
+              and resources for your next project.
             </p>
 
-            {/* CTA Button */}
-            <Link
-              className="bg-primary text-primary-foreground shadow-primary/25 hover:shadow-primary/30 group inline-flex items-center gap-3 rounded-lg px-8 py-4 font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl"
-              to="/registry"
-            >
-              <span>Explore Registries</span>
-              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Registries Grid - Editorial Card Layout */}
-      <section className="border-border bg-muted/30 border-b">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24 lg:px-8">
-          {/* Section Header */}
-          <div className="mb-12 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-primary mb-2 text-sm font-semibold uppercase tracking-widest">
-                Browse Collections
-              </p>
-              <h2 className="font-display text-foreground text-3xl font-bold md:text-4xl">
-                Available Registries
-              </h2>
+            {/* Hero Search */}
+            <div className="animate-in fade-in slide-in-from-bottom-4 mb-10 delay-300 duration-700">
+              <HeroSearch />
             </div>
-            <div className="hidden text-right sm:block">
-              <p className="text-muted-foreground text-sm">
-                {registries
-                  .reduce((sum, r) => sum + r.stats.totalRepos, 0)
-                  .toLocaleString()}{' '}
-                total repositories
-              </p>
-            </div>
-          </div>
 
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {registries.map((registry, index) => (
+            {/* Secondary CTAs */}
+            <div className="animate-in fade-in slide-in-from-bottom-2 delay-400 flex flex-col items-center gap-4 duration-700 sm:flex-row sm:justify-center">
               <Link
-                className="border-border bg-card group relative overflow-hidden rounded-2xl border p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
-                key={registry.name}
-                search={{ registry: registry.name }}
-                style={{
-                  animationDelay: `${index * 50}ms`,
-                }}
+                className="group/cta bg-primary text-primary-foreground shadow-primary/25 hover:bg-primary/90 hover:shadow-primary/30 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+                to="/registries"
+              >
+                <span>Browse all registries</span>
+                <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-1" />
+              </Link>
+              <Link
+                className="group/cta border-border/60 bg-card/80 text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-full border px-6 py-3 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                 to="/registry"
               >
-                {/* Decorative corner accent */}
-                <div className="bg-primary/5 group-hover:bg-primary/10 absolute right-0 top-0 h-24 w-24 -translate-y-12 translate-x-12 rounded-full transition-colors" />
-
-                <div className="relative">
-                  {/* Card Header */}
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-display text-foreground group-hover:text-primary text-2xl font-bold transition-colors">
-                        {registry.title}
-                      </h3>
-                      {registry.description && (
-                        <p className="text-muted-foreground mt-2 line-clamp-2 text-sm">
-                          {registry.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors">
-                      <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
-                    </div>
-                  </div>
-
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-muted/50 flex items-center gap-2 rounded-lg px-3 py-2">
-                      <Database className="text-primary h-4 w-4" />
-                      <div className="flex flex-col">
-                        <span className="text-foreground text-lg font-bold">
-                          {registry.stats.totalRepos.toLocaleString()}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          Repos
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="bg-muted/50 flex items-center gap-2 rounded-lg px-3 py-2">
-                      <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                      <div className="flex flex-col">
-                        <span className="text-foreground text-lg font-bold">
-                          {registry.stats.totalStars.toLocaleString()}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          Stars
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="bg-muted/50 flex items-center gap-2 rounded-lg px-3 py-2">
-                      <GitBranch className="text-chart-3 h-4 w-4" />
-                      <div className="flex flex-col">
-                        <span className="text-foreground text-lg font-bold">
-                          {registry.stats.languages.length}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          Languages
-                        </span>
-                      </div>
-                    </div>
-
-                    {registry.stats.latestUpdate && (
-                      <div className="bg-muted/50 flex items-center gap-2 rounded-lg px-3 py-2">
-                        <Calendar className="text-chart-4 h-4 w-4" />
-                        <div className="flex flex-col">
-                          <span className="text-foreground text-xs font-bold">
-                            {new Date(
-                              registry.stats.latestUpdate,
-                            ).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </span>
-                          <span className="text-muted-foreground text-xs">
-                            Updated
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Languages Tags */}
-                  {registry.stats.languages.length > 0 && (
-                    <div className="border-border mt-4 flex flex-wrap gap-2 border-t pt-4">
-                      {registry.stats.languages.slice(0, 4).map(lang => (
-                        <span
-                          className="bg-accent/30 text-foreground rounded-full px-3 py-1 text-xs font-medium"
-                          key={lang}
-                        >
-                          {lang}
-                        </span>
-                      ))}
-                      {registry.stats.languages.length > 4 && (
-                        <span className="bg-muted text-muted-foreground rounded-full px-3 py-1 text-xs font-medium">
-                          +{registry.stats.languages.length - 4}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <Sparkles className="text-primary h-4 w-4" />
+                <span>Explore featured</span>
               </Link>
-            ))}
+            </div>
           </div>
+        </div>
+
+        {/* Bottom fade */}
+        <div className="from-background absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t to-transparent" />
+      </section>
+
+      {/* Featured Section */}
+      {featured.length > 0 && <FeaturedSection featured={featured} />}
+
+      {/* Trending Section */}
+      {trending.length > 0 && <TrendingSection trending={trending} />}
+
+      {/* Quick Filter Pills */}
+      <QuickFilterPills languages={uniqueLanguages} />
+
+      {/* Category Explorer */}
+      <CategoryExplorer categories={categories} />
+
+      {/* Footer CTA Section */}
+      <section className="border-border/50 bg-muted/20 border-t">
+        <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
+          <h2 className="font-display text-foreground text-2xl font-bold md:text-3xl">
+            Can't find what you're looking for?
+          </h2>
+          <p className="text-muted-foreground mx-auto mt-3 max-w-md text-sm">
+            Our collection is constantly growing. Check back regularly for new
+            additions.
+          </p>
         </div>
       </section>
     </div>

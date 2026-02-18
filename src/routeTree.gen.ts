@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegistryRouteImport } from './routes/registry'
+import { Route as RegistriesRouteImport } from './routes/registries'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRegistriesRouteImport } from './routes/admin.index-registries'
 
 const RegistryRoute = RegistryRouteImport.update({
   id: '/registry',
   path: '/registry',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegistriesRoute = RegistriesRouteImport.update({
+  id: '/registries',
+  path: '/registries',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -31,30 +37,34 @@ const AdminIndexRegistriesRoute = AdminIndexRegistriesRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/registries': typeof RegistriesRoute
   '/registry': typeof RegistryRoute
   '/admin/index-registries': typeof AdminIndexRegistriesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/registries': typeof RegistriesRoute
   '/registry': typeof RegistryRoute
   '/admin/index-registries': typeof AdminIndexRegistriesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/registries': typeof RegistriesRoute
   '/registry': typeof RegistryRoute
   '/admin/index-registries': typeof AdminIndexRegistriesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/registry' | '/admin/index-registries'
+  fullPaths: '/' | '/registries' | '/registry' | '/admin/index-registries'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/registry' | '/admin/index-registries'
-  id: '__root__' | '/' | '/registry' | '/admin/index-registries'
+  to: '/' | '/registries' | '/registry' | '/admin/index-registries'
+  id: '__root__' | '/' | '/registries' | '/registry' | '/admin/index-registries'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  RegistriesRoute: typeof RegistriesRoute
   RegistryRoute: typeof RegistryRoute
   AdminIndexRegistriesRoute: typeof AdminIndexRegistriesRoute
 }
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/registry'
       fullPath: '/registry'
       preLoaderRoute: typeof RegistryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/registries': {
+      id: '/registries'
+      path: '/registries'
+      fullPath: '/registries'
+      preLoaderRoute: typeof RegistriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  RegistriesRoute: RegistriesRoute,
   RegistryRoute: RegistryRoute,
   AdminIndexRegistriesRoute: AdminIndexRegistriesRoute,
 }
