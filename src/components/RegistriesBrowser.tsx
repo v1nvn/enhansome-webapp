@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
   Calendar,
@@ -167,20 +168,18 @@ function RegistryCard({ registry, index, onNavigate }: RegistryCardProps) {
   const animationDelay = `${index * 50}ms`
 
   return (
-    <a
-      className="group/card border-border/60 bg-card/80 hover:shadow-primary/5 hover:border-primary/20 relative overflow-hidden rounded-2xl border shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-      href={`/registry?registry=${encodeURIComponent(registry.name)}`}
-      onClick={e => {
-        e.preventDefault()
-        // Use TanStack Router's navigate function
-        globalThis.window.location.href = `/registry?registry=${encodeURIComponent(registry.name)}`
+    <Link
+      className="group/card border-border/60 bg-card/80 hover:shadow-primary/5 hover:border-primary/20 relative block overflow-hidden rounded-2xl border shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+      onClick={() => {
         onNavigate?.()
       }}
+      params={{ name: registry.name }}
       style={{
         animation: 'fadeInUp 0.5s ease-out forwards',
         animationDelay,
         opacity: 0,
       }}
+      to="/registry/$name"
     >
       {/* Decorative gradient on hover */}
       <div className="from-primary/0 via-primary/5 to-primary/0 pointer-events-none absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
@@ -287,6 +286,6 @@ function RegistryCard({ registry, index, onNavigate }: RegistryCardProps) {
 
       {/* Bottom accent line on hover */}
       <div className="from-primary/50 via-accent/50 to-primary/50 absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r transition-all duration-300 group-hover/card:w-full" />
-    </a>
+    </Link>
   )
 }

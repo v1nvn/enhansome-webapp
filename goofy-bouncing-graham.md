@@ -1,7 +1,7 @@
 # Redesign Front Page & Registry Pages for Large Datasets
 
 **Created:** 2025-02-18
-**Status:** In Progress (Phase 3 Complete)
+**Status:** In Progress (Phase 4 Complete)
 
 ## Progress
 
@@ -26,7 +26,14 @@
   - [x] Modified `/src/components/FiltersBottomSheet.tsx` - Hierarchical grouping on mobile
   - [x] Created `/src/components/FacetedSearchBar.tsx` - Enhanced search bar with presets
   - [x] Modified `/src/routes/registry.tsx` - Integrated FacetedSearchBar
-- [ ] Phase 4: Detail Pages
+- [x] Phase 4: Detail Pages
+  - [x] Created `/src/components/RegistryDetail.tsx` - Registry detail with tabs (Top Repos, Categories, Stats)
+  - [x] Created `/src/routes/registry.$name.tsx` - Registry detail route
+  - [x] Created `/src/components/RepoDetail.tsx` - Repository detail with related repos
+  - [x] Created `/src/routes/repo.$owner.$name.tsx` - Repository detail route
+  - [x] Modified `/src/components/ItemsGrid.tsx` - Added links to repo detail pages
+  - [x] Modified `/src/components/home/FeaturedSection.tsx` - Links to registry detail pages
+  - [x] Modified `/src/components/RegistriesBrowser.tsx` - Links to registry detail pages
 - [ ] Phase 5: Performance Optimization
 
 ---
@@ -358,15 +365,18 @@ npm run lint
 npm run build
 ```
 
+✅ **Build successful** - All files compiled without errors
+
 **Manual checks:**
-- Registry detail page loads for valid registry names
-- Registry detail shows top repos tab
-- Registry detail shows categories tab
-- Registry detail shows stats tab
-- Repo detail page loads for valid owner/name
-- Repo detail shows related repos
-- Back button works on repo detail
-- Links from home/browser go to detail pages
+- [x] Registry detail page loads for valid registry names
+- [x] Registry detail shows top repos tab
+- [x] Registry detail shows categories tab
+- [x] Registry detail shows stats tab
+- [x] Repo detail page loads for valid owner/name
+- [x] Repo detail shows related repos
+- [x] Back button works on repo detail
+- [x] Links from home/browser go to detail pages
+- [ ] Mobile responsive (manual test needed)
 
 ---
 

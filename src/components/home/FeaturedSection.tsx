@@ -115,13 +115,13 @@ function FeaturedCard({ item, index, size }: FeaturedCardProps) {
   return (
     <Link
       className="group/card border-border/60 bg-card/80 hover:shadow-primary/5 relative overflow-hidden rounded-3xl border shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
-      search={{ registry: item.name }}
+      params={{ name: item.name }}
       style={{
         animation: 'fadeInUp 0.6s ease-out forwards',
         animationDelay,
         opacity: 0,
       }}
-      to="/registry"
+      to="/registry/$name"
     >
       {/* Animated gradient overlay on hover */}
       <div className="from-primary/0 via-primary/5 to-primary/0 absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover/card:opacity-100" />
