@@ -7,10 +7,15 @@ import { applyD1Migrations, env } from 'cloudflare:test'
 
 import {
   createKysely,
+  getCategorySummaries,
+  getFeaturedRegistries,
   getLanguages,
   getRegistryData,
+  getRegistryDetail,
   getRegistryMetadata,
   getRegistryStats,
+  getRepoDetail,
+  getTrendingRegistries,
   searchRegistryItems,
 } from '@/lib/db'
 
@@ -27,6 +32,7 @@ describe('Database Query Functions', () => {
     // Clear existing data
     await db.deleteFrom('registry_items').execute()
     await db.deleteFrom('registry_metadata').execute()
+    await db.deleteFrom('registry_featured').execute()
 
     // Insert registry metadata
     await db
@@ -119,6 +125,25 @@ describe('Database Query Functions', () => {
         },
       ])
       .execute()
+
+    // Insert featured registries
+    await db
+      .insertInto('registry_featured')
+      .values([
+        {
+          registry_name: 'go',
+          featured: 1,
+          featured_order: 1,
+          editorial_badge: 'editors-choice',
+        },
+        {
+          registry_name: 'python',
+          featured: 1,
+          featured_order: 2,
+          editorial_badge: 'trending',
+        },
+      ])
+      .execute()
   })
 
   describe('getRegistryMetadata', () => {
@@ -144,6 +169,9 @@ describe('Database Query Functions', () => {
 
     it('should return empty array for empty database', async () => {
       const db = createKysely(env.DB)
+      // Need to delete in order due to foreign key constraints
+      await db.deleteFrom('registry_featured').execute()
+      await db.deleteFrom('registry_items').execute()
       await db.deleteFrom('registry_metadata').execute()
 
       const metadata = await getRegistryMetadata(db)
@@ -615,7 +643,8 @@ describe('Database Query Functions', () => {
     it('should handle empty database gracefully', async () => {
       const db = createKysely(env.DB)
 
-      // Clear all data
+      // Clear all data in correct order due to foreign key constraints
+      await db.deleteFrom('registry_featured').execute()
       await db.deleteFrom('registry_items').execute()
       await db.deleteFrom('registry_metadata').execute()
 
@@ -650,6 +679,258 @@ describe('Database Query Functions', () => {
       await expect(
         searchRegistryItems(db, { q: longQuery }),
       ).rejects.toThrow()
+    })
+  })
+
+  describe('getCategorySummaries', () => {
+    it('should return category summaries with counts', async () => {
+      const db = createKysely(env.DB)
+      const summaries = await getCategorySummaries(db)
+
+      expect(summaries.length).toBeGreaterThan(0)
+
+      // Check Web Frameworks category (should have 4 items: Gin, Echo, Django, Flask)
+      const webFrameworks = summaries.find(s => s.category === 'Web Frameworks')
+      expect(webFrameworks).toBeDefined()
+      expect(webFrameworks?.count).toBe(4)
+      expect(webFrameworks?.totalStars).toBe(88000) // 50000 + 8000 + 20000 + 10000
+
+      // Check Testing category
+      const testing = summaries.find(s => s.category === 'Testing')
+      expect(testing).toBeDefined()
+      expect(testing?.count).toBe(1)
+    })
+
+    it('should return empty array for empty database', async () => {
+      const db = createKysely(env.DB)
+      await db.deleteFrom('registry_items').execute()
+
+      const summaries = await getCategorySummaries(db)
+      expect(summaries).toHaveLength(0)
+    })
+
+    it('should order categories by count descending', async () => {
+      const db = createKysely(env.DB)
+      const summaries = await getCategorySummaries(db)
+
+      // First category should have highest count
+      expect(summaries[0].count).toBeGreaterThanOrEqual(summaries[1]?.count ?? 0)
+    })
+  })
+
+  describe('getFeaturedRegistries', () => {
+    it('should return featured registries with metadata', async () => {
+      const db = createKysely(env.DB)
+      const featured = await getFeaturedRegistries(db)
+
+      expect(featured).toHaveLength(2)
+
+      // Check first featured registry (go)
+      expect(featured[0].name).toBe('go')
+      expect(featured[0].title).toBe('Awesome Go')
+      expect(featured[0].editorial_badge).toBe('editors-choice')
+      expect(featured[0].featured).toBe(1)
+      expect(featured[0].featured_order).toBe(1)
+
+      // Check second featured registry (python)
+      expect(featured[1].name).toBe('python')
+      expect(featured[1].title).toBe('Awesome Python')
+      expect(featured[1].editorial_badge).toBe('trending')
+    })
+
+    it('should order by featured_order ascending', async () => {
+      const db = createKysely(env.DB)
+      const featured = await getFeaturedRegistries(db)
+
+      expect(featured[0].featured_order).toBeLessThanOrEqual(
+        featured[1].featured_order ?? Number.MAX_VALUE,
+      )
+    })
+
+    it('should only return registries with featured = 1', async () => {
+      const db = createKysely(env.DB)
+
+      // Update go to be non-featured
+      await db
+        .updateTable('registry_featured')
+        .set({ featured: 0 })
+        .where('registry_name', '=', 'go')
+        .execute()
+
+      const featured = await getFeaturedRegistries(db)
+
+      // Should not include the now non-featured registry
+      expect(featured).toHaveLength(1)
+      expect(featured[0].name).toBe('python')
+    })
+
+    it('should return empty array when no featured registries exist', async () => {
+      const db = createKysely(env.DB)
+      await db.deleteFrom('registry_featured').execute()
+
+      const featured = await getFeaturedRegistries(db)
+      expect(featured).toHaveLength(0)
+    })
+  })
+
+  describe('getTrendingRegistries', () => {
+    it('should return trending registries ordered by stars and recency', async () => {
+      const db = createKysely(env.DB)
+      const trending = await getTrendingRegistries(db, 10)
+
+      expect(trending.length).toBeGreaterThan(0)
+
+      // Go should be first (highest stars and more recent)
+      expect(trending[0].name).toBe('go')
+      expect(trending[0].title).toBe('Awesome Go')
+      expect(trending[0].total_stars).toBe(60000)
+
+      // Python should be second
+      expect(trending[1].name).toBe('python')
+      expect(trending[1].total_stars).toBe(30000)
+    })
+
+    it('should respect limit parameter', async () => {
+      const db = createKysely(env.DB)
+      const trending = await getTrendingRegistries(db, 1)
+
+      expect(trending).toHaveLength(1)
+    })
+
+    it('should calculate starsGrowth metric', async () => {
+      const db = createKysely(env.DB)
+      const trending = await getTrendingRegistries(db, 10)
+
+      // starsGrowth is calculated as total_stars / 100
+      expect(trending[0].starsGrowth).toBe(Math.floor(60000 / 100))
+    })
+
+    it('should return empty array when no registries exist', async () => {
+      const db = createKysely(env.DB)
+      // Need to delete in order due to foreign key constraints
+      await db.deleteFrom('registry_featured').execute()
+      await db.deleteFrom('registry_items').execute()
+      await db.deleteFrom('registry_metadata').execute()
+
+      const trending = await getTrendingRegistries(db)
+      expect(trending).toHaveLength(0)
+    })
+  })
+
+  describe('getRegistryDetail', () => {
+    it('should return detailed registry information', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRegistryDetail(db, 'go')
+
+      expect(detail).not.toBeNull()
+      expect(detail?.title).toBe('Awesome Go')
+      expect(detail?.description).toBe('Go frameworks and libraries')
+      expect(detail?.total_items).toBe(3)
+      expect(detail?.total_stars).toBe(60000)
+      expect(detail?.categories).toContain('Web Frameworks')
+      expect(detail?.categories).toContain('Testing')
+      expect(detail?.languages).toContain('Go')
+    })
+
+    it('should return top repos ordered by stars', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRegistryDetail(db, 'go')
+
+      expect(detail?.topRepos).toHaveLength(3)
+      expect(detail?.topRepos[0].name).toBe('gin') // Highest stars (50000)
+      expect(detail?.topRepos[0].stars).toBe(50000)
+    })
+
+    it('should exclude archived repos from top repos', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRegistryDetail(db, 'python')
+
+      // Flask is archived, should not be in top repos
+      expect(detail?.topRepos).toHaveLength(1)
+      expect(detail?.topRepos[0].name).toBe('django')
+    })
+
+    it('should return null for non-existent registry', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRegistryDetail(db, 'nonexistent')
+
+      expect(detail).toBeNull()
+    })
+
+    it('should include repo details in topRepos', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRegistryDetail(db, 'go')
+
+      const firstRepo = detail?.topRepos[0]
+      expect(firstRepo).toBeDefined()
+      expect(firstRepo?.owner).toBe('gin-gonic')
+      expect(firstRepo?.category).toBe('Web Frameworks')
+      expect(firstRepo?.language).toBe('Go')
+    })
+  })
+
+  describe('getRepoDetail', () => {
+    it('should return detailed repo information', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRepoDetail(db, 'gin-gonic', 'gin')
+
+      expect(detail).not.toBeNull()
+      expect(detail?.name).toBe('gin')
+      expect(detail?.owner).toBe('gin-gonic')
+      expect(detail?.registryName).toBe('go')
+      expect(detail?.stars).toBe(50000)
+      expect(detail?.language).toBe('Go')
+      expect(detail?.category).toBe('Web Frameworks')
+    })
+
+    it('should return related repos from same category', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRepoDetail(db, 'gin-gonic', 'gin')
+
+      expect(detail?.relatedRepos.length).toBeGreaterThan(0)
+
+      // Echo should be in related repos (same category: Web Frameworks, same registry)
+      const echo = detail?.relatedRepos.find(r => r.name === 'echo')
+      expect(echo).toBeDefined()
+    })
+
+    it('should exclude current repo from related repos', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRepoDetail(db, 'gin-gonic', 'gin')
+
+      const hasGin = detail?.relatedRepos.some(r => r.name === 'gin')
+      expect(hasGin).toBe(false)
+    })
+
+    it('should exclude archived repos from related repos', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRepoDetail(db, 'pallets', 'flask')
+
+      // Flask is archived, relatedRepos should still work
+      expect(detail).not.toBeNull()
+
+      // Django is in the same registry and category as Flask
+      // and is non-archived, so it should appear as a related repo
+      expect(detail?.relatedRepos).toHaveLength(1)
+      expect(detail?.relatedRepos[0].name).toBe('django')
+    })
+
+    it('should return null for non-existent repo', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRepoDetail(db, 'nonexistent', 'repo')
+
+      expect(detail).toBeNull()
+    })
+
+    it('should order related repos by stars descending', async () => {
+      const db = createKysely(env.DB)
+      const detail = await getRepoDetail(db, 'gin-gonic', 'gin')
+
+      if (detail && detail.relatedRepos.length > 1) {
+        const firstStars = detail.relatedRepos[0].stars
+        const secondStars = detail.relatedRepos[1].stars
+        expect(firstStars).toBeGreaterThanOrEqual(secondStars)
+      }
     })
   })
 })

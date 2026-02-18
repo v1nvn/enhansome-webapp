@@ -8,12 +8,19 @@ import { applyD1Migrations, env } from 'cloudflare:test'
 import { createKysely } from '@/lib/db'
 import {
   fetchCategoriesHandler,
+  fetchCategorySummariesHandler,
+  fetchFeaturedRegistriesHandler,
   fetchLanguagesHandler,
   fetchMetadataHandler,
+  fetchRegistryDetailHandler,
   fetchRegistryHandler,
+  fetchRepoDetailHandler,
+  fetchTrendingRegistriesHandler,
   searchRegistryItemsHandler,
   validateFetchCategoriesInput,
   validateFetchLanguagesInput,
+  validateFetchRegistryDetailInput,
+  validateFetchRepoDetailInput,
   validateSearchParams,
 } from '@/lib/server-functions'
 
@@ -30,6 +37,7 @@ describe('Server Function Handlers', () => {
     // Clear existing data
     await db.deleteFrom('registry_items').execute()
     await db.deleteFrom('registry_metadata').execute()
+    await db.deleteFrom('registry_featured').execute()
 
     // Insert registry metadata
     await db
@@ -122,6 +130,25 @@ describe('Server Function Handlers', () => {
         },
       ])
       .execute()
+
+    // Insert featured registries
+    await db
+      .insertInto('registry_featured')
+      .values([
+        {
+          registry_name: 'go',
+          featured: 1,
+          featured_order: 1,
+          editorial_badge: 'editors-choice',
+        },
+        {
+          registry_name: 'python',
+          featured: 1,
+          featured_order: 2,
+          editorial_badge: 'trending',
+        },
+      ])
+      .execute()
   })
 
   describe('fetchRegistryHandler', () => {
@@ -145,6 +172,9 @@ describe('Server Function Handlers', () => {
 
     it('should return empty array when no registries exist', async () => {
       const db = createKysely(env.DB)
+      // Need to delete in order due to foreign key constraints
+      await db.deleteFrom('registry_featured').execute()
+      await db.deleteFrom('registry_items').execute()
       await db.deleteFrom('registry_metadata').execute()
 
       const result = await fetchRegistryHandler(db)
@@ -179,6 +209,9 @@ describe('Server Function Handlers', () => {
 
     it('should return empty array when no registries exist', async () => {
       const db = createKysely(env.DB)
+      // Need to delete in order due to foreign key constraints
+      await db.deleteFrom('registry_featured').execute()
+      await db.deleteFrom('registry_items').execute()
       await db.deleteFrom('registry_metadata').execute()
 
       const result = await fetchMetadataHandler(db)
@@ -491,6 +524,177 @@ describe('Server Function Handlers', () => {
     it('should handle partial input', () => {
       const input = { limit: 50, registryName: 'python' }
       const result = validateSearchParams(input)
+
+      expect(result).toEqual(input)
+    })
+  })
+
+  describe('fetchFeaturedRegistriesHandler', () => {
+    it('should return featured registries with metadata', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchFeaturedRegistriesHandler(db)
+
+      expect(Array.isArray(result)).toBe(true)
+      expect(result).toHaveLength(2)
+
+      // Check Go registry
+      const goRegistry = result.find(r => r.name === 'go')
+      expect(goRegistry).toBeDefined()
+      expect(goRegistry?.title).toBe('Awesome Go')
+      expect(goRegistry?.editorial_badge).toBe('editors-choice')
+
+      // Check Python registry
+      const pythonRegistry = result.find(r => r.name === 'python')
+      expect(pythonRegistry).toBeDefined()
+      expect(pythonRegistry?.editorial_badge).toBe('trending')
+    })
+
+    it('should return empty array when no featured registries exist', async () => {
+      const db = createKysely(env.DB)
+      await db.deleteFrom('registry_featured').execute()
+
+      const result = await fetchFeaturedRegistriesHandler(db)
+      expect(result).toHaveLength(0)
+    })
+  })
+
+  describe('fetchTrendingRegistriesHandler', () => {
+    it('should return trending registries ordered by stars', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchTrendingRegistriesHandler(db, 10)
+
+      expect(Array.isArray(result)).toBe(true)
+      expect(result.length).toBeGreaterThan(0)
+
+      // Go should be first (highest stars)
+      expect(result[0].name).toBe('go')
+      expect(result[0].total_stars).toBe(60000)
+    })
+
+    it('should respect limit parameter', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchTrendingRegistriesHandler(db, 1)
+
+      expect(result).toHaveLength(1)
+    })
+
+    it('should return empty array when no registries exist', async () => {
+      const db = createKysely(env.DB)
+      // Need to delete in order due to foreign key constraints
+      await db.deleteFrom('registry_featured').execute()
+      await db.deleteFrom('registry_items').execute()
+      await db.deleteFrom('registry_metadata').execute()
+
+      const result = await fetchTrendingRegistriesHandler(db)
+      expect(result).toHaveLength(0)
+    })
+  })
+
+  describe('fetchCategorySummariesHandler', () => {
+    it('should return category summaries with counts', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchCategorySummariesHandler(db)
+
+      expect(Array.isArray(result)).toBe(true)
+      expect(result.length).toBeGreaterThan(0)
+
+      // Check Web Frameworks category
+      const webFrameworks = result.find(s => s.category === 'Web Frameworks')
+      expect(webFrameworks).toBeDefined()
+      expect(webFrameworks?.count).toBe(4)
+    })
+
+    it('should return empty array for empty database', async () => {
+      const db = createKysely(env.DB)
+      await db.deleteFrom('registry_items').execute()
+
+      const result = await fetchCategorySummariesHandler(db)
+      expect(result).toHaveLength(0)
+    })
+  })
+
+  describe('fetchRegistryDetailHandler', () => {
+    it('should return detailed registry information', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchRegistryDetailHandler(db, { name: 'go' })
+
+      expect(result).not.toBeNull()
+      expect(result?.title).toBe('Awesome Go')
+      expect(result?.total_items).toBe(3)
+      expect(result?.categories).toContain('Web Frameworks')
+      expect(result?.languages).toContain('Go')
+    })
+
+    it('should return top repos in detail', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchRegistryDetailHandler(db, { name: 'go' })
+
+      expect(result?.topRepos).toHaveLength(3)
+      expect(result?.topRepos[0].name).toBe('gin') // Highest stars
+    })
+
+    it('should return null for non-existent registry', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchRegistryDetailHandler(db, {
+        name: 'nonexistent',
+      })
+
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('validateFetchRegistryDetailInput', () => {
+    it('should pass through valid input', () => {
+      const input = { name: 'go' }
+      const result = validateFetchRegistryDetailInput(input)
+
+      expect(result).toEqual(input)
+    })
+  })
+
+  describe('fetchRepoDetailHandler', () => {
+    it('should return detailed repo information', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchRepoDetailHandler(db, {
+        name: 'gin',
+        owner: 'gin-gonic',
+      })
+
+      expect(result).not.toBeNull()
+      expect(result?.name).toBe('gin')
+      expect(result?.owner).toBe('gin-gonic')
+      expect(result?.stars).toBe(50000)
+    })
+
+    it('should return related repos from same category', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchRepoDetailHandler(db, {
+        name: 'gin',
+        owner: 'gin-gonic',
+      })
+
+      expect(result?.relatedRepos.length).toBeGreaterThan(0)
+
+      // Echo should be in related repos
+      const echo = result?.relatedRepos.find(r => r.name === 'echo')
+      expect(echo).toBeDefined()
+    })
+
+    it('should return null for non-existent repo', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchRepoDetailHandler(db, {
+        name: 'nonexistent',
+        owner: 'nonexistent',
+      })
+
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('validateFetchRepoDetailInput', () => {
+    it('should pass through valid input', () => {
+      const input = { name: 'gin', owner: 'gin-gonic' }
+      const result = validateFetchRepoDetailInput(input)
 
       expect(result).toEqual(input)
     })

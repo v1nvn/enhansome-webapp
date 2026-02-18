@@ -8,10 +8,15 @@ import type { RegistryFile, RegistryItem } from '@/types/registry'
 
 import {
   createKysely,
+  getCategorySummaries,
+  getFeaturedRegistries,
   getLanguages,
   getRegistryData,
+  getRegistryDetail,
   getRegistryMetadata,
   getRegistryStats,
+  getRepoDetail,
+  getTrendingRegistries,
   searchRegistryItems,
 } from './db'
 import { adminAuthMiddleware } from './middleware'
@@ -160,6 +165,247 @@ export const metadataQueryOptions = () =>
     queryFn: () => fetchMetadata(),
     queryKey: ['registry-metadata'],
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  })
+
+// ============================================================================
+// Featured Registries API
+// ============================================================================
+
+export interface FeaturedRegistry {
+  description: string
+  editorial_badge: null | string
+  featured: number
+  featured_order: null | number
+  name: string
+  title: string
+  total_items: number
+  total_stars: number
+}
+
+export async function fetchFeaturedRegistriesHandler(
+  db: ReturnType<typeof createKysely>,
+): Promise<FeaturedRegistry[]> {
+  console.info('Fetching featured registries...')
+  try {
+    const featured = await getFeaturedRegistries(db)
+    return featured
+  } catch (error) {
+    console.error('Featured registries API error:', error)
+    throw error
+  }
+}
+
+export const fetchFeaturedRegistries = createServerFn({
+  method: 'GET',
+}).handler(async () => {
+  const db = createKysely(env.DB)
+  return fetchFeaturedRegistriesHandler(db)
+})
+
+export const featuredQueryOptions = () =>
+  queryOptions<FeaturedRegistry[]>({
+    queryFn: () => fetchFeaturedRegistries(),
+    queryKey: ['featured-registries'],
+    staleTime: 60 * 60 * 1000, // 1 hour
+  })
+
+// ============================================================================
+// Trending Registries API
+// ============================================================================
+
+export interface TrendingRegistry {
+  description: string
+  name: string
+  starsGrowth: number
+  title: string
+  total_items: number
+  total_stars: number
+}
+
+export async function fetchTrendingRegistriesHandler(
+  db: ReturnType<typeof createKysely>,
+  limit = 12,
+): Promise<TrendingRegistry[]> {
+  console.info('Fetching trending registries...')
+  try {
+    const trending = await getTrendingRegistries(db, limit)
+    return trending
+  } catch (error) {
+    console.error('Trending registries API error:', error)
+    throw error
+  }
+}
+
+export const fetchTrendingRegistries = createServerFn({
+  method: 'GET',
+}).handler(async () => {
+  const db = createKysely(env.DB)
+  return fetchTrendingRegistriesHandler(db)
+})
+
+export const trendingQueryOptions = () =>
+  queryOptions<TrendingRegistry[]>({
+    queryFn: () => fetchTrendingRegistries(),
+    queryKey: ['trending-registries'],
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  })
+
+// ============================================================================
+// Category Summaries API
+// ============================================================================
+
+export interface CategorySummary {
+  category: string
+  count: number
+  totalStars: number
+}
+
+export async function fetchCategorySummariesHandler(
+  db: ReturnType<typeof createKysely>,
+): Promise<CategorySummary[]> {
+  console.info('Fetching category summaries...')
+  try {
+    const summaries = await getCategorySummaries(db)
+    return summaries
+  } catch (error) {
+    console.error('Category summaries API error:', error)
+    throw error
+  }
+}
+
+export const fetchCategorySummaries = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const db = createKysely(env.DB)
+    return fetchCategorySummariesHandler(db)
+  },
+)
+
+export const categorySummariesQueryOptions = () =>
+  queryOptions<CategorySummary[]>({
+    queryFn: () => fetchCategorySummaries(),
+    queryKey: ['category-summaries'],
+    staleTime: 60 * 60 * 1000, // 1 hour
+  })
+
+// ============================================================================
+// Registry Detail API
+// ============================================================================
+
+export interface FetchRegistryDetailInput {
+  name: string
+}
+
+export interface RegistryDetail {
+  categories: string[]
+  description: string
+  languages: string[]
+  last_updated: string
+  source_repository: string
+  title: string
+  topRepos: {
+    category: string
+    description: null | string
+    language: null | string
+    name: string
+    owner: null | string
+    stars: number
+  }[]
+  total_items: number
+  total_stars: number
+}
+
+export async function fetchRegistryDetailHandler(
+  db: ReturnType<typeof createKysely>,
+  data: FetchRegistryDetailInput,
+): Promise<null | RegistryDetail> {
+  console.info('Fetching registry detail...', data)
+  try {
+    const detail = await getRegistryDetail(db, data.name)
+    return detail
+  } catch (error) {
+    console.error('Registry detail API error:', error)
+    throw error
+  }
+}
+
+export function validateFetchRegistryDetailInput(
+  input: FetchRegistryDetailInput,
+): FetchRegistryDetailInput {
+  return input
+}
+
+export const fetchRegistryDetail = createServerFn({ method: 'GET' })
+  .inputValidator(validateFetchRegistryDetailInput)
+  .handler(async ({ data }) => {
+    const db = createKysely(env.DB)
+    return fetchRegistryDetailHandler(db, data)
+  })
+
+export const registryDetailQueryOptions = (name: string) =>
+  queryOptions<null | RegistryDetail>({
+    queryFn: () => fetchRegistryDetail({ data: { name } }),
+    queryKey: ['registry-detail', name],
+    staleTime: 60 * 60 * 1000, // 1 hour
+  })
+
+// ============================================================================
+// Repo Detail API
+// ============================================================================
+
+export interface FetchRepoDetailInput {
+  name: string
+  owner: string
+}
+
+export interface RepoDetail {
+  category: string
+  description: null | string
+  language: null | string
+  lastCommit: null | string
+  name: string
+  owner: string
+  registryName: string
+  relatedRepos: {
+    category: string
+    name: string
+    owner: null | string
+    stars: number
+  }[]
+  stars: number
+}
+
+export async function fetchRepoDetailHandler(
+  db: ReturnType<typeof createKysely>,
+  data: FetchRepoDetailInput,
+): Promise<null | RepoDetail> {
+  console.info('Fetching repo detail...', data)
+  try {
+    const detail = await getRepoDetail(db, data.owner, data.name)
+    return detail
+  } catch (error) {
+    console.error('Repo detail API error:', error)
+    throw error
+  }
+}
+
+export function validateFetchRepoDetailInput(
+  input: FetchRepoDetailInput,
+): FetchRepoDetailInput {
+  return input
+}
+
+export const fetchRepoDetail = createServerFn({ method: 'GET' })
+  .inputValidator(validateFetchRepoDetailInput)
+  .handler(async ({ data }) => {
+    const db = createKysely(env.DB)
+    return fetchRepoDetailHandler(db, data)
+  })
+
+export const repoDetailQueryOptions = (owner: string, name: string) =>
+  queryOptions<null | RepoDetail>({
+    queryFn: () => fetchRepoDetail({ data: { name, owner } }),
+    queryKey: ['repo-detail', owner, name],
+    staleTime: 60 * 60 * 1000, // 1 hour
   })
 
 // ============================================================================

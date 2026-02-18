@@ -11,6 +11,7 @@ import type { Generated } from 'kysely'
 export interface Database {
   indexing_history: IndexingHistoryTable
   indexing_latest: IndexingLatestTable
+  registry_featured: RegistryFeaturedTable
   registry_items: RegistryItemsTable
   registry_metadata: RegistryMetadataTable
   sync_log: SyncLogTable
@@ -43,6 +44,18 @@ export interface IndexingLatestTable {
   id: 1 // Single-row table with id = 1
   status: 'completed' | 'failed' | 'idle' | 'running'
   updated_at: string
+}
+
+/**
+ * Registry featured table schema
+ */
+export interface RegistryFeaturedTable {
+  created_at: Generated<string>
+  editorial_badge: null | string
+  featured: number // SQLite uses INTEGER for boolean (0 or 1)
+  featured_order: null | number
+  id: Generated<number>
+  registry_name: string
 }
 
 /**
