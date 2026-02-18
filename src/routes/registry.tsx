@@ -1,20 +1,25 @@
 import { useMemo, useState } from 'react'
 
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { ChevronDown, Loader2 } from 'lucide-react'
 
 import type { FilterValues } from '@/components/FiltersSidebar'
 import type { SearchTag } from '@/components/SearchBar'
 
 import ActiveFilterChips from '@/components/ActiveFilterChips'
+import { FacetedSearchBar } from '@/components/FacetedSearchBar'
 import FiltersBottomSheet from '@/components/FiltersBottomSheet'
 import { FiltersSidebar } from '@/components/FiltersSidebar'
+import { ItemsGrid } from '@/components/ItemsGrid'
 import MobileFilterButton from '@/components/MobileFilterButton'
-import { RegistryLayout } from '@/components/RegistryLayout'
 import {
   categoriesQueryOptions,
   metadataQueryOptions,
+  searchInfiniteQueryOptions,
 } from '@/lib/server-functions'
+
+const PAGE_SIZE = 20
 
 interface RegistrySearch {
   archived?: string
@@ -236,15 +241,17 @@ function RegistryBrowser() {
             />
           </div>
 
-          <RegistryLayout
+          <RegistryBrowserContent
             dateFrom={search.dateFrom}
             dateTo={search.dateTo}
             hideArchived={search.archived === 'false'}
             maxStars={search.starsMax ? parseInt(search.starsMax) : undefined}
             minStars={search.starsMin ? parseInt(search.starsMin) : undefined}
+            onFiltersChange={handleFiltersChange}
             onTagsChange={handleTagsChange}
             searchQuery={search.q}
             selectedCategory={search.category}
+            selectedFilters={currentFilters}
             selectedLanguage={search.lang}
             selectedRegistry={search.registry}
             sortBy={search.sort || 'stars'}
@@ -271,6 +278,142 @@ function RegistryBrowser() {
         selectedFilters={currentFilters}
         selectedRegistry={search.registry}
       />
+    </div>
+  )
+}
+
+// Content component with FacetedSearchBar
+function RegistryBrowserContent({
+  dateFrom,
+  dateTo,
+  hideArchived,
+  maxStars,
+  minStars,
+  onFiltersChange,
+  onTagsChange,
+  searchQuery,
+  selectedCategory,
+  selectedFilters,
+  selectedLanguage,
+  selectedRegistry,
+  sortBy,
+}: {
+  dateFrom?: string
+  dateTo?: string
+  hideArchived?: boolean
+  maxStars?: number
+  minStars?: number
+  onFiltersChange: (filters: FilterValues) => void
+  onTagsChange: (tags: SearchTag[]) => void
+  searchQuery?: string
+  selectedCategory?: string
+  selectedFilters: FilterValues
+  selectedLanguage?: string
+  selectedRegistry?: string
+  sortBy: 'name' | 'stars' | 'updated'
+}) {
+  // Extract category name from the key (format: "registry::category")
+  const categoryName = useMemo(() => {
+    if (!selectedCategory) return undefined
+    const [, category] = selectedCategory.split('::')
+    return category
+  }, [selectedCategory])
+
+  // Build search params object (without cursor)
+  const searchParams = useMemo(
+    () => ({
+      archived: hideArchived ? false : undefined,
+      category: categoryName,
+      dateFrom,
+      dateTo,
+      language: selectedLanguage,
+      limit: PAGE_SIZE,
+      maxStars: maxStars && maxStars > 0 ? maxStars : undefined,
+      minStars: minStars && minStars > 0 ? minStars : undefined,
+      q: searchQuery?.trim(),
+      registryName: selectedRegistry,
+      sortBy,
+    }),
+    [
+      searchQuery,
+      selectedRegistry,
+      categoryName,
+      selectedLanguage,
+      hideArchived,
+      minStars,
+      maxStars,
+      dateFrom,
+      dateTo,
+      sortBy,
+    ],
+  )
+
+  // Fetch from search API using infinite query
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery(searchInfiniteQueryOptions(searchParams))
+
+  // Combine all pages - no client-side filtering!
+  const allItems = useMemo(() => {
+    return data?.pages.flatMap(page => page.data) ?? []
+  }, [data?.pages])
+
+  const total = data?.pages[data.pages.length - 1]?.total ?? 0
+
+  const handleLoadMore = () => {
+    void fetchNextPage()
+  }
+
+  return (
+    <div className="bg-background flex h-full flex-col">
+      {/* Faceted Search Bar */}
+      <div className="bg-card/80 px-4 py-4 backdrop-blur-md sm:px-6">
+        <FacetedSearchBar
+          activeFilters={selectedFilters}
+          onFiltersChange={onFiltersChange}
+          onSearchChange={query => {
+            const tags: SearchTag[] = query.trim()
+              ? [{ label: query.trim(), type: 'text', value: query.trim() }]
+              : []
+            onTagsChange(tags)
+          }}
+          searchQuery={searchQuery}
+          totalResults={total}
+        />
+      </div>
+
+      {/* Items Grid with Scroll */}
+      <div className="bg-muted/30 flex-1 overflow-y-auto p-4 sm:p-6">
+        <ItemsGrid items={allItems} sortBy={sortBy} />
+      </div>
+
+      {/* Pagination Controls */}
+      {hasNextPage && (
+        <div className="bg-card/80 px-4 py-4 backdrop-blur-md sm:px-6">
+          <div className="flex items-center justify-center">
+            <button
+              className="bg-primary text-primary-foreground shadow-primary/20 hover:shadow-primary/30 group inline-flex cursor-pointer items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+              disabled={isFetchingNextPage}
+              onClick={handleLoadMore}
+              type="button"
+            >
+              {isFetchingNextPage ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <>
+                  <span>Load More</span>
+                  <ChevronDown className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
+                  <span className="bg-primary-foreground/20 ml-1 rounded-lg px-2 py-0.5 text-xs">
+                    {allItems.length} / {total}
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

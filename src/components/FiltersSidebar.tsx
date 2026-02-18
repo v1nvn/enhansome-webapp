@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronRight, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Minus, Plus, Search, X } from 'lucide-react'
 
 import type { Category } from '@/lib/server-functions'
 
+import { groupRegistries } from '@/lib/registry-groups'
 import {
   categoriesQueryOptions,
   languagesQueryOptions,
@@ -39,7 +40,18 @@ export function FiltersSidebar({
   const [languageSearch, setLanguageSearch] = useState('')
   const [registrySearch, setRegistrySearch] = useState('')
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    () => new Set(),
+    () => new Set(['registry', 'sort']),
+  )
+  const [expandedRegistryGroups, setExpandedRegistryGroups] = useState<
+    Set<string>
+  >(
+    () =>
+      new Set([
+        'DevOps & Infrastructure',
+        'JavaScript Ecosystem',
+        'Languages',
+        'Python Ecosystem',
+      ]),
   )
 
   // Fetch categories from API
@@ -62,6 +74,11 @@ export function FiltersSidebar({
       name.toLowerCase().includes(registrySearch.toLowerCase()),
     )
   }, [registryNames, registrySearch])
+
+  // Group registries
+  const groupedRegistries = useMemo(() => {
+    return groupRegistries(filteredRegistries)
+  }, [filteredRegistries])
 
   // Filter categories by search
   const filteredCategories = useMemo(() => {
@@ -118,10 +135,10 @@ export function FiltersSidebar({
 
   // Helper to render filter tags when collapsed
   const renderFilterTag = (label: string, onRemove: () => void) => (
-    <div className="group/tag bg-accent/30 text-foreground hover:bg-accent/50 mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-medium transition-all">
+    <div className="group/tag bg-accent/30 text-accent-foreground hover:bg-accent/50 mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all">
       <span className="truncate">{label}</span>
       <button
-        className="hover:bg-primary/20 hover:text-primary rounded-md p-0.5 transition-all group-hover/tag:scale-110"
+        className="hover:bg-primary/20 hover:text-primary rounded-full p-0.5 transition-all group-hover/tag:scale-110"
         onClick={e => {
           e.stopPropagation()
           onRemove()
@@ -133,171 +150,250 @@ export function FiltersSidebar({
     </div>
   )
 
-  const sortLabels = {
-    name: 'Alphabetical',
-    stars: 'Most Stars',
-    updated: 'Recently Updated',
-  }
-
   return (
-    <div className="bg-card hidden h-full w-80 flex-col md:flex">
+    <div className="bg-card/50 border-border/50 hidden h-full w-80 flex-col border-r backdrop-blur-sm md:flex">
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="space-y-3">
-          {/* Section Header */}
-          <div className="mb-4">
-            <h2 className="font-display text-foreground text-xl font-bold">
+        <div className="space-y-4">
+          {/* Section Header - Editorial style */}
+          <div className="mb-6">
+            <h2 className="font-display text-foreground text-2xl font-bold tracking-tight">
               Filters
             </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Refine your search
+            <p className="text-muted-foreground mt-1.5 text-sm font-medium">
+              Refine your discovery
             </p>
           </div>
 
-          {/* Sort */}
-          <div className="bg-muted/30 rounded-xl p-4">
-            <button
-              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
-              onClick={() => {
-                toggleSection('sort')
-              }}
-              type="button"
-            >
-              <span>Sort By</span>
-              {isExpanded('sort') ? (
-                <ChevronDown className="text-muted-foreground h-4 w-4" />
-              ) : (
-                <ChevronRight className="text-muted-foreground h-4 w-4" />
-              )}
-            </button>
-            {!isExpanded('sort') &&
-              selectedFilters.sort &&
-              selectedFilters.sort !== 'stars' &&
-              renderFilterTag(sortLabels[selectedFilters.sort], () => {
-                handleFilterChange('sort', 'stars')
-              })}
-            {isExpanded('sort') && (
-              <div className="mt-3 space-y-1.5">
-                {[
-                  { label: 'Most Stars', value: 'stars' },
-                  { label: 'Recently Updated', value: 'updated' },
-                  { label: 'Alphabetical', value: 'name' },
-                ].map(option => (
-                  <button
-                    className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
-                      selectedFilters.sort === option.value
-                        ? 'bg-primary text-primary-foreground font-medium shadow-sm'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                    key={option.value}
-                    onClick={() => {
-                      handleFilterChange('sort', option.value)
-                    }}
-                    type="button"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
+          {/* Sort - Minimal pill buttons */}
+          <div className="bg-muted/20 rounded-2xl p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-foreground text-xs font-bold uppercase tracking-widest">
+                Sort By
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Stars', value: 'stars' },
+                { label: 'Recent', value: 'updated' },
+                { label: 'A–Z', value: 'name' },
+              ].map(option => (
+                <button
+                  className={`border-border/50 text-muted-foreground hover:border-primary/50 hover:text-primary rounded-xl border-2 px-4 py-2 text-xs font-semibold transition-all ${
+                    selectedFilters.sort === option.value
+                      ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                      : ''
+                  }`}
+                  key={option.value}
+                  onClick={() => {
+                    handleFilterChange('sort', option.value)
+                  }}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Registry */}
-          <div className="bg-muted/30 rounded-xl p-4">
+          {/* Registry with Enhanced Hierarchical Groups */}
+          <div className="bg-muted/20 rounded-2xl p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-foreground text-xs font-bold uppercase tracking-widest">
+                Registry
+              </span>
+              <button
+                className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+                onClick={() => {
+                  if (selectedFilters.registry) {
+                    onFiltersChange({
+                      ...selectedFilters,
+                      category: undefined,
+                      registry: undefined,
+                    })
+                  }
+                }}
+                type="button"
+              >
+                Reset
+              </button>
+            </div>
+
+            {/* Search input */}
+            <div className="relative mb-3">
+              <Search className="text-muted-foreground/50 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+              <input
+                className="border-border/30 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary/50 focus:ring-primary/10 w-full rounded-xl border-2 px-3 py-2.5 pl-9 text-sm transition-all focus:outline-none focus:ring-4"
+                id="registry-search"
+                onChange={e => {
+                  setRegistrySearch(e.target.value)
+                }}
+                placeholder="Search registries..."
+                type="text"
+                value={registrySearch}
+              />
+            </div>
+
+            {/* All Registries Option */}
             <button
-              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
+              className={`mb-2 w-full cursor-pointer rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all ${
+                !selectedFilters.registry
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+              }`}
               onClick={() => {
-                toggleSection('registry')
+                onFiltersChange({
+                  ...selectedFilters,
+                  category: undefined,
+                  registry: undefined,
+                })
               }}
               type="button"
             >
-              <span>Registry</span>
-              {isExpanded('registry') ? (
-                <ChevronDown className="text-muted-foreground h-4 w-4" />
-              ) : (
-                <ChevronRight className="text-muted-foreground h-4 w-4" />
-              )}
+              All Registries
+              <span className="text-muted-foreground/70 ml-2 text-xs font-normal">
+                ({registryNames.length})
+              </span>
             </button>
-            {!isExpanded('registry') &&
-              selectedFilters.registry &&
-              renderFilterTag(selectedFilters.registry, () => {
-                handleFilterChange('registry', undefined)
-              })}
-            {isExpanded('registry') && (
-              <>
-                <div className="relative mt-3">
-                  <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-                  <input
-                    className="border-border bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary focus:ring-primary/20 w-full rounded-lg border px-3 py-2 pl-9 text-sm transition-all focus:outline-none focus:ring-2"
-                    id="registry-search"
-                    onChange={e => {
-                      setRegistrySearch(e.target.value)
-                    }}
-                    placeholder="Search registries..."
-                    type="text"
-                    value={registrySearch}
-                  />
-                </div>
-                <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
-                  {filteredRegistries.length > 0 ? (
-                    <>
+
+            {/* Grouped Registries with visual distinction */}
+            <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+              {Array.from(groupedRegistries.entries()).map(
+                ([group, registries]) => {
+                  if (registries.length === 0) return null
+
+                  // Ungrouped registries
+                  if (!group) {
+                    return (
+                      <div className="mt-3" key="ungrouped">
+                        <span className="text-muted-foreground mb-2 block px-2 text-xs font-semibold uppercase tracking-wide">
+                          Other
+                        </span>
+                        {registries.map(name => (
+                          <button
+                            className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                              selectedFilters.registry === name
+                                ? 'bg-accent/50 text-accent-foreground font-medium'
+                                : 'text-muted-foreground hover:bg-muted/30'
+                            }`}
+                            key={name}
+                            onClick={() => {
+                              onFiltersChange({
+                                ...selectedFilters,
+                                category: undefined,
+                                registry: name,
+                              })
+                            }}
+                            type="button"
+                          >
+                            {name.replace('awesome-', '')}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  }
+
+                  const isGroupExpanded = expandedRegistryGroups.has(
+                    group.label,
+                  )
+                  const hasSelected = registries.some(
+                    r => r === selectedFilters.registry,
+                  )
+                  const groupCount = registries.length
+
+                  return (
+                    <div className="group/registry" key={group.label}>
                       <button
-                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
-                          !selectedFilters.registry
-                            ? 'bg-primary text-primary-foreground font-medium'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        className={`text-foreground hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all ${
+                          hasSelected
+                            ? 'bg-accent/20 text-accent-foreground'
+                            : ''
                         }`}
                         onClick={() => {
-                          onFiltersChange({
-                            ...selectedFilters,
-                            category: undefined,
-                            registry: undefined,
+                          setExpandedRegistryGroups(prev => {
+                            const next = new Set(prev)
+                            if (next.has(group.label)) {
+                              next.delete(group.label)
+                            } else {
+                              next.add(group.label)
+                            }
+                            return next
                           })
                         }}
                         type="button"
                       >
-                        All Registries
+                        <span className="flex items-center gap-2">
+                          <span
+                            aria-label={group.label}
+                            className="text-lg"
+                            role="img"
+                          >
+                            {group.icon}
+                          </span>
+                          <span>{group.label}</span>
+                        </span>
+                        <span className="flex items-center gap-2">
+                          <span className="bg-muted-foreground/10 text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                            {groupCount}
+                          </span>
+                          <span className="bg-muted/50 rounded-md p-0.5">
+                            {isGroupExpanded ? (
+                              <Minus className="h-3 w-3" />
+                            ) : (
+                              <Plus className="h-3 w-3" />
+                            )}
+                          </span>
+                        </span>
                       </button>
-                      {filteredRegistries.map(name => (
-                        <button
-                          className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
-                            selectedFilters.registry === name
-                              ? 'bg-primary text-primary-foreground font-medium'
-                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                          }`}
-                          key={name}
-                          onClick={() => {
-                            onFiltersChange({
-                              ...selectedFilters,
-                              category: undefined,
-                              registry: name,
-                            })
-                          }}
-                          type="button"
-                        >
-                          {name}
-                        </button>
-                      ))}
-                    </>
-                  ) : (
-                    <div className="text-muted-foreground py-4 text-center text-sm">
-                      No registries found
+
+                      {isGroupExpanded && (
+                        <div className="border-border/30 ml-1 mt-1.5 space-y-0.5 border-l-2 pl-3">
+                          {registries.map(name => (
+                            <button
+                              className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm font-medium transition-all ${
+                                selectedFilters.registry === name
+                                  ? 'bg-primary text-primary-foreground shadow-sm'
+                                  : 'text-muted-foreground hover:bg-muted/20 hover:text-foreground'
+                              }`}
+                              key={name}
+                              onClick={() => {
+                                onFiltersChange({
+                                  ...selectedFilters,
+                                  category: undefined,
+                                  registry: name,
+                                })
+                              }}
+                              type="button"
+                            >
+                              {name.replace('awesome-', '')}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </>
+                  )
+                },
+              )}
+            </div>
+
+            {filteredRegistries.length === 0 && (
+              <div className="text-muted-foreground py-6 text-center text-sm">
+                No registries found
+              </div>
             )}
           </div>
 
-          {/* Categories */}
-          <div className="bg-muted/30 rounded-xl p-4">
+          {/* Categories - Enhanced visual design */}
+          <div className="bg-muted/20 rounded-2xl p-4">
             <button
-              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-bold"
               onClick={() => {
                 toggleSection('categories')
               }}
               type="button"
             >
-              <span>Category</span>
+              <span className="text-xs font-bold uppercase tracking-widest">
+                Category
+              </span>
               {isExpanded('categories') ? (
                 <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
@@ -312,9 +408,9 @@ export function FiltersSidebar({
             {isExpanded('categories') && (
               <>
                 <div className="relative mt-3">
-                  <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                  <Search className="text-muted-foreground/50 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                   <input
-                    className="border-border bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary focus:ring-primary/20 w-full rounded-lg border px-3 py-2 pl-9 text-sm transition-all focus:outline-none focus:ring-2"
+                    className="border-border/30 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary/50 focus:ring-primary/10 w-full rounded-xl border-2 px-3 py-2.5 pl-9 text-sm transition-all focus:outline-none focus:ring-4"
                     id="category-search"
                     onChange={e => {
                       setCategorySearch(e.target.value)
@@ -324,14 +420,14 @@ export function FiltersSidebar({
                     value={categorySearch}
                   />
                 </div>
-                <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
+                <div className="mt-2.5 max-h-56 space-y-0.5 overflow-y-auto">
                   {filteredCategories.length > 0 ? (
                     <>
                       <button
-                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm font-medium transition-all ${
                           !selectedFilters.category
-                            ? 'bg-primary text-primary-foreground font-medium'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:bg-muted/20'
                         }`}
                         onClick={() => {
                           handleFilterChange('category', undefined)
@@ -342,10 +438,10 @@ export function FiltersSidebar({
                       </button>
                       {filteredCategories.map(cat => (
                         <button
-                          className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                          className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition-all ${
                             selectedFilters.category === cat.key
-                              ? 'bg-primary text-primary-foreground font-medium'
-                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:bg-muted/20'
                           }`}
                           key={cat.key}
                           onClick={() => {
@@ -359,14 +455,14 @@ export function FiltersSidebar({
                           type="button"
                         >
                           <span className="truncate">{cat.category}</span>
-                          <span className="bg-muted-foreground/20 ml-2 rounded-full px-2 py-0.5 text-xs">
+                          <span className="bg-muted-foreground/10 text-muted-foreground rounded-full px-2 py-0.5 text-xs font-semibold">
                             {cat.count}
                           </span>
                         </button>
                       ))}
                     </>
                   ) : (
-                    <div className="text-muted-foreground py-4 text-center text-sm">
+                    <div className="text-muted-foreground py-6 text-center text-sm">
                       No categories found
                     </div>
                   )}
@@ -376,15 +472,17 @@ export function FiltersSidebar({
           </div>
 
           {/* Language */}
-          <div className="bg-muted/30 rounded-xl p-4">
+          <div className="bg-muted/20 rounded-2xl p-4">
             <button
-              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-bold"
               onClick={() => {
                 toggleSection('language')
               }}
               type="button"
             >
-              <span>Language</span>
+              <span className="text-xs font-bold uppercase tracking-widest">
+                Language
+              </span>
               {isExpanded('language') ? (
                 <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
@@ -399,9 +497,9 @@ export function FiltersSidebar({
             {isExpanded('language') && (
               <>
                 <div className="relative mt-3">
-                  <Search className="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                  <Search className="text-muted-foreground/50 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                   <input
-                    className="border-border bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary focus:ring-primary/20 w-full rounded-lg border px-3 py-2 pl-9 text-sm transition-all focus:outline-none focus:ring-2"
+                    className="border-border/30 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary/50 focus:ring-primary/10 w-full rounded-xl border-2 px-3 py-2.5 pl-9 text-sm transition-all focus:outline-none focus:ring-4"
                     id="language-search"
                     onChange={e => {
                       setLanguageSearch(e.target.value)
@@ -411,14 +509,14 @@ export function FiltersSidebar({
                     value={languageSearch}
                   />
                 </div>
-                <div className="mt-2 max-h-60 space-y-1 overflow-y-auto">
+                <div className="mt-2.5 max-h-56 space-y-0.5 overflow-y-auto">
                   {filteredLanguages.length > 0 ? (
                     <>
                       <button
-                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                        className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm font-medium transition-all ${
                           !selectedFilters.lang
-                            ? 'bg-primary text-primary-foreground font-medium'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:bg-muted/20'
                         }`}
                         onClick={() => {
                           handleFilterChange('lang', undefined)
@@ -429,10 +527,10 @@ export function FiltersSidebar({
                       </button>
                       {filteredLanguages.map(lang => (
                         <button
-                          className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                          className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm font-medium transition-all ${
                             selectedFilters.lang === lang
-                              ? 'bg-primary text-primary-foreground font-medium'
-                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:bg-muted/20'
                           }`}
                           key={lang}
                           onClick={() => {
@@ -445,7 +543,7 @@ export function FiltersSidebar({
                       ))}
                     </>
                   ) : (
-                    <div className="text-muted-foreground py-4 text-center text-sm">
+                    <div className="text-muted-foreground py-6 text-center text-sm">
                       No languages found
                     </div>
                   )}
@@ -454,16 +552,18 @@ export function FiltersSidebar({
             )}
           </div>
 
-          {/* Stars Range */}
-          <div className="bg-muted/30 rounded-xl p-4">
+          {/* Stars Range - Custom slider-like appearance */}
+          <div className="bg-muted/20 rounded-2xl p-4">
             <button
-              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-bold"
               onClick={() => {
                 toggleSection('stars')
               }}
               type="button"
             >
-              <span>Stars</span>
+              <span className="text-xs font-bold uppercase tracking-widest">
+                Stars
+              </span>
               {isExpanded('stars') ? (
                 <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
@@ -473,50 +573,84 @@ export function FiltersSidebar({
             {!isExpanded('stars') &&
               (selectedFilters.starsMin || selectedFilters.starsMax) &&
               renderFilterTag(
-                `${selectedFilters.starsMin || '0'} - ${selectedFilters.starsMax || '∞'}`,
+                `${selectedFilters.starsMin || '0'}+ stars`,
                 () => {
                   handleFilterChange('starsMin', undefined)
                   handleFilterChange('starsMax', undefined)
                 },
               )}
             {isExpanded('stars') && (
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  className="border-border/50 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border focus:border-primary focus:ring-primary/20 flex-1 rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
-                  id="stars-min"
-                  min="0"
-                  onChange={e => {
-                    handleFilterChange('starsMin', e.target.value || undefined)
-                  }}
-                  placeholder="Min"
-                  type="number"
-                  value={selectedFilters.starsMin || ''}
-                />
-                <span className="text-muted-foreground">—</span>
-                <input
-                  className="border-border/50 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border focus:border-primary focus:ring-primary/20 flex-1 rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
-                  min="0"
-                  onChange={e => {
-                    handleFilterChange('starsMax', e.target.value || undefined)
-                  }}
-                  placeholder="Max"
-                  type="number"
-                  value={selectedFilters.starsMax || ''}
-                />
+              <div className="mt-3 space-y-3">
+                {/* Quick presets */}
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: '100+', min: '100' },
+                    { label: '1K+', min: '1000' },
+                    { label: '10K+', min: '10000' },
+                  ].map(preset => (
+                    <button
+                      className={`border-border/50 text-muted-foreground hover:border-primary/50 hover:text-primary rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-all ${
+                        selectedFilters.starsMin === preset.min
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : ''
+                      }`}
+                      key={preset.label}
+                      onClick={() => {
+                        handleFilterChange('starsMin', preset.min)
+                      }}
+                      type="button"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Custom range */}
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    className="border-border/30 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary/50 focus:ring-primary/10 flex-1 rounded-xl border-2 px-3 py-2 text-center text-sm font-medium transition-all focus:outline-none focus:ring-4"
+                    id="stars-min"
+                    min="0"
+                    onChange={e => {
+                      handleFilterChange(
+                        'starsMin',
+                        e.target.value || undefined,
+                      )
+                    }}
+                    placeholder="Min"
+                    type="number"
+                    value={selectedFilters.starsMin || ''}
+                  />
+                  <span className="text-muted-foreground text-xs">to</span>
+                  <input
+                    className="border-border/30 bg-card text-foreground placeholder:text-muted-foreground/50 hover:border-border/50 focus:border-primary/50 focus:ring-primary/10 flex-1 rounded-xl border-2 px-3 py-2 text-center text-sm font-medium transition-all focus:outline-none focus:ring-4"
+                    min="0"
+                    onChange={e => {
+                      handleFilterChange(
+                        'starsMax',
+                        e.target.value || undefined,
+                      )
+                    }}
+                    placeholder="Max"
+                    type="number"
+                    value={selectedFilters.starsMax || ''}
+                  />
+                </div>
               </div>
             )}
           </div>
 
           {/* Date Range */}
-          <div className="bg-muted/30 rounded-xl p-4">
+          <div className="bg-muted/20 rounded-2xl p-4">
             <button
-              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-bold"
               onClick={() => {
                 toggleSection('date')
               }}
               type="button"
             >
-              <span>Last Updated</span>
+              <span className="text-xs font-bold uppercase tracking-widest">
+                Updated
+              </span>
               {isExpanded('date') ? (
                 <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
@@ -525,48 +659,88 @@ export function FiltersSidebar({
             </button>
             {!isExpanded('date') &&
               (selectedFilters.dateFrom || selectedFilters.dateTo) &&
-              renderFilterTag(
-                `${selectedFilters.dateFrom || '...'} - ${selectedFilters.dateTo || '...'}`,
-                () => {
-                  handleFilterChange('dateFrom', undefined)
-                  handleFilterChange('dateTo', undefined)
-                },
-              )}
+              renderFilterTag('Date filtered', () => {
+                handleFilterChange('dateFrom', undefined)
+                handleFilterChange('dateTo', undefined)
+              })}
             {isExpanded('date') && (
               <div className="mt-3 space-y-2">
-                <input
-                  className="border-border/50 bg-card text-foreground hover:border-border focus:border-primary focus:ring-primary/20 w-full cursor-pointer rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
-                  id="date-from"
-                  onChange={e => {
-                    handleFilterChange('dateFrom', e.target.value || undefined)
-                  }}
-                  placeholder="From"
-                  type="date"
-                  value={selectedFilters.dateFrom || ''}
-                />
-                <input
-                  className="border-border/50 bg-card text-foreground hover:border-border focus:border-primary focus:ring-primary/20 w-full cursor-pointer rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
-                  onChange={e => {
-                    handleFilterChange('dateTo', e.target.value || undefined)
-                  }}
-                  placeholder="To"
-                  type="date"
-                  value={selectedFilters.dateTo || ''}
-                />
+                {/* Quick presets */}
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'Week', weeks: 1 },
+                    { label: 'Month', months: 1 },
+                    { label: '3 Months', months: 3 },
+                    { label: 'Year', months: 12 },
+                  ].map(preset => (
+                    <button
+                      className={`border-border/50 text-muted-foreground hover:border-primary/50 hover:text-primary rounded-lg border-2 px-3 py-1.5 text-xs font-medium transition-all ${
+                        (preset.weeks === 1 &&
+                          selectedFilters.dateFrom === getDateWeeksAgo(1)) ||
+                        (preset.months === 1 &&
+                          selectedFilters.dateFrom === getDateMonthsAgo(1)) ||
+                        (preset.months === 3 &&
+                          selectedFilters.dateFrom === getDateMonthsAgo(3)) ||
+                        (preset.months === 12 &&
+                          selectedFilters.dateFrom === getDateMonthsAgo(12))
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : ''
+                      }`}
+                      key={preset.label}
+                      onClick={() => {
+                        const date = preset.weeks
+                          ? getDateWeeksAgo(preset.weeks)
+                          : getDateMonthsAgo(preset.months ?? 1)
+                        handleFilterChange('dateFrom', date)
+                      }}
+                      type="button"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Custom range */}
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    className="border-border/30 bg-card text-foreground hover:border-border/50 focus:border-primary/50 focus:ring-primary/10 flex-1 rounded-xl border-2 px-3 py-2 text-sm font-medium transition-all focus:outline-none focus:ring-4"
+                    id="date-from"
+                    onChange={e => {
+                      handleFilterChange(
+                        'dateFrom',
+                        e.target.value || undefined,
+                      )
+                    }}
+                    placeholder="From"
+                    type="date"
+                    value={selectedFilters.dateFrom || ''}
+                  />
+                  <span className="text-muted-foreground text-xs">—</span>
+                  <input
+                    className="border-border/30 bg-card text-foreground hover:border-border/50 focus:border-primary/50 focus:ring-primary/10 flex-1 rounded-xl border-2 px-3 py-2 text-sm font-medium transition-all focus:outline-none focus:ring-4"
+                    onChange={e => {
+                      handleFilterChange('dateTo', e.target.value || undefined)
+                    }}
+                    placeholder="To"
+                    type="date"
+                    value={selectedFilters.dateTo || ''}
+                  />
+                </div>
               </div>
             )}
           </div>
 
           {/* Status */}
-          <div className="bg-muted/30 rounded-xl p-4">
+          <div className="bg-muted/20 rounded-2xl p-4">
             <button
-              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
+              className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-bold"
               onClick={() => {
                 toggleSection('status')
               }}
               type="button"
             >
-              <span>Status</span>
+              <span className="text-xs font-bold uppercase tracking-widest">
+                Status
+              </span>
               {isExpanded('status') ? (
                 <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
@@ -576,35 +750,44 @@ export function FiltersSidebar({
             {!isExpanded('status') &&
               selectedFilters.archived &&
               renderFilterTag(
-                selectedFilters.archived === 'true'
-                  ? 'Archived Only'
-                  : 'Active Only',
+                selectedFilters.archived === 'true' ? 'Archived' : 'Active',
                 () => {
                   handleFilterChange('archived', undefined)
                 },
               )}
             {isExpanded('status') && (
-              <select
-                className="border-border/50 bg-card text-foreground hover:border-border focus:border-primary focus:ring-primary/20 mt-3 w-full cursor-pointer rounded-lg border px-3 py-2 text-sm transition-all focus:outline-none focus:ring-2"
-                id="status-select"
-                onChange={e => {
-                  handleFilterChange('archived', e.target.value || undefined)
-                }}
-                value={selectedFilters.archived || ''}
-              >
-                <option value="">All Projects</option>
-                <option value="false">Active Only</option>
-                <option value="true">Archived Only</option>
-              </select>
+              <div className="mt-3 flex gap-2">
+                {[
+                  { label: 'All', value: '' },
+                  { label: 'Active', value: 'false' },
+                  { label: 'Archived', value: 'true' },
+                ].map(option => (
+                  <button
+                    className={`flex-1 cursor-pointer rounded-xl px-3 py-2.5 text-center text-sm font-medium transition-all ${
+                      selectedFilters.archived === option.value ||
+                      (option.value === '' && !selectedFilters.archived)
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'border-border/30 text-muted-foreground hover:bg-muted/30 border-2'
+                    }`}
+                    key={option.value}
+                    onClick={() => {
+                      handleFilterChange('archived', option.value || undefined)
+                    }}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Reset Button */}
-      <div className="p-4">
+      {/* Reset Button - Enhanced styling */}
+      <div className="p-4 pt-0">
         <button
-          className="border-border text-foreground hover:border-primary hover:bg-primary hover:text-primary-foreground w-full cursor-pointer rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition-all active:scale-95"
+          className="border-border/30 text-muted-foreground hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive w-full cursor-pointer rounded-2xl border-2 px-4 py-3 text-sm font-bold tracking-wide transition-all active:scale-95"
           onClick={() => {
             onFiltersChange({})
           }}
@@ -615,4 +798,17 @@ export function FiltersSidebar({
       </div>
     </div>
   )
+}
+
+// Helper functions for date presets
+function getDateMonthsAgo(months: number): string {
+  const date = new Date()
+  date.setMonth(date.getMonth() - months)
+  return date.toISOString().split('T')[0]
+}
+
+function getDateWeeksAgo(weeks: number): string {
+  const date = new Date()
+  date.setDate(date.getDate() - weeks * 7)
+  return date.toISOString().split('T')[0]
 }

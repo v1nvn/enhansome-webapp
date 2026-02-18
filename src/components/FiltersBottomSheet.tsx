@@ -1,8 +1,9 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { ChevronDown, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search, X } from 'lucide-react'
 
+import { groupRegistries } from '@/lib/registry-groups'
 import {
   categoriesQueryOptions,
   type Category,
@@ -34,6 +35,17 @@ function FiltersBottomSheet({
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     () => new Set(['categories', 'language', 'registry', 'sort']),
   )
+  const [expandedRegistryGroups, setExpandedRegistryGroups] = useState<
+    Set<string>
+  >(
+    () =>
+      new Set([
+        'DevOps & Infrastructure',
+        'JavaScript Ecosystem',
+        'Languages',
+        'Python Ecosystem',
+      ]),
+  )
   const sheetRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -51,12 +63,20 @@ function FiltersBottomSheet({
   )
 
   // Filter registries by search
-  const filteredRegistries =
-    categorySearch.trim() === ''
-      ? registryNames
-      : registryNames.filter(name =>
-          name.toLowerCase().includes(registrySearch.toLowerCase()),
-        )
+  const filteredRegistries = useMemo(
+    () =>
+      registrySearch.trim() === ''
+        ? registryNames
+        : registryNames.filter(name =>
+            name.toLowerCase().includes(registrySearch.toLowerCase()),
+          ),
+    [registryNames, registrySearch],
+  )
+
+  // Group registries
+  const groupedRegistries = useMemo(() => {
+    return groupRegistries(filteredRegistries)
+  }, [filteredRegistries])
 
   // Filter categories by search
   const filteredCategories =
@@ -278,7 +298,7 @@ function FiltersBottomSheet({
               )}
             </div>
 
-            {/* Registry */}
+            {/* Registry with Hierarchical Groups */}
             <div className="bg-muted/30 rounded-xl p-4">
               <button
                 className="text-foreground flex w-full cursor-pointer items-center justify-between text-sm font-semibold"
@@ -309,53 +329,136 @@ function FiltersBottomSheet({
                       value={registrySearch}
                     />
                   </div>
-                  <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">
-                    {filteredRegistries.length > 0 ? (
-                      <>
-                        <button
-                          className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
-                            !selectedFilters.registry
-                              ? 'bg-primary text-primary-foreground font-medium'
-                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                          }`}
-                          onClick={() => {
-                            onFiltersChange({
-                              ...selectedFilters,
-                              category: undefined,
-                              registry: undefined,
-                            })
-                          }}
-                          type="button"
-                        >
-                          All Registries
-                        </button>
-                        {filteredRegistries.map(name => (
-                          <button
-                            className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
-                              selectedFilters.registry === name
-                                ? 'bg-primary text-primary-foreground font-medium'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                            }`}
-                            key={name}
-                            onClick={() => {
-                              onFiltersChange({
-                                ...selectedFilters,
-                                category: undefined,
-                                registry: name,
-                              })
-                            }}
-                            type="button"
-                          >
-                            {name}
-                          </button>
-                        ))}
-                      </>
-                    ) : (
-                      <div className="text-muted-foreground py-4 text-center text-sm">
-                        No registries found
-                      </div>
+
+                  {/* All Registries Option */}
+                  <div className="mt-2">
+                    <button
+                      className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                        !selectedFilters.registry
+                          ? 'bg-primary text-primary-foreground font-medium'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                      onClick={() => {
+                        onFiltersChange({
+                          ...selectedFilters,
+                          category: undefined,
+                          registry: undefined,
+                        })
+                      }}
+                      type="button"
+                    >
+                      All Registries ({registryNames.length})
+                    </button>
+                  </div>
+
+                  {/* Grouped Registries */}
+                  <div className="mt-1.5 max-h-48 space-y-1 overflow-y-auto">
+                    {Array.from(groupedRegistries.entries()).map(
+                      ([group, registries]) => {
+                        if (registries.length === 0) return null
+
+                        // Ungrouped registries
+                        if (!group) {
+                          return registries.map(name => (
+                            <button
+                              className={`ml-2 w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                                selectedFilters.registry === name
+                                  ? 'bg-primary text-primary-foreground font-medium'
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              }`}
+                              key={name}
+                              onClick={() => {
+                                onFiltersChange({
+                                  ...selectedFilters,
+                                  category: undefined,
+                                  registry: name,
+                                })
+                              }}
+                              type="button"
+                            >
+                              {name}
+                            </button>
+                          ))
+                        }
+
+                        const isGroupExpanded = expandedRegistryGroups.has(
+                          group.label,
+                        )
+                        const hasSelected = registries.some(
+                          r => r === selectedFilters.registry,
+                        )
+                        const groupCount = registries.length
+
+                        return (
+                          <div key={group.label}>
+                            <button
+                              className={`text-foreground hover:bg-accent/30 flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition-all ${
+                                hasSelected ? 'bg-accent/50' : ''
+                              }`}
+                              onClick={() => {
+                                setExpandedRegistryGroups(prev => {
+                                  const next = new Set(prev)
+                                  if (next.has(group.label)) {
+                                    next.delete(group.label)
+                                  } else {
+                                    next.add(group.label)
+                                  }
+                                  return next
+                                })
+                              }}
+                              type="button"
+                            >
+                              <span className="flex items-center gap-2">
+                                <span>{group.icon}</span>
+                                <span>{group.label}</span>
+                              </span>
+                              <span className="flex items-center gap-2">
+                                <span className="bg-muted-foreground/20 rounded-full px-2 py-0.5 text-xs">
+                                  {groupCount}
+                                </span>
+                                {isGroupExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </span>
+                            </button>
+
+                            {isGroupExpanded && (
+                              <div className="ml-2 mt-1 space-y-0.5">
+                                {registries.map(name => (
+                                  <button
+                                    className={`w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-all ${
+                                      selectedFilters.registry === name
+                                        ? 'bg-primary text-primary-foreground font-medium'
+                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                    }`}
+                                    key={name}
+                                    onClick={() => {
+                                      onFiltersChange({
+                                        ...selectedFilters,
+                                        category: undefined,
+                                        registry: name,
+                                      })
+                                    }}
+                                    type="button"
+                                  >
+                                    {name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      },
                     )}
                   </div>
+
+                  {filteredRegistries.length === 0 && (
+                    <div className="text-muted-foreground py-4 text-center text-sm">
+                      No registries found
+                    </div>
+                  )}
                 </>
               )}
             </div>
