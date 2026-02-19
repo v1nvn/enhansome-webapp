@@ -191,10 +191,10 @@ export function RepoDetail({ data }: RepoDetailProps) {
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {data.relatedRepos.map((repo, idx) => (
+            {data.relatedRepos.map(repo => (
               <div
                 className="border-border/60 bg-card/80 group/rel relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-                key={`${repo.owner}/${repo.name}-${idx}`}
+                key={`related-${repo.owner || 'unknown'}-${repo.name || 'unknown'}`}
               >
                 {/* Animated accent */}
                 <div className="from-primary/60 via-primary/40 to-accent/40 absolute left-0 top-0 h-0.5 w-0 bg-gradient-to-r transition-all duration-300 group-hover/rel:w-full" />

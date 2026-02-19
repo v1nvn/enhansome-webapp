@@ -244,11 +244,10 @@ function CategoriesTab({ categories }: { categories: string[] }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {categories.map((category, idx) => (
+      {categories.map(category => (
         <div
           className="border-border/60 bg-card/80 hover:border-primary/50 hover:shadow-primary/10 group/category relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-          key={`${category}-${idx}`}
-          style={{ animationDelay: `${idx * 30}ms` }}
+          key={`cat-${category.replace(/\s+/g, '-')}`}
         >
           {/* Animated gradient overlay */}
           <div className="from-primary/0 via-primary/5 to-primary/0 absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-300 group-hover/category:opacity-100" />
@@ -384,10 +383,10 @@ function StatsTab({
           </h3>
           <div className="border-border/60 bg-card/80 rounded-2xl border p-6">
             <div className="flex flex-wrap gap-2">
-              {languages.map((lang, idx) => (
+              {languages.map(lang => (
                 <span
                   className="group/lang bg-muted/50 hover:bg-primary/10 hover:border-primary/30 border-border/40 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200"
-                  key={`${lang}-${idx}`}
+                  key={`lang-${lang.replace(/\s+/g, '-')}`}
                 >
                   <span className="bg-primary h-1.5 w-1.5 rounded-full transition-transform duration-200 group-hover/lang:scale-125" />
                   {lang}
@@ -409,10 +408,10 @@ function StatsTab({
           </h3>
           <div className="border-border/60 bg-card/80 divide-border/40 divide-y rounded-2xl border">
             <div className="divide-border/40 grid grid-cols-1 divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-3">
-              {categories.map((category, idx) => (
+              {categories.map(category => (
                 <div
                   className="group/cat text-muted-foreground hover:text-foreground hover:bg-muted/30 flex items-center gap-3 px-4 py-3 text-sm transition-all duration-200"
-                  key={`${category}-${idx}`}
+                  key={`cat-list-${category.replace(/\s+/g, '-')}`}
                 >
                   <FolderTree className="text-primary h-4 w-4 shrink-0 transition-transform duration-200 group-hover/cat:scale-110" />
                   <span className="truncate">{category}</span>
@@ -448,7 +447,7 @@ function TopReposTab({
       {topRepos.map((repo, idx) => (
         <div
           className="border-border/60 bg-card/80 group/repo relative overflow-hidden rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
-          key={`${repo.owner}/${repo.name}-${idx}`}
+          key={`repo-${repo.owner || 'unknown'}-${repo.name || 'unknown'}`}
         >
           {/* Top 3 special badges */}
           {idx < 3 && (

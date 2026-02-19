@@ -9,7 +9,11 @@ export default async function () {
   // Apply migrations from TEST_MIGRATIONS binding
   // This runs once per test file before any tests execute
   try {
-    await applyD1Migrations(env.DB, env.TEST_MIGRATIONS)
+    const { DB, TEST_MIGRATIONS } = env
+    if (!TEST_MIGRATIONS) {
+      throw new Error('TEST_MIGRATIONS binding not found')
+    }
+    await applyD1Migrations(DB, TEST_MIGRATIONS)
     console.log('✓ Migrations applied successfully')
   } catch (error) {
     console.error('Failed to apply migrations:', error)

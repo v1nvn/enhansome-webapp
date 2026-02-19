@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { BackToTop } from '@/components/BackToTop'
-import { render, screen, waitFor } from '../../helpers/test-utils.tsx'
+import { render, waitFor } from '../../helpers/test-utils.tsx'
 
 describe('BackToTop', () => {
   it('renders without errors', async () => {
