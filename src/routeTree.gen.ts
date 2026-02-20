@@ -10,20 +10,15 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RegistryRouteImport } from './routes/registry'
-import { Route as RegistriesRouteImport } from './routes/registries'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegistryNameRouteImport } from './routes/registry.$name'
+import { Route as CategoryCategoryIdRouteImport } from './routes/category.$categoryId'
 import { Route as AdminIndexRegistriesRouteImport } from './routes/admin.index-registries'
 import { Route as RepoOwnerNameRouteImport } from './routes/repo.$owner.$name'
 
 const RegistryRoute = RegistryRouteImport.update({
   id: '/registry',
   path: '/registry',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegistriesRoute = RegistriesRouteImport.update({
-  id: '/registries',
-  path: '/registries',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +30,11 @@ const RegistryNameRoute = RegistryNameRouteImport.update({
   id: '/$name',
   path: '/$name',
   getParentRoute: () => RegistryRoute,
+} as any)
+const CategoryCategoryIdRoute = CategoryCategoryIdRouteImport.update({
+  id: '/category/$categoryId',
+  path: '/category/$categoryId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRegistriesRoute = AdminIndexRegistriesRouteImport.update({
   id: '/admin/index-registries',
@@ -49,26 +49,26 @@ const RepoOwnerNameRoute = RepoOwnerNameRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/registries': typeof RegistriesRoute
   '/registry': typeof RegistryRouteWithChildren
   '/admin/index-registries': typeof AdminIndexRegistriesRoute
+  '/category/$categoryId': typeof CategoryCategoryIdRoute
   '/registry/$name': typeof RegistryNameRoute
   '/repo/$owner/$name': typeof RepoOwnerNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/registries': typeof RegistriesRoute
   '/registry': typeof RegistryRouteWithChildren
   '/admin/index-registries': typeof AdminIndexRegistriesRoute
+  '/category/$categoryId': typeof CategoryCategoryIdRoute
   '/registry/$name': typeof RegistryNameRoute
   '/repo/$owner/$name': typeof RepoOwnerNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/registries': typeof RegistriesRoute
   '/registry': typeof RegistryRouteWithChildren
   '/admin/index-registries': typeof AdminIndexRegistriesRoute
+  '/category/$categoryId': typeof CategoryCategoryIdRoute
   '/registry/$name': typeof RegistryNameRoute
   '/repo/$owner/$name': typeof RepoOwnerNameRoute
 }
@@ -76,34 +76,34 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/registries'
     | '/registry'
     | '/admin/index-registries'
+    | '/category/$categoryId'
     | '/registry/$name'
     | '/repo/$owner/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/registries'
     | '/registry'
     | '/admin/index-registries'
+    | '/category/$categoryId'
     | '/registry/$name'
     | '/repo/$owner/$name'
   id:
     | '__root__'
     | '/'
-    | '/registries'
     | '/registry'
     | '/admin/index-registries'
+    | '/category/$categoryId'
     | '/registry/$name'
     | '/repo/$owner/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  RegistriesRoute: typeof RegistriesRoute
   RegistryRoute: typeof RegistryRouteWithChildren
   AdminIndexRegistriesRoute: typeof AdminIndexRegistriesRoute
+  CategoryCategoryIdRoute: typeof CategoryCategoryIdRoute
   RepoOwnerNameRoute: typeof RepoOwnerNameRoute
 }
 
@@ -114,13 +114,6 @@ declare module '@tanstack/react-router' {
       path: '/registry'
       fullPath: '/registry'
       preLoaderRoute: typeof RegistryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/registries': {
-      id: '/registries'
-      path: '/registries'
-      fullPath: '/registries'
-      preLoaderRoute: typeof RegistriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -136,6 +129,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/registry/$name'
       preLoaderRoute: typeof RegistryNameRouteImport
       parentRoute: typeof RegistryRoute
+    }
+    '/category/$categoryId': {
+      id: '/category/$categoryId'
+      path: '/category/$categoryId'
+      fullPath: '/category/$categoryId'
+      preLoaderRoute: typeof CategoryCategoryIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/index-registries': {
       id: '/admin/index-registries'
@@ -168,9 +168,9 @@ const RegistryRouteWithChildren = RegistryRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  RegistriesRoute: RegistriesRoute,
   RegistryRoute: RegistryRouteWithChildren,
   AdminIndexRegistriesRoute: AdminIndexRegistriesRoute,
+  CategoryCategoryIdRoute: CategoryCategoryIdRoute,
   RepoOwnerNameRoute: RepoOwnerNameRoute,
 }
 export const routeTree = rootRouteImport

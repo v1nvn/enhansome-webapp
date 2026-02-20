@@ -17,6 +17,8 @@ import {
   getRegistryStats,
   getRepoDetail,
   getTrendingRegistries,
+  getUseCaseCategoryCounts,
+  getUseCaseCategoryItems,
   searchRegistryItems,
 } from './db'
 import { adminAuthMiddleware } from './middleware'
@@ -428,6 +430,8 @@ export const repoDetailQueryOptions = (owner: string, name: string) =>
     staleTime: 60 * 60 * 1000, // 1 hour
   })
 
+import { type FilterPreset, presetToSearchParams } from './filter-presets'
+
 // ============================================================================
 // Search API
 // ============================================================================
@@ -436,16 +440,23 @@ export interface SearchParams {
   archived?: boolean
   category?: string
   cursor?: number
+  dateFrom?: string
   language?: string
   limit?: number
   minStars?: number
+  preset?: FilterPreset
   q?: string
   registryName?: string
-  sortBy?: 'name' | 'stars' | 'updated'
+  sortBy?: 'name' | 'quality' | 'stars' | 'updated'
 }
 
 export interface SearchResult {
-  data: (RegistryItem & { category: string; id: number; registry: string })[]
+  data: (RegistryItem & {
+    category: string
+    id: number
+    qualityScore?: number
+    registry: string
+  })[]
   hasMore: boolean
   nextCursor?: number
   total: number
@@ -456,17 +467,20 @@ export async function searchRegistryItemsHandler(
   data: SearchParams,
 ): Promise<SearchResult> {
   try {
-    // Execute search with defaults
+    // Convert preset to actual search params
+    const presetParams = presetToSearchParams(data.preset)
+
+    // Execute search with defaults and preset params merged
     const results = await searchRegistryItems(db, {
-      archived: data.archived,
+      archived: data.archived ?? presetParams.archived,
       category: data.category,
       cursor: data.cursor,
       language: data.language,
       limit: data.limit ?? 20,
-      minStars: data.minStars,
+      minStars: data.minStars ?? presetParams.minStars,
       q: data.q,
       registryName: data.registryName,
-      sortBy: data.sortBy ?? 'stars',
+      sortBy: data.sortBy ?? 'quality',
     })
 
     return results
@@ -869,4 +883,140 @@ export const stopIndexing = createServerFn({ method: 'POST' })
   .handler(async () => {
     const db = createKysely(env.DB)
     return stopIndexingHandler(db)
+  })
+
+// ============================================================================
+// Use Case Categories API
+// ============================================================================
+
+export interface UseCaseCategoryCount {
+  categoryId: string
+  count: number
+}
+
+export interface UseCaseCategoryWithData {
+  count: number
+  description: string
+  icon: string
+  id: string
+  title: string
+}
+
+export async function fetchUseCaseCategoriesHandler(
+  db: ReturnType<typeof createKysely>,
+): Promise<UseCaseCategoryWithData[]> {
+  console.info('Fetching use case categories...')
+  try {
+    const counts = await getUseCaseCategoryCounts(db)
+    const { getAllCategories } = await import('./use-case-categories')
+    const allCategories = getAllCategories()
+
+    // Merge category definitions with counts
+    const countMap = new Map(counts.map(c => [c.categoryId, c.count]))
+
+    return allCategories
+      .map(cat => ({
+        ...cat,
+        count: countMap.get(cat.id) || 0,
+      }))
+      .filter(cat => cat.count > 0) // Only return categories with items
+      .sort((a, b) => b.count - a.count)
+  } catch (error) {
+    console.error('Use case categories API error:', error)
+    throw error
+  }
+}
+
+export const fetchUseCaseCategories = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const db = createKysely(env.DB)
+    return fetchUseCaseCategoriesHandler(db)
+  },
+)
+
+// eslint-disable-next-line @eslint-react/no-unnecessary-use-prefix
+export const useCaseCategoriesQueryOptions = () =>
+  queryOptions<UseCaseCategoryWithData[]>({
+    queryFn: () => fetchUseCaseCategories(),
+    queryKey: ['use-case-categories'],
+    staleTime: 60 * 60 * 1000, // 1 hour
+  })
+
+export interface FetchUseCaseItemsInput {
+  categoryId: string
+  framework?: string
+  limit?: number
+  offset?: number
+}
+
+export interface UseCaseItem {
+  category: string
+  description: null | string
+  id: number
+  language: null | string
+  registry: string
+  repo_info?: {
+    archived: boolean
+    language: null | string
+    last_commit: string
+    owner: string
+    repo: string
+    stars: number
+  }
+  stars: number
+  title: string
+}
+
+export async function fetchUseCaseItemsHandler(
+  db: ReturnType<typeof createKysely>,
+  data: FetchUseCaseItemsInput,
+): Promise<{
+  data: UseCaseItem[]
+  hasMore: boolean
+  total: number
+}> {
+  console.info('Fetching use case items...', data)
+  try {
+    const items = await getUseCaseCategoryItems(db, data.categoryId, {
+      framework: data.framework,
+      limit: data.limit || 50,
+      offset: data.offset || 0,
+    })
+
+    // Get total count for the category
+    const allItems = await getUseCaseCategoryItems(db, data.categoryId, {
+      framework: data.framework,
+      limit: 10000, // High limit to get all for counting
+    })
+
+    return {
+      data: items,
+      hasMore: items.length === (data.limit || 50),
+      total: allItems.length,
+    }
+  } catch (error) {
+    console.error('Use case items API error:', error)
+    throw error
+  }
+}
+
+export function validateFetchUseCaseItemsInput(
+  input: FetchUseCaseItemsInput,
+): FetchUseCaseItemsInput {
+  return input
+}
+
+export const fetchUseCaseItems = createServerFn({ method: 'GET' })
+  .inputValidator(validateFetchUseCaseItemsInput)
+  .handler(async ({ data }) => {
+    const db = createKysely(env.DB)
+    return fetchUseCaseItemsHandler(db, data)
+  })
+
+// eslint-disable-next-line @eslint-react/no-unnecessary-use-prefix
+export const useCaseItemsQueryOptions = (params: FetchUseCaseItemsInput) =>
+  queryOptions({
+    queryFn: () => fetchUseCaseItems({ data: params }),
+    queryKey: ['use-case-items', params],
+    staleTime: 30 * 60 * 1000, // 30 minutes
   })

@@ -49,7 +49,7 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <Link
             className="text-muted-foreground hover:text-primary hover:bg-primary/5 -ml-2 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition-all duration-200"
-            to="/registries"
+            to="/registry"
           >
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
             <span>Back to registries</span>
@@ -86,9 +86,9 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
             <span className="text-muted-foreground/30">/</span>
             <Link
               className="text-muted-foreground hover:text-foreground transition-colors duration-200"
-              to="/registries"
+              to="/registry"
             >
-              Registries
+              Search
             </Link>
             <span className="text-muted-foreground/30">/</span>
             <span className="text-foreground font-medium">{data.title}</span>
@@ -205,12 +205,9 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
         </div>
       </div>
 
-      {/* Tab Content with animation */}
+      {/* Tab Content */}
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div
-          className="animate-in fade-in slide-in-from-bottom-4 duration-500"
-          key={activeTab}
-        >
+        <div key={activeTab}>
           {activeTab === 'repos' && <TopReposTab topRepos={data.topRepos} />}
           {activeTab === 'categories' && (
             <CategoriesTab categories={data.categories} />

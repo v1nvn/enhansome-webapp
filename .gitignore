@@ -15,4 +15,11 @@ todos.json
 .wrangler
 .playwright-mcp
 .serena
-coverage/.worktrees/
+coverage/
+
+# Git worktrees
+.worktrees/
+worktrees/
+
+.eslintcache
+tsconfig.tsbuildinfo

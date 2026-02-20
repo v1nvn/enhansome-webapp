@@ -17,7 +17,7 @@
     "test:ui": "vitest run --config vitest.ui.config.ts",
     "test:ui:watch": "vitest --config vitest.ui.config.ts",
     "lint": "eslint",
-    "dev-check": "npm run type-check --incremental && npm run lint:fast -- --fix",
+    "dev-check": "npm run type-check -- --incremental && npm run lint:fast -- --fix",
     "lint:fast": "eslint --cache --concurrency=auto",
     "type-check": "tsc --noEmit",
     "deploy": "npm run build && wrangler deploy --config dist/server/wrangler.json",

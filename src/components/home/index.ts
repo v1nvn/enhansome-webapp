@@ -1,5 +1,8 @@
-export { CategoryExplorer } from './CategoryExplorer'
-export { FeaturedSection } from './FeaturedSection'
-export { HeroSearch } from './HeroSearch'
-export { QuickFilterPills } from './QuickFilterPills'
-export { TrendingSection } from './TrendingSection'
+// Compare mode components
+export { CompareDrawer } from '../CompareDrawer'
+export { FloatingCompareButton } from '../FloatingCompareButton'
+export { FeaturedItems } from './FeaturedItems'
+export { LanguagePills } from './LanguagePills'
+
+export { TrendingRegistries } from './TrendingRegistries'
+export { UseCaseCards } from './UseCaseCards'

@@ -1,0 +1,240 @@
+import { useMemo, useState } from 'react'
+
+import { useNavigate } from '@tanstack/react-router'
+import { Search, Sparkles } from 'lucide-react'
+
+import type { FilterPreset } from '@/lib/filter-presets'
+
+import {
+  type DetectedIntent,
+  extractIntent,
+  type IntentSignal,
+} from '@/lib/intent-detection'
+
+import { ActiveFilterChips } from './ActiveFilterChips'
+import { FilterPresetBadge } from './FilterPresetBadge'
+
+export interface EnhancedSearchBarFilters {
+  lang?: string
+  preset?: FilterPreset
+  registry?: string
+  sort?: 'name' | 'quality' | 'stars' | 'updated'
+}
+
+interface EnhancedSearchBarProps {
+  defaultValue?: string
+  /**
+   * Enable intent detection to automatically extract
+   * framework, language, and category signals from query
+   */
+  enableIntentDetection?: boolean
+  filters: EnhancedSearchBarFilters
+  onFiltersChange: (filters: EnhancedSearchBarFilters) => void
+  /**
+   * Callback to get search intent (for results count display)
+   */
+  onIntentChange?: (intent: DetectedIntent) => void
+  placeholder?: string
+  /**
+   * Show results count below detected signals
+   */
+  resultsCount?: number
+}
+
+const PRESETS: FilterPreset[] = ['trending', 'popular', 'fresh', 'active']
+
+export function EnhancedSearchBar({
+  defaultValue = '',
+  filters,
+  onFiltersChange,
+  placeholder = 'Search repositories...',
+  enableIntentDetection = true,
+  resultsCount,
+  onIntentChange,
+}: EnhancedSearchBarProps) {
+  const [query, setQuery] = useState(defaultValue)
+  const [detectedSignals, setDetectedSignals] = useState<IntentSignal[]>([])
+  const navigate = useNavigate()
+
+  // Extract intent from query
+  const intent = useMemo(() => {
+    if (!enableIntentDetection || !query.trim()) {
+      return null
+    }
+    return extractIntent(query)
+  }, [query, enableIntentDetection])
+
+  // Update detected signals when intent changes
+  useMemo(() => {
+    if (intent) {
+      setDetectedSignals(intent.signals)
+      onIntentChange?.(intent)
+    } else {
+      setDetectedSignals([])
+    }
+  }, [intent, onIntentChange])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmedQuery = query.trim()
+    void navigate({
+      to: '/registry',
+      search: trimmedQuery ? { q: trimmedQuery, ...filters } : { ...filters },
+    })
+  }
+
+  const handlePresetClick = (preset: FilterPreset) => {
+    const newFilters = {
+      ...filters,
+      preset: filters.preset === preset ? undefined : preset,
+    }
+    onFiltersChange(newFilters)
+    void navigate({
+      to: '/registry',
+      search: { ...newFilters },
+    })
+  }
+
+  const handleRemoveFilter = (key: string) => {
+    const newFilters = { ...filters, [key]: undefined }
+    onFiltersChange(newFilters)
+    void navigate({
+      to: '/registry',
+      search: { ...newFilters },
+    })
+  }
+
+  const handleClearAll = () => {
+    onFiltersChange({})
+    void navigate({ to: '/registry' })
+  }
+
+  const hasActiveFilters = Object.values(filters).some(v => v !== undefined)
+
+  const handleRemoveSignal = (signal: IntentSignal) => {
+    // Remove the signal from the query by reconstructing it
+    let newQuery = query
+    const signalValue = signal.filterValue.toLowerCase()
+
+    // Try to remove the signal term from query
+    const patterns = [
+      new RegExp(signalValue, 'gi'),
+      new RegExp(signalValue.replace(/[-_]/g, ' '), 'gi'),
+    ]
+    for (const pattern of patterns) {
+      if (pattern.test(newQuery)) {
+        newQuery = newQuery.replace(pattern, ' ').trim()
+        break
+      }
+    }
+
+    setQuery(newQuery)
+    setDetectedSignals(prev => prev.filter(s => s.id !== signal.id))
+  }
+
+  const formatLabel = (slug: string): string => {
+    return slug
+      .split(/[-_]/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+
+  return (
+    <div className="w-full space-y-4">
+      {/* Search Input */}
+      <form className="w-full" onSubmit={handleSubmit}>
+        <div className="group relative">
+          <div className="border-border/30 bg-card/80 focus-within:border-primary/50 focus-within:ring-primary/20 group-hover:border-border/50 flex w-full items-center gap-3 rounded-2xl border-2 px-5 py-3.5 backdrop-blur-sm transition-all focus-within:ring-4">
+            <Search className="text-muted-foreground/70 group-focus-within:text-primary h-5 w-5 shrink-0 transition-colors" />
+            <input
+              className="text-foreground placeholder:text-muted-foreground/50 min-w-[200px] flex-1 bg-transparent font-medium outline-none"
+              onChange={e => {
+                setQuery(e.target.value)
+              }}
+              placeholder={placeholder}
+              type="text"
+              value={query}
+            />
+            {query && (
+              <button
+                className="text-muted-foreground hover:bg-muted/80 hover:text-foreground rounded-full p-1.5 transition-all"
+                onClick={() => {
+                  setQuery('')
+                  setDetectedSignals([])
+                  void navigate({ to: '/registry', search: filters })
+                }}
+                type="button"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+      </form>
+
+      {/* Detected Intent Signals */}
+      {enableIntentDetection && detectedSignals.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="text-primary h-4 w-4" />
+            <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+              Detected
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {detectedSignals.map(signal => (
+              <button
+                className="bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:border-primary/50 flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-all"
+                key={`${signal.type}-${signal.id}`}
+                onClick={() => {
+                  handleRemoveSignal(signal)
+                }}
+                type="button"
+              >
+                {signal.label}
+                <span className="hover:bg-primary/30 rounded-full p-0.5">
+                  ×
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Results count */}
+          {resultsCount !== undefined && (
+            <p className="text-muted-foreground text-sm">
+              Found {resultsCount.toLocaleString()}
+              {intent?.category && ` ${formatLabel(intent.category)}`}
+              {intent?.framework && ` for ${formatLabel(intent.framework)}`}
+              {intent?.language &&
+                !intent.framework &&
+                ` in ${intent.language}`}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Preset Badges */}
+      <div className="flex flex-wrap gap-2">
+        {PRESETS.map(preset => (
+          <FilterPresetBadge
+            isActive={filters.preset === preset}
+            key={preset}
+            onClick={() => {
+              handlePresetClick(preset)
+            }}
+            preset={preset}
+          />
+        ))}
+      </div>
+
+      {/* Active Filter Chips */}
+      {hasActiveFilters && (
+        <ActiveFilterChips
+          filters={filters}
+          onClearAll={handleClearAll}
+          onRemoveFilter={handleRemoveFilter}
+        />
+      )}
+    </div>
+  )
+}

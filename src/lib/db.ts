@@ -515,6 +515,172 @@ export async function getTrendingRegistries(
 }
 
 /**
+ * Get use case category counts across all registries
+ * Matches items to categories based on keyword matching
+ */
+export async function getUseCaseCategoryCounts(db: Kysely<Database>): Promise<
+  {
+    categoryId: string
+    count: number
+  }[]
+> {
+  // Get all items with their text content for matching
+  const items = await db
+    .selectFrom('registry_items')
+    .select(['title', 'description', 'category', 'language'])
+    .where('archived', '=', 0)
+    .execute()
+
+  // Import categorization function
+  const { categorizeItem, getAllCategories } = await import(
+    './use-case-categories'
+  )
+
+  const categories = getAllCategories()
+  const categoryCounts = new Map<string, number>()
+
+  // Initialize counts
+  for (const cat of categories) {
+    categoryCounts.set(cat.id, 0)
+  }
+
+  // Count items per use case category
+  for (const item of items) {
+    const matchedCategories = categorizeItem(
+      item.title,
+      item.description,
+      item.category,
+    )
+    for (const catId of matchedCategories) {
+      categoryCounts.set(catId, (categoryCounts.get(catId) || 0) + 1)
+    }
+  }
+
+  // Convert to array and sort by count
+  return Array.from(categoryCounts.entries())
+    .map(([categoryId, count]) => ({ categoryId, count }))
+    .filter(c => c.count > 0) // Only return categories with items
+    .sort((a, b) => b.count - a.count)
+}
+
+/**
+ * Get items for a specific use case category
+ */
+export async function getUseCaseCategoryItems(
+  db: Kysely<Database>,
+  categoryId: string,
+  options?: {
+    framework?: string
+    limit?: number
+    offset?: number
+  },
+): Promise<
+  {
+    category: string
+    description: null | string
+    id: number
+    language: null | string
+    registry: string
+    repo_info?: {
+      archived: boolean
+      language: null | string
+      last_commit: string
+      owner: string
+      repo: string
+      stars: number
+    }
+    stars: number
+    title: string
+  }[]
+> {
+  const { limit = 50, offset = 0, framework } = options || {}
+
+  // Get the category definition
+  const { getCategoryById, categorizeItem } = await import(
+    './use-case-categories'
+  )
+  const categoryDef = getCategoryById(categoryId)
+
+  if (!categoryDef) {
+    return []
+  }
+
+  // Get all items
+  let query = db
+    .selectFrom('registry_items')
+    .select([
+      'id',
+      'registry_name',
+      'category',
+      'title',
+      'description',
+      'repo_owner',
+      'repo_name',
+      'stars',
+      'language',
+      'last_commit',
+      'archived',
+    ])
+    .where('archived', '=', 0)
+
+  // Apply framework filter if specified
+  if (framework && framework !== 'all') {
+    // Map framework to language patterns
+    const frameworkPatterns: Record<string, string[]> = {
+      react: ['typescript', 'javascript'],
+      vue: ['vue', 'typescript'],
+      svelte: ['svelte'],
+      angular: ['angular', 'typescript'],
+      solid: ['solid'],
+      qwik: ['qwik'],
+    }
+
+    const patterns = frameworkPatterns[framework]
+    query = query.where('language', 'in', patterns)
+  }
+
+  const items = await query
+    .orderBy('stars', 'desc')
+    .limit(limit + offset)
+    .execute()
+
+  // Filter items that match the use case category
+  const matchedItems = items
+    .filter(item => {
+      const matchedCategories = categorizeItem(
+        item.title,
+        item.description,
+        item.category,
+      )
+      return matchedCategories.includes(categoryId)
+    })
+    .slice(offset, offset + limit)
+
+  // Transform to result format
+  return matchedItems.map(row => ({
+    category: row.category,
+    description: row.description,
+    id: row.id,
+    language: row.language,
+    registry: row.registry_name,
+    stars: row.stars,
+    title: row.title,
+    ...(row.repo_owner && row.repo_name
+      ? {
+          repo_info: {
+            archived: Boolean(row.archived),
+            language: row.language,
+            last_commit: row.last_commit || '',
+            owner: row.repo_owner,
+            repo: row.repo_name,
+            stars: row.stars,
+          },
+        }
+      : {}),
+  }))
+}
+
+/**
  * Search registry items with filters
  */
 export async function searchRegistryItems(
@@ -528,10 +694,15 @@ export async function searchRegistryItems(
     minStars?: number
     q?: string
     registryName?: string
-    sortBy?: 'name' | 'stars' | 'updated'
+    sortBy?: 'name' | 'quality' | 'stars' | 'updated'
   },
 ): Promise<{
-  data: (RegistryItem & { category: string; id: number; registry: string })[]
+  data: (RegistryItem & {
+    category: string
+    id: number
+    qualityScore?: number
+    registry: string
+  })[]
   hasMore: boolean
   nextCursor?: number
   total: number
@@ -602,6 +773,11 @@ export async function searchRegistryItems(
     case 'name':
       query = query.orderBy('title', 'asc').orderBy('id', 'asc')
       break
+    case 'quality':
+      // Quality score is computed post-fetch, so we use stars as base
+      // Results will be re-sorted after transformation
+      query = query.orderBy('stars', 'desc').orderBy('last_commit', 'desc')
+      break
     case 'updated':
       query = query.orderBy('last_commit', 'desc').orderBy('id', 'asc')
       break
@@ -631,13 +807,14 @@ export async function searchRegistryItems(
 
   // Check if there are more results
   const hasMore = results.length > limit
-  const items = hasMore ? results.slice(0, limit) : results
+  const rawItems = hasMore ? results.slice(0, limit) : results
 
-  // Transform to RegistryItem format
-  const transformedItems = items.map(row => {
+  // Transform to RegistryItem format with quality score
+  const transformedItems = rawItems.map(row => {
     const item: RegistryItem & {
       category: string
       id: number
+      qualityScore?: number
       registry: string
     } = {
       category: row.category,
@@ -646,6 +823,10 @@ export async function searchRegistryItems(
       id: row.id,
       registry: row.registry_name,
       title: row.title,
+      qualityScore: calculateQualityScore({
+        last_commit: row.last_commit,
+        stars: row.stars,
+      }),
       ...(row.repo_owner && row.repo_name
         ? {
             repo_info: {
@@ -662,6 +843,13 @@ export async function searchRegistryItems(
     return item
   })
 
+  // Post-sort by quality score if requested
+  if (sortBy === 'quality') {
+    transformedItems.sort(
+      (a, b) => (b.qualityScore || 0) - (a.qualityScore || 0),
+    )
+  }
+
   // Get the next cursor (last item's id)
   const nextCursor =
     hasMore && transformedItems.length > 0
@@ -674,4 +862,47 @@ export async function searchRegistryItems(
     nextCursor,
     total,
   }
+}
+
+/**
+ * Calculate composite quality score for ranking search results
+ *
+ * quality_score = (
+ *     log(stars) × 1.0 +
+ *     freshness_factor × 0.5 +
+ *     activity_factor × 0.3
+ * )
+ *
+ * Where:
+ *   freshness_factor = days_since_commit / 365 (clamped 0-1, reversed so newer is better)
+ *   activity_factor = min(commits_in_last_90_days / 100, 1) (estimated from last_commit recency)
+ */
+function calculateQualityScore(item: {
+  last_commit: null | string
+  stars: number
+}): number {
+  const stars = item.stars || 0
+  const lastCommit = item.last_commit
+
+  // Logarithmic stars score (diminishing returns for very high counts)
+  const starsScore = Math.log10(Math.max(stars, 1))
+
+  // Freshness factor based on last commit date
+  let freshnessScore = 0
+  if (lastCommit) {
+    const commitDate = new Date(lastCommit)
+    const daysSinceCommit = Math.max(
+      0,
+      (Date.now() - commitDate.getTime()) / (1000 * 60 * 60 * 24),
+    )
+    // Convert to 0-1 scale, where 1 = very recent (0 days), 0 = very old (365+ days)
+    freshnessScore = Math.max(0, 1 - daysSinceCommit / 365)
+  }
+
+  // Activity factor (estimated from freshness - more recent commits = more active)
+  // This is a simplified approximation since we don't have commit frequency data
+  const activityScore = freshnessScore * 0.8
+
+  // Composite score
+  return starsScore * 1.0 + freshnessScore * 0.5 + activityScore * 0.3
 }

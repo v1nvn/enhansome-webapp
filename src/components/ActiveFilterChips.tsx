@@ -1,120 +1,99 @@
-import { useMemo } from 'react'
-
 import { X } from 'lucide-react'
 
-import type { FilterValues } from './FiltersSidebar'
+import type { FilterPreset } from '@/lib/filter-presets'
+
+import { PRESET_CONFIGS } from '@/lib/filter-presets'
 
 interface ActiveFilterChipsProps {
-  filters: FilterValues
+  filters: {
+    lang?: string
+    preset?: FilterPreset
+    registry?: string
+    sort?: 'name' | 'quality' | 'stars' | 'updated'
+  }
   onClearAll: () => void
-  onRemoveFilter: (key: FilterKey) => void
+  onRemoveFilter: (key: string) => void
 }
 
-type FilterKey = 'date' | 'stars' | keyof FilterValues
-
-function ActiveFilterChips({
+export function ActiveFilterChips({
   filters,
-  onRemoveFilter,
   onClearAll,
+  onRemoveFilter,
 }: ActiveFilterChipsProps) {
-  const activeFilters = useMemo(() => {
-    const chips: { key: FilterKey; label: string; value: string }[] = []
+  const chips: { key: string; label: string; value: string }[] = []
 
-    if (filters.sort && filters.sort !== 'stars') {
-      chips.push({
-        key: 'sort',
-        label: 'Sort',
-        value: filters.sort === 'name' ? 'A-Z' : 'Updated',
-      })
-    }
+  // Preset filter
+  if (filters.preset) {
+    chips.push({
+      key: 'preset',
+      label: '',
+      value: PRESET_CONFIGS[filters.preset].label,
+    })
+  }
 
-    if (filters.registry) {
-      chips.push({
-        key: 'registry',
-        label: 'Registry',
-        value: filters.registry,
-      })
-    }
+  // Language filter
+  if (filters.lang) {
+    chips.push({
+      key: 'lang',
+      label: 'Language',
+      value: filters.lang,
+    })
+  }
 
-    if (filters.category) {
-      // Extract just the category name (format: "registry::category")
-      const categoryName =
-        filters.category.split('::').pop() || filters.category
-      chips.push({
-        key: 'category',
-        label: 'Category',
-        value: categoryName,
-      })
-    }
+  // Registry filter
+  if (filters.registry) {
+    chips.push({
+      key: 'registry',
+      label: 'Registry',
+      value: filters.registry.replace('awesome-', ''),
+    })
+  }
 
-    if (filters.lang) {
-      chips.push({
-        key: 'lang',
-        label: 'Language',
-        value: filters.lang,
-      })
-    }
+  // Sort filter (only if not default)
+  if (filters.sort && filters.sort !== 'quality') {
+    const sortLabels = {
+      name: 'A–Z',
+      stars: 'Popular',
+      updated: 'Recent',
+      quality: 'Best Match',
+    } as const
+    chips.push({
+      key: 'sort',
+      label: 'Sort',
+      value: sortLabels[filters.sort],
+    })
+  }
 
-    if (filters.starsMin || filters.starsMax) {
-      chips.push({
-        key: 'stars',
-        label: 'Stars',
-        value: `${filters.starsMin || '0'}-${filters.starsMax || '∞'}`,
-      })
-    }
-
-    if (filters.dateFrom || filters.dateTo) {
-      chips.push({
-        key: 'date',
-        label: 'Updated',
-        value: `${filters.dateFrom || '...'} - ${filters.dateTo || '...'}`,
-      })
-    }
-
-    if (filters.archived) {
-      chips.push({
-        key: 'archived',
-        label: 'Status',
-        value: filters.archived === 'true' ? 'Archived' : 'Active',
-      })
-    }
-
-    return chips
-  }, [filters])
-
-  if (activeFilters.length === 0) return null
+  if (chips.length === 0) return null
 
   return (
-    <div className="md:hidden">
-      <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto pb-3">
-        {activeFilters.map(chip => (
-          <button
-            className="bg-accent/50 hover:bg-accent/70 text-foreground group flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
-            key={chip.key}
-            onClick={() => {
-              onRemoveFilter(chip.key)
-            }}
-            type="button"
-          >
+    <div className="flex flex-wrap items-center gap-2">
+      {chips.map(chip => (
+        <button
+          className="bg-accent/50 hover:bg-accent/70 text-accent-foreground group flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-all"
+          key={chip.key}
+          onClick={() => {
+            onRemoveFilter(chip.key)
+          }}
+          type="button"
+        >
+          {chip.label && (
             <span className="text-muted-foreground">{chip.label}:</span>
-            <span className="max-w-[120px] truncate">{chip.value}</span>
-            <X className="text-muted-foreground group-hover:text-foreground ml-0.5 h-3 w-3 transition-colors" />
-          </button>
-        ))}
-
-        {activeFilters.length > 1 && (
-          <button
-            className="border-border hover:bg-muted text-muted-foreground hover:text-foreground flex shrink-0 cursor-pointer items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-all"
-            onClick={onClearAll}
-            type="button"
-          >
-            <X className="h-3 w-3" />
-            <span>Clear All</span>
-          </button>
-        )}
-      </div>
+          )}
+          <span>{chip.value}</span>
+          <X className="text-muted-foreground group-hover:text-foreground ml-0.5 h-3 w-3 transition-colors" />
+        </button>
+      ))}
+      {chips.length > 1 && (
+        <button
+          className="border-border hover:bg-muted hover:text-foreground text-muted-foreground flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-all"
+          onClick={onClearAll}
+          type="button"
+        >
+          <X className="h-3 w-3" />
+          Clear all
+        </button>
+      )}
     </div>
   )
 }
-
-export default ActiveFilterChips
