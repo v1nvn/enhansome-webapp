@@ -57,7 +57,7 @@ export function ItemsGrid({
     return (
       <div className="flex h-full items-center justify-center">
         <div className="max-w-md text-center">
-          <div className="bg-muted/30 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+          <div className="bg-muted/40 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full shadow-sm">
             <Archive className="text-muted-foreground h-8 w-8" />
           </div>
           <p className="text-foreground text-lg font-semibold">
@@ -70,21 +70,21 @@ export function ItemsGrid({
           {/* Helpful suggestions */}
           <div className="flex flex-wrap justify-center gap-2">
             <Link
-              className="border-border hover:border-primary hover:bg-primary/10 hover:text-primary text-muted-foreground rounded-lg border px-4 py-2 text-sm font-medium transition-all"
+              className="bg-muted/40 hover:bg-primary/15 hover:text-primary text-muted-foreground rounded-xl px-4 py-2 text-sm font-medium shadow-sm transition-all hover:shadow"
               search={{ preset: 'trending' }}
               to="/registry"
             >
               View Trending
             </Link>
             <Link
-              className="border-border hover:border-primary hover:bg-primary/10 hover:text-primary text-muted-foreground rounded-lg border px-4 py-2 text-sm font-medium transition-all"
+              className="bg-muted/40 hover:bg-primary/15 hover:text-primary text-muted-foreground rounded-xl px-4 py-2 text-sm font-medium shadow-sm transition-all hover:shadow"
               search={{ preset: 'popular' }}
               to="/registry"
             >
               View Popular
             </Link>
             <Link
-              className="border-border hover:border-primary hover:bg-primary/10 hover:text-primary text-muted-foreground rounded-lg border px-4 py-2 text-sm font-medium transition-all"
+              className="bg-muted/40 hover:bg-primary/15 hover:text-primary text-muted-foreground rounded-xl px-4 py-2 text-sm font-medium shadow-sm transition-all hover:shadow"
               to="/"
             >
               Go to Homepage

@@ -59,8 +59,8 @@ export function RichItemCard({
 
   return (
     <div
-      className={`border-border bg-card hover:border-primary/50 relative flex flex-col rounded-sm border p-4 shadow-sm transition-all duration-200 ${
-        isSelected ? 'ring-primary ring-2' : ''
+      className={`bg-card duration-250 relative flex flex-col rounded-xl p-5 shadow-md transition-all hover:-translate-y-1 hover:shadow-xl ${
+        isSelected ? 'ring-primary/50 shadow-primary/20 ring-2' : ''
       }`}
     >
       {/* Compare Checkbox */}
@@ -70,10 +70,10 @@ export function RichItemCard({
         </label>
       )}
       {isCompareMode && (
-        <div className="absolute right-3 top-3 z-10">
+        <div className="absolute right-4 top-4 z-10">
           <input
             checked={isSelected}
-            className="border-border bg-background focus:ring-primary h-4 w-4 cursor-pointer rounded-sm border"
+            className="border-border/50 bg-background/80 focus:ring-primary hover:border-primary/50 h-4 w-4 cursor-pointer rounded border backdrop-blur-sm transition-all focus:ring-offset-0"
             id={`compare-${item.title}`}
             onChange={onCompareToggle}
             type="checkbox"
@@ -97,7 +97,7 @@ export function RichItemCard({
         )}
         <div className="flex flex-wrap items-center gap-2">
           {item.repo_info?.archived && (
-            <span className="inline-flex items-center gap-1 rounded-sm bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+            <span className="inline-flex items-center gap-1 rounded-lg bg-orange-100/80 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
               <Archive className="h-3 w-3" />
               Archived
             </span>
@@ -137,9 +137,9 @@ export function RichItemCard({
           </div>
 
           {/* Language, License, Updated */}
-          <div className="border-border/50 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t pt-2.5 text-xs">
+          <div className="border-border/30 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t pt-3 text-xs">
             {item.repo_info.language && (
-              <span className="rounded-sm bg-indigo-100 px-2 py-0.5 font-mono text-xs font-medium text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+              <span className="rounded-lg bg-indigo-100/80 px-2 py-0.5 font-mono text-xs font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
                 {item.repo_info.language}
               </span>
             )}
@@ -157,17 +157,17 @@ export function RichItemCard({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-2">
             {repoDetailLink && (
               <Link
-                className="bg-muted hover:bg-muted/80 text-foreground border-border flex flex-1 cursor-pointer items-center justify-center rounded-sm border px-3 py-2 text-xs font-semibold transition-all"
+                className="bg-muted/60 hover:bg-muted text-foreground flex flex-1 cursor-pointer items-center justify-center rounded-lg px-3 py-2.5 text-xs font-semibold shadow-sm transition-all hover:shadow"
                 to={repoDetailLink}
               >
                 <span>Details</span>
               </Link>
             )}
             <a
-              className="bg-primary text-primary-foreground hover:bg-primary/90 flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-sm px-3 py-2 text-xs font-semibold shadow-sm transition-all"
+              className="from-primary to-primary/90 text-primary-foreground hover:from-primary/90 hover:to-primary flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-gradient-to-br px-3 py-2.5 text-xs font-semibold shadow-md transition-all hover:shadow-lg"
               href={`https://github.com/${item.repo_info.owner}/${item.repo_info.repo}`}
               rel="noopener noreferrer"
               target="_blank"
@@ -180,10 +180,10 @@ export function RichItemCard({
           {/* Compare Button (always visible) */}
           {onCompareToggle && (
             <button
-              className={`w-full rounded-sm border px-3 py-2 text-xs font-medium transition-all ${
+              className={`w-full rounded-lg px-3 py-2.5 text-xs font-medium transition-all ${
                 isSelected
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border hover:border-primary/50 text-muted-foreground hover:text-foreground'
+                  ? 'bg-primary/10 text-primary shadow-inner'
+                  : 'bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground shadow-sm'
               }`}
               onClick={onCompareToggle}
               type="button"

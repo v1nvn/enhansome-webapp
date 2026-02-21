@@ -36,35 +36,38 @@ interface UseCaseCardsProps {
 
 export function UseCaseCards({ categories }: UseCaseCardsProps) {
   return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="bg-primary/20 text-primary flex h-5 w-5 items-center justify-center rounded-sm text-xs">
+    <section className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="from-primary/20 to-accent/20 text-primary flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br text-xs">
           ◇
         </div>
         <h2 className="font-display text-foreground text-xl font-semibold">
           Discover by Purpose
         </h2>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map(category => (
           <Link
-            className="border-border hover:border-primary/50 bg-card group rounded-sm border p-4 transition-all hover:shadow-md"
+            className="bg-card duration-250 group relative overflow-hidden rounded-xl p-5 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-xl"
             key={category.id}
             params={{ categoryId: category.id }}
             to="/category/$categoryId"
           >
-            <div className="flex items-start gap-3">
-              <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-sm">
+            {/* Subtle gradient on hover */}
+            <div className="from-primary/0 via-primary/5 to-primary/0 duration-250 absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity group-hover:opacity-100" />
+
+            <div className="relative flex items-start gap-3">
+              <div className="from-primary/10 to-accent/10 text-primary flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br transition-all group-hover:scale-110 group-hover:shadow-md">
                 {renderIcon(category.icon)}
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-foreground group-hover:text-primary font-display font-semibold transition-colors">
                   {category.title}
                 </h3>
-                <p className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-relaxed">
+                <p className="text-muted-foreground mt-1 line-clamp-2 text-xs leading-relaxed">
                   {category.description}
                 </p>
-                <div className="text-muted-foreground mt-2 text-xs">
+                <div className="text-muted-foreground mt-2.5 text-xs">
                   {category.count} libraries
                 </div>
               </div>

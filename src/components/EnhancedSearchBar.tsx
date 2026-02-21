@@ -144,8 +144,8 @@ export function EnhancedSearchBar({
       {/* Search Input */}
       <form className="w-full" onSubmit={handleSubmit}>
         <div className="group relative">
-          <div className="border-border/30 bg-card/80 focus-within:border-primary/50 focus-within:ring-primary/20 group-hover:border-border/50 flex w-full items-center gap-3 rounded-2xl border-2 px-5 py-3.5 backdrop-blur-sm transition-all focus-within:ring-4">
-            <Search className="text-muted-foreground/70 group-focus-within:text-primary h-5 w-5 shrink-0 transition-colors" />
+          <div className="bg-card/80 focus-within:ring-primary/30 group-hover:bg-card focus-within:shadow-primary/10 flex w-full items-center gap-3 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl transition-all focus-within:ring-2">
+            <Search className="text-muted-foreground/60 group-focus-within:text-primary h-5 w-5 shrink-0 transition-colors" />
             <input
               className="text-foreground placeholder:text-muted-foreground/50 min-w-[200px] flex-1 bg-transparent font-medium outline-none"
               onChange={e => {
@@ -184,7 +184,7 @@ export function EnhancedSearchBar({
           <div className="flex flex-wrap gap-2">
             {detectedSignals.map(signal => (
               <button
-                className="bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:border-primary/50 flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-all"
+                className="bg-primary/10 text-primary hover:bg-primary/15 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium shadow-sm transition-all hover:shadow"
                 key={`${signal.type}-${signal.id}`}
                 onClick={() => {
                   handleRemoveSignal(signal)
@@ -192,7 +192,7 @@ export function EnhancedSearchBar({
                 type="button"
               >
                 {signal.label}
-                <span className="hover:bg-primary/30 rounded-full p-0.5">
+                <span className="hover:bg-primary/20 rounded-full p-0.5 transition-colors">
                   ×
                 </span>
               </button>

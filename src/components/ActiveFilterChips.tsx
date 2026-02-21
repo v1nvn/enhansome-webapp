@@ -70,7 +70,7 @@ export function ActiveFilterChips({
     <div className="flex flex-wrap items-center gap-2">
       {chips.map(chip => (
         <button
-          className="bg-accent/50 hover:bg-accent/70 text-accent-foreground group flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-all"
+          className="from-accent/70 to-accent/50 hover:from-accent/80 hover:to-accent/60 text-accent-foreground group flex items-center gap-1.5 rounded-full bg-gradient-to-r px-3 py-1.5 text-sm font-semibold shadow-sm transition-all hover:shadow"
           key={chip.key}
           onClick={() => {
             onRemoveFilter(chip.key)
@@ -86,7 +86,7 @@ export function ActiveFilterChips({
       ))}
       {chips.length > 1 && (
         <button
-          className="border-border hover:bg-muted hover:text-foreground text-muted-foreground flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium transition-all"
+          className="bg-muted/60 hover:bg-muted/80 hover:text-foreground text-muted-foreground flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium shadow-sm transition-all hover:shadow"
           onClick={onClearAll}
           type="button"
         >

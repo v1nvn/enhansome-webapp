@@ -24,10 +24,10 @@ export function FilterPresetBadge({
 
   return (
     <button
-      className={`group relative flex items-center gap-2.5 rounded-xl border-2 px-4 py-3 font-semibold transition-all duration-200 ${
+      className={`group relative flex items-center gap-2.5 rounded-xl px-4 py-3 font-semibold transition-all duration-200 ${
         isActive
-          ? 'border-primary bg-primary text-primary-foreground shadow-md'
-          : 'border-border/30 bg-card/80 hover:border-primary/50 hover:bg-primary/10 text-foreground'
+          ? 'from-primary to-primary/90 text-primary-foreground bg-gradient-to-br shadow-md'
+          : 'bg-card/80 hover:bg-primary/10 text-foreground shadow-sm hover:shadow'
       } `}
       onClick={onClick}
       title={config.description}

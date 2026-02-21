@@ -47,16 +47,16 @@ function Home() {
   return (
     <div className="bg-background min-h-screen">
       {/* Hero Section */}
-      <section className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6 lg:px-8">
-        <h1 className="font-display text-foreground text-4xl font-bold tracking-tight md:text-5xl">
+      <section className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6 lg:px-8">
+        <h1 className="font-display text-foreground text-5xl font-bold tracking-tight md:text-6xl">
           Discover Developer Tools
         </h1>
-        <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-lg">
+        <p className="text-muted-foreground mx-auto mt-6 max-w-xl text-lg leading-relaxed">
           Search {registries.length} curated registries for the best libraries,
           frameworks, and resources
         </p>
 
-        <div className="mt-8 flex justify-center">
+        <div className="mt-10 flex justify-center">
           <EnhancedSearchBar
             filters={filters}
             onFiltersChange={handleFiltersChange}
@@ -66,8 +66,8 @@ function Home() {
       </section>
 
       {/* Discovery Section */}
-      <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="space-y-12">
+      <section className="mx-auto max-w-5xl px-4 pb-20 sm:px-6 lg:px-8">
+        <div className="space-y-16">
           <UseCaseCards categories={useCaseCategories} />
           <TrendingRegistries />
           <FeaturedItems />
