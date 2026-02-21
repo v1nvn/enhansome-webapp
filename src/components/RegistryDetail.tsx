@@ -49,10 +49,10 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <Link
             className="text-muted-foreground hover:text-primary hover:bg-primary/5 -ml-2 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition-all duration-200"
-            to="/registry"
+            to="/browse"
           >
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
-            <span>Back to registries</span>
+            <span>Back to browse</span>
           </Link>
         </div>
       </div>
@@ -86,9 +86,9 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
             <span className="text-muted-foreground/30">/</span>
             <Link
               className="text-muted-foreground hover:text-foreground transition-colors duration-200"
-              to="/registry"
+              to="/browse"
             >
-              Search
+              Browse
             </Link>
             <span className="text-muted-foreground/30">/</span>
             <span className="text-foreground font-medium">{data.title}</span>

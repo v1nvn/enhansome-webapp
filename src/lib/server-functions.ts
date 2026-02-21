@@ -512,7 +512,20 @@ export const searchInfiniteQueryOptions = (
   baseParams: Omit<SearchParams, 'cursor'>,
 ) =>
   infiniteQueryOptions({
-    queryKey: ['search', baseParams] as const,
+    // eslint-disable-next-line @tanstack/query/exhaustive-deps
+    queryKey: [
+      'search',
+      baseParams.q,
+      baseParams.category,
+      baseParams.language,
+      baseParams.registryName,
+      baseParams.sortBy,
+      baseParams.minStars,
+      baseParams.archived,
+      baseParams.dateFrom,
+      baseParams.preset,
+      baseParams.limit,
+    ] as const,
     queryFn: ({ pageParam }: { pageParam: number | undefined }) =>
       searchRegistryItemsFn({ data: { ...baseParams, cursor: pageParam } }),
     initialPageParam: undefined as number | undefined,

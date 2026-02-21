@@ -15,6 +15,7 @@ import { ActiveFilterChips } from './ActiveFilterChips'
 import { FilterPresetBadge } from './FilterPresetBadge'
 
 export interface EnhancedSearchBarFilters {
+  category?: string
   lang?: string
   preset?: FilterPreset
   registry?: string
@@ -34,11 +35,17 @@ interface EnhancedSearchBarProps {
    * Callback to get search intent (for results count display)
    */
   onIntentChange?: (intent: DetectedIntent) => void
+  onQueryChange?: (query: string) => void
   placeholder?: string
   /**
    * Show results count below detected signals
    */
   resultsCount?: number
+  /**
+   * Route to navigate to when submitting search or changing filters
+   * Defaults to '/registry'
+   */
+  to?: string
 }
 
 const PRESETS: FilterPreset[] = ['trending', 'popular', 'fresh', 'active']
@@ -51,6 +58,8 @@ export function EnhancedSearchBar({
   enableIntentDetection = true,
   resultsCount,
   onIntentChange,
+  onQueryChange,
+  to = '/registry',
 }: EnhancedSearchBarProps) {
   const [query, setQuery] = useState(defaultValue)
   const [detectedSignals, setDetectedSignals] = useState<IntentSignal[]>([])
@@ -63,6 +72,12 @@ export function EnhancedSearchBar({
     }
     return extractIntent(query)
   }, [query, enableIntentDetection])
+
+  // Notify parent of query changes
+  const handleChange = (newQuery: string) => {
+    setQuery(newQuery)
+    onQueryChange?.(newQuery)
+  }
 
   // Update detected signals when intent changes
   useMemo(() => {
@@ -78,7 +93,7 @@ export function EnhancedSearchBar({
     e.preventDefault()
     const trimmedQuery = query.trim()
     void navigate({
-      to: '/registry',
+      to,
       search: trimmedQuery ? { q: trimmedQuery, ...filters } : { ...filters },
     })
   }
@@ -90,7 +105,7 @@ export function EnhancedSearchBar({
     }
     onFiltersChange(newFilters)
     void navigate({
-      to: '/registry',
+      to,
       search: { ...newFilters },
     })
   }
@@ -99,14 +114,14 @@ export function EnhancedSearchBar({
     const newFilters = { ...filters, [key]: undefined }
     onFiltersChange(newFilters)
     void navigate({
-      to: '/registry',
+      to,
       search: { ...newFilters },
     })
   }
 
   const handleClearAll = () => {
     onFiltersChange({})
-    void navigate({ to: '/registry' })
+    void navigate({ to })
   }
 
   const hasActiveFilters = Object.values(filters).some(v => v !== undefined)
@@ -128,7 +143,7 @@ export function EnhancedSearchBar({
       }
     }
 
-    setQuery(newQuery)
+    handleChange(newQuery)
     setDetectedSignals(prev => prev.filter(s => s.id !== signal.id))
   }
 
@@ -149,7 +164,7 @@ export function EnhancedSearchBar({
             <input
               className="text-foreground placeholder:text-muted-foreground/50 min-w-[200px] flex-1 bg-transparent font-medium outline-none"
               onChange={e => {
-                setQuery(e.target.value)
+                handleChange(e.target.value)
               }}
               placeholder={placeholder}
               type="text"
@@ -159,9 +174,9 @@ export function EnhancedSearchBar({
               <button
                 className="text-muted-foreground hover:bg-muted/80 hover:text-foreground rounded-full p-1.5 transition-all"
                 onClick={() => {
-                  setQuery('')
+                  handleChange('')
                   setDetectedSignals([])
-                  void navigate({ to: '/registry', search: filters })
+                  void navigate({ to, search: filters })
                 }}
                 type="button"
               >

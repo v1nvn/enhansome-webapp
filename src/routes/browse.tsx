@@ -23,7 +23,8 @@ import {
 
 const PAGE_SIZE = 20
 
-interface RegistrySearch {
+interface BrowseSearch {
+  category?: string
   lang?: string
   preset?: FilterPreset
   q?: string
@@ -31,9 +32,10 @@ interface RegistrySearch {
   sort?: 'name' | 'quality' | 'stars' | 'updated'
 }
 
-export const Route = createFileRoute('/registry')({
-  component: RegistryBrowser,
-  validateSearch: (search: Record<string, unknown>): RegistrySearch => ({
+export const Route = createFileRoute('/browse')({
+  component: BrowsePage,
+  validateSearch: (search: Record<string, unknown>): BrowseSearch => ({
+    category: search.category as string | undefined,
     lang: search.lang as string | undefined,
     preset: search.preset as FilterPreset | undefined,
     q: search.q as string | undefined,
@@ -43,6 +45,7 @@ export const Route = createFileRoute('/registry')({
       'quality',
   }),
   loaderDeps: ({ search }) => ({
+    category: search.category,
     registry: search.registry,
   }),
   loader: async ({ context }) => {
@@ -73,11 +76,18 @@ export const Route = createFileRoute('/registry')({
     </div>
   ),
   head: () => ({
-    meta: [{ title: 'Enhansome Registry Browser' }],
+    meta: [
+      { title: 'Browse Registries - Enhansome' },
+      {
+        name: 'description',
+        content:
+          'Search and browse curated developer tools, libraries, and frameworks across multiple registries.',
+      },
+    ],
   }),
 })
 
-function RegistryBrowser() {
+function BrowsePage() {
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
 
@@ -87,6 +97,7 @@ function RegistryBrowser() {
   // Filters
   const currentFilters = useMemo((): FilterValues => {
     return {
+      category: search.category,
       lang: search.lang,
       preset: search.preset,
       registry: search.registry,
@@ -96,8 +107,9 @@ function RegistryBrowser() {
 
   // Update URL when filters change
   const handleFiltersChange = (filters: FilterValues) => {
-    const newSearch: RegistrySearch = {
+    const newSearch: BrowseSearch = {
       ...search,
+      category: filters.category,
       lang: filters.lang,
       preset: filters.preset,
       registry: filters.registry,
@@ -109,8 +121,9 @@ function RegistryBrowser() {
 
   // For EnhancedSearchBar
   const handleEnhancedFiltersChange = (filters: EnhancedSearchBarFilters) => {
-    const newSearch: RegistrySearch = {
+    const newSearch: BrowseSearch = {
       ...search,
+      category: filters.category,
       lang: filters.lang,
       preset: filters.preset,
       registry: filters.registry,
@@ -122,6 +135,7 @@ function RegistryBrowser() {
 
   const currentEnhancedFilters = useMemo((): EnhancedSearchBarFilters => {
     return {
+      category: search.category,
       lang: search.lang,
       preset: search.preset,
       registry: search.registry,
@@ -132,6 +146,7 @@ function RegistryBrowser() {
   // Build search params object
   const searchParams = useMemo(
     () => ({
+      category: search.category,
       language: search.lang,
       limit: PAGE_SIZE,
       preset: search.preset,
@@ -164,7 +179,7 @@ function RegistryBrowser() {
 
         {/* Content Area */}
         <div className="flex-1 overflow-hidden">
-          <RegistryBrowserContent
+          <BrowsePageContent
             allItems={allItems}
             currentFilters={currentEnhancedFilters}
             fetchNextPage={fetchNextPage}
@@ -181,7 +196,7 @@ function RegistryBrowser() {
   )
 }
 
-function RegistryBrowserContent({
+function BrowsePageContent({
   allItems,
   currentFilters,
   fetchNextPage,
@@ -257,6 +272,7 @@ function RegistryBrowserContent({
             onFiltersChange={handleFiltersChange}
             placeholder="Search repositories..."
             resultsCount={total}
+            to="/browse"
           />
         </div>
       </div>

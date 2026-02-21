@@ -732,7 +732,8 @@ export async function searchRegistryItems(
   }
 
   if (language) {
-    query = query.where('language', '=', language)
+    // Use case-insensitive matching for language (SQLite LIKE is case-insensitive for ASCII)
+    query = query.where(eb => eb('language', 'like', language))
   }
 
   if (minStars !== undefined) {

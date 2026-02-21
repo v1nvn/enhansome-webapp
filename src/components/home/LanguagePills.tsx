@@ -25,7 +25,7 @@ export function LanguagePills() {
             className="bg-muted/40 hover:bg-primary/15 hover:text-primary text-muted-foreground rounded-xl px-4 py-2 text-sm font-medium shadow-sm transition-all hover:shadow-md"
             key={lang}
             search={{ lang }}
-            to="/registry"
+            to="/browse"
           >
             {lang}
           </Link>

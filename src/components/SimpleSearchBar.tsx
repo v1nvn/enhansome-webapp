@@ -19,7 +19,7 @@ export function SimpleSearchBar({
     e.preventDefault()
     const trimmedQuery = query.trim()
     void navigate({
-      to: '/registry',
+      to: '/browse',
       search: trimmedQuery ? { q: trimmedQuery } : {},
     })
   }

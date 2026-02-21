@@ -72,14 +72,14 @@ export function ItemsGrid({
             <Link
               className="bg-muted/40 hover:bg-primary/15 hover:text-primary text-muted-foreground rounded-xl px-4 py-2 text-sm font-medium shadow-sm transition-all hover:shadow"
               search={{ preset: 'trending' }}
-              to="/registry"
+              to="/browse"
             >
               View Trending
             </Link>
             <Link
               className="bg-muted/40 hover:bg-primary/15 hover:text-primary text-muted-foreground rounded-xl px-4 py-2 text-sm font-medium shadow-sm transition-all hover:shadow"
               search={{ preset: 'popular' }}
-              to="/registry"
+              to="/browse"
             >
               View Popular
             </Link>
@@ -95,8 +95,8 @@ export function ItemsGrid({
     )
   }
 
-  const getItemKey = (item: RegistryItem) =>
-    `${item.title}-${item.repo_info?.owner || ''}-${item.repo_info?.repo || ''}`
+  const getItemKey = (item: RegistryItem, idx: number) =>
+    `${item.title}-${item.repo_info?.owner || ''}-${item.repo_info?.repo || ''}-${idx}`
 
   const toggleCompare = (itemKey: string) => {
     const handler =
@@ -117,8 +117,8 @@ export function ItemsGrid({
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {sortedItems.map(item => {
-        const itemKey = getItemKey(item)
+      {sortedItems.map((item, idx) => {
+        const itemKey = getItemKey(item, idx)
         return (
           <RichItemCard
             isCompareMode={enableCompare}

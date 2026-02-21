@@ -1,4 +1,3 @@
-import { Link } from '@tanstack/react-router'
 import {
   BarChart3,
   Database,
@@ -32,9 +31,13 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 
 interface UseCaseCardsProps {
   categories: CategoryProp[]
+  onCategoryClick: (categoryId: string) => void
 }
 
-export function UseCaseCards({ categories }: UseCaseCardsProps) {
+export function UseCaseCards({
+  categories,
+  onCategoryClick,
+}: UseCaseCardsProps) {
   return (
     <section className="space-y-5">
       <div className="flex items-center gap-3">
@@ -47,11 +50,13 @@ export function UseCaseCards({ categories }: UseCaseCardsProps) {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map(category => (
-          <Link
-            className="bg-card duration-250 group relative overflow-hidden rounded-xl p-5 shadow-md transition-all hover:-translate-y-0.5 hover:shadow-xl"
+          <button
+            className="bg-card duration-250 group relative w-full overflow-hidden rounded-xl p-5 text-left shadow-md transition-all hover:-translate-y-0.5 hover:shadow-xl"
             key={category.id}
-            params={{ categoryId: category.id }}
-            to="/category/$categoryId"
+            onClick={() => {
+              onCategoryClick(category.id)
+            }}
+            type="button"
           >
             {/* Subtle gradient on hover */}
             <div className="from-primary/0 via-primary/5 to-primary/0 duration-250 absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity group-hover:opacity-100" />
@@ -72,7 +77,7 @@ export function UseCaseCards({ categories }: UseCaseCardsProps) {
                 </div>
               </div>
             </div>
-          </Link>
+          </button>
         ))}
       </div>
     </section>

@@ -5,7 +5,7 @@ export default function Header() {
   return (
     <header className="bg-background/80 sticky top-0 z-50 shadow-sm backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center gap-3">
+        <div className="flex h-16 items-center justify-between gap-3">
           <Link
             className="group flex items-center gap-3 transition-transform hover:scale-105"
             to="/"
@@ -22,6 +22,15 @@ export default function Header() {
               </span>
             </div>
           </Link>
+
+          <nav className="flex items-center gap-6">
+            <Link
+              className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+              to="/browse"
+            >
+              Browse
+            </Link>
+          </nav>
         </div>
       </div>
     </header>

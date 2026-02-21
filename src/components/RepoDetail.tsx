@@ -44,10 +44,10 @@ export function RepoDetail({ data }: RepoDetailProps) {
           <Link
             className="text-muted-foreground hover:text-primary hover:bg-primary/5 -ml-2 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition-all duration-200"
             search={{ registry: data.registryName }}
-            to="/registry"
+            to="/browse"
           >
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
-            <span>Back to {data.registryName}</span>
+            <span>Back to browse</span>
           </Link>
         </div>
       </div>
