@@ -23,7 +23,7 @@ import type { Kysely } from 'kysely'
 
 export interface SearchDocument {
   archived: boolean
-  category: string
+  categories: string[] // Changed from category: string
   description: string
   id: number
   language: null | string
@@ -58,7 +58,6 @@ const KV_INDEX_KEY = 'search:index'
 
 export interface FlexSearchOptions {
   archived?: boolean
-  category?: string
   language?: string
   limit?: number
   minStars?: number
@@ -66,35 +65,50 @@ export interface FlexSearchOptions {
 }
 
 /**
- * Build a search index from all registry items in the database
+ * Build a search index from all repositories in the database
+ * Uses the new many-to-many model: repositories + registry_repositories
+ * Categories are stored as JSON arrays
  */
 export async function buildSearchIndex(
   db: Kysely<Database>,
 ): Promise<SearchIndexData> {
   const items = await db
-    .selectFrom('registry_items')
+    .selectFrom('repositories')
+    .innerJoin(
+      'registry_repositories',
+      'registry_repositories.repository_id',
+      'repositories.id',
+    )
     .select([
-      'id',
-      'registry_name as registryName',
-      'title',
-      'description',
-      'category',
-      'language',
-      'stars',
-      'archived',
+      'repositories.id',
+      'registry_repositories.registry_name as registryName',
+      'registry_repositories.title',
+      'registry_repositories.categories',
+      'repositories.language',
+      'repositories.stars',
+      'repositories.archived',
+      'repositories.description',
     ])
     .execute()
 
-  const documents: SearchDocument[] = items.map(item => ({
-    id: item.id,
-    registryName: item.registryName,
-    title: item.title,
-    description: item.description ?? '',
-    category: item.category,
-    language: item.language,
-    stars: item.stars,
-    archived: Boolean(item.archived),
-  }))
+  const documents: SearchDocument[] = items.map(item => {
+    let categoryList: string[] = []
+    try {
+      categoryList = JSON.parse(item.categories) as string[]
+    } catch {
+      categoryList = []
+    }
+    return {
+      id: item.id,
+      registryName: item.registryName,
+      title: item.title,
+      description: item.description ?? '',
+      categories: categoryList,
+      language: item.language,
+      stars: item.stars,
+      archived: Boolean(item.archived),
+    }
+  })
 
   return {
     builtAt: new Date().toISOString(),
@@ -114,7 +128,6 @@ export function flexSearch(
   const {
     limit = 20,
     registryName,
-    category,
     language,
     minStars,
     archived = false,
@@ -138,7 +151,6 @@ export function flexSearch(
 
     // Apply filters
     if (registryName && doc.registryName !== registryName) continue
-    if (category && doc.category !== category) continue
     if (language && doc.language !== language) continue
     if (minStars && doc.stars < minStars) continue
     if (!archived && doc.archived) continue
@@ -163,9 +175,6 @@ export function flexSearch(
 
     if (registryName) {
       filtered = filtered.filter(d => d.registryName === registryName)
-    }
-    if (category) {
-      filtered = filtered.filter(d => d.category === category)
     }
     if (language) {
       filtered = filtered.filter(d => d.language === language)
@@ -322,11 +331,11 @@ function createFlexSearchIndex(documents: SearchDocument[]): {
 
   // Index each document
   for (const doc of documents) {
-    // Create searchable text from title, description, category
+    // Create searchable text from title, description, categories
     const searchableText = [
       doc.title,
       doc.description,
-      doc.category,
+      ...doc.categories, // Spread categories for search
       doc.language || '',
     ]
       .filter(Boolean)

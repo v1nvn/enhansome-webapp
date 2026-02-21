@@ -30,7 +30,9 @@ describe('Admin Indexing with Progress Tracking', () => {
       .set({ history_id: null, status: 'idle', updated_at: new Date().toISOString() })
       .execute()
     await db.deleteFrom('sync_log').execute()
-    await db.deleteFrom('registry_items').execute()
+    // Clear in correct order due to foreign key constraints
+    await db.deleteFrom('registry_repositories').execute()
+    await db.deleteFrom('repositories').execute()
     await db.deleteFrom('registry_metadata').execute()
   })
 
@@ -61,6 +63,7 @@ describe('Admin Indexing with Progress Tracking', () => {
         'errors',
         'error_message',
         'created_by',
+        'created_at',
       ]
 
       expect(result.results).toHaveLength(expectedColumns.length)

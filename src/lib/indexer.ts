@@ -251,6 +251,8 @@ export async function indexRegistry(
 
 /**
  * Build all D1 statements for indexing a registry
+ * Uses the new many-to-many model with repositories + junction table
+ * Supports multiple categories per repository via JSON array
  */
 function buildRegistryStatements(
   db: D1Database,
@@ -261,10 +263,10 @@ function buildRegistryStatements(
 ): D1PreparedStatement[] {
   const statements: D1PreparedStatement[] = []
 
-  // Clear existing data
+  // Clear existing junction table entries for this registry
   statements.push(
     db
-      .prepare('DELETE FROM registry_items WHERE registry_name = ?')
+      .prepare('DELETE FROM registry_repositories WHERE registry_name = ?')
       .bind(registryName),
   )
   statements.push(
@@ -292,28 +294,93 @@ function buildRegistryStatements(
       ),
   )
 
-  // Insert items
+  // Collect categories per repository to handle multi-category repos
+  const repoCategories = new Map<string, Set<string>>() // key: "owner/repo", value: Set of categories
+  const repoTitles = new Map<string, string>() // key: "owner/repo", value: title (use first encountered)
+  const repoDescriptions = new Map<string, null | string>() // key: "owner/repo", value: description
+
+  // First pass: collect all categories for each unique repository
   for (const item of items) {
+    const repoInfo = item.data.repo_info
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!repoInfo?.owner || !repoInfo?.repo) {
+      continue
+    }
+
+    const key = `${repoInfo.owner}/${repoInfo.repo}`
+
+    if (!repoCategories.has(key)) {
+      repoCategories.set(key, new Set())
+      repoTitles.set(key, item.data.title)
+      repoDescriptions.set(key, item.data.description ?? null)
+    }
+    const categorySet = repoCategories.get(key)
+    if (categorySet) {
+      categorySet.add(item.category)
+    }
+  }
+
+  // Second pass: insert each unique repository once with all its categories
+  for (const item of items) {
+    const repoInfo = item.data.repo_info
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!repoInfo?.owner || !repoInfo?.repo) {
+      continue
+    }
+
+    const key = `${repoInfo.owner}/${repoInfo.repo}`
+
+    // Only process if we haven't already inserted this repository
+    if (!repoCategories.has(key)) {
+      continue
+    }
+
+    // Get accumulated categories
+    const categorySet = repoCategories.get(key)
+    const categories = categorySet ? Array.from(categorySet) : []
+    const title = repoTitles.get(key)
+    const description = repoDescriptions.get(key)
+
+    // Upsert repository (INSERT OR IGNORE)
     statements.push(
       db
         .prepare(
-          `INSERT INTO registry_items
-         (registry_name, category, title, description, repo_owner, repo_name, stars, language, last_commit, archived)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT OR IGNORE INTO repositories (owner, name, description, stars, language, last_commit, archived)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          repoInfo.owner,
+          repoInfo.repo,
+          description,
+          repoInfo.stars,
+          repoInfo.language,
+          repoInfo.last_commit,
+          repoInfo.archived ? 1 : 0,
+        ),
+    )
+
+    // Link via junction table with categories as JSON array
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO registry_repositories (registry_name, repository_id, title, categories)
+           SELECT ?, id, ?, ?
+           FROM repositories
+           WHERE owner = ? AND name = ?`,
         )
         .bind(
           registryName,
-          item.category,
-          item.data.title,
-          item.data.description ?? null,
-          item.data.repo_info?.owner ?? null,
-          item.data.repo_info?.repo ?? null,
-          item.data.repo_info?.stars ?? 0,
-          item.data.repo_info?.language ?? null,
-          item.data.repo_info?.last_commit ?? null,
-          item.data.repo_info?.archived ? 1 : 0,
+          title,
+          JSON.stringify(categories), // Store as JSON array
+          repoInfo.owner,
+          repoInfo.repo,
         ),
     )
+
+    // Remove from map so we don't insert again
+    repoCategories.delete(key)
+    repoTitles.delete(key)
+    repoDescriptions.delete(key)
   }
 
   return statements

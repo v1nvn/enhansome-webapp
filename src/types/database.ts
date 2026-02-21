@@ -12,8 +12,9 @@ export interface Database {
   indexing_history: IndexingHistoryTable
   indexing_latest: IndexingLatestTable
   registry_featured: RegistryFeaturedTable
-  registry_items: RegistryItemsTable
   registry_metadata: RegistryMetadataTable
+  registry_repositories: RegistryRepositoriesTable
+  repositories: RepositoriesTable
   sync_log: SyncLogTable
 }
 
@@ -47,6 +48,11 @@ export interface IndexingLatestTable {
 }
 
 /**
+ * Parsed categories from JSON array
+ */
+export type ParsedCategories = string[]
+
+/**
  * Registry featured table schema
  */
 export interface RegistryFeaturedTable {
@@ -56,25 +62,6 @@ export interface RegistryFeaturedTable {
   featured_order: null | number
   id: Generated<number>
   registry_name: string
-}
-
-/**
- * Registry items table schema
- */
-export interface RegistryItemsTable {
-  archived: number // SQLite uses INTEGER for boolean (0 or 1)
-  category: string
-  created_at: Generated<string>
-  description: null | string
-  id: Generated<number>
-  language: null | string
-  last_commit: null | string
-  registry_name: string
-  repo_name: null | string
-  repo_owner: null | string
-  stars: number
-  title: string
-  updated_at: Generated<string>
 }
 
 /**
@@ -89,6 +76,34 @@ export interface RegistryMetadataTable {
   title: string
   total_items: number
   total_stars: number
+  updated_at: Generated<string>
+}
+
+/**
+ * Registry repositories junction table schema
+ */
+export interface RegistryRepositoriesTable {
+  categories: string // JSON array string, e.g., '["Web Frameworks", "HTTP Servers"]'
+  created_at: Generated<string>
+  id: Generated<number>
+  registry_name: string
+  repository_id: number
+  title: string
+}
+
+/**
+ * Repositories table schema (canonical repositories)
+ */
+export interface RepositoriesTable {
+  archived: number
+  created_at: Generated<string>
+  description: null | string
+  id: Generated<number>
+  language: null | string
+  last_commit: null | string
+  name: string
+  owner: string
+  stars: number
   updated_at: Generated<string>
 }
 

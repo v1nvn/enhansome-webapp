@@ -133,15 +133,65 @@ export function RepoDetail({ data }: RepoDetailProps) {
                       value={formatDate(data.lastCommit)}
                     />
                   )}
-                  {data.category && (
+                  {data.categories.length > 0 && (
                     <RepoStat
                       icon={FolderTree}
                       iconBg="from-primary/20 to-primary/5 text-primary"
-                      label="Category"
-                      value={data.category}
+                      label={
+                        data.categories.length === 1 ? 'Category' : 'Categories'
+                      }
+                      value={data.categories.length.toString()}
                     />
                   )}
                 </div>
+
+                {/* Categories Display */}
+                {data.categories.length > 0 && (
+                  <div className="mt-6 flex flex-wrap items-center gap-2">
+                    <span className="text-muted-foreground text-sm">
+                      {data.categories.length === 1
+                        ? 'Category:'
+                        : 'Categories:'}
+                    </span>
+                    {data.categories.map(cat => (
+                      <CategoryBadge category={cat} key={cat} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Multiple Registries Display */}
+                {data.registries.length > 1 && (
+                  <div className="mt-6 flex flex-wrap items-center gap-2">
+                    <span className="text-muted-foreground text-sm">
+                      Also in:
+                    </span>
+                    {data.registries
+                      .filter(r => r.name !== data.registryName)
+                      .map(r => (
+                        <Link
+                          className="bg-muted/50 hover:bg-primary/10 text-muted-foreground hover:text-primary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200"
+                          key={`registry-${r.name}`}
+                          search={{ registry: r.name }}
+                          to="/browse"
+                        >
+                          <svg
+                            className="h-3.5 w-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                            />
+                          </svg>
+                          {r.name}
+                        </Link>
+                      ))}
+                  </div>
+                )}
               </div>
 
               {/* View on GitHub Button - Enhanced */}
@@ -182,7 +232,7 @@ export function RepoDetail({ data }: RepoDetailProps) {
             </div>
             <div>
               <h2 className="font-display text-foreground text-2xl font-bold">
-                Also in &quot;{data.category}&quot;
+                Related Repositories
               </h2>
               <p className="text-muted-foreground mt-1 text-sm">
                 Related repositories you might find interesting
@@ -212,6 +262,24 @@ export function RepoDetail({ data }: RepoDetailProps) {
                         {repo.owner}
                       </p>
                     )}
+                    {/* Categories badges */}
+                    {repo.categories.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {repo.categories.slice(0, 2).map(cat => (
+                          <span
+                            className="bg-muted/70 text-muted-foreground rounded-full px-2 py-0.5 text-[10px]"
+                            key={cat}
+                          >
+                            {cat}
+                          </span>
+                        ))}
+                        {repo.categories.length > 2 && (
+                          <span className="bg-muted/70 text-muted-foreground rounded-full px-2 py-0.5 text-[10px]">
+                            +{repo.categories.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -238,6 +306,17 @@ export function RepoDetail({ data }: RepoDetailProps) {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Badge component for displaying categories
+ */
+function CategoryBadge({ category }: { category: string }) {
+  return (
+    <span className="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors duration-200">
+      {category}
+    </span>
   )
 }
 

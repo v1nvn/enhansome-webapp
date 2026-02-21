@@ -135,20 +135,28 @@ export async function fetchMetadataHandler(
     // Get all registry metadata
     const metadataList = await getRegistryMetadata(db)
 
-    // Get categories for each registry
+    // Get categories for each registry via junction table
+    // Categories are stored as JSON arrays, need to parse and deduplicate
     const categoryMap = new Map<string, string[]>()
     for (const metadata of metadataList) {
-      const categories = await db
-        .selectFrom('registry_items')
-        .select('category')
-        .distinct()
+      const rows = await db
+        .selectFrom('registry_repositories')
+        .select('categories')
         .where('registry_name', '=', metadata.registry_name)
-        .orderBy('category', 'asc')
         .execute()
-      categoryMap.set(
-        metadata.registry_name,
-        categories.map(c => c.category),
-      )
+
+      // Parse all categories and deduplicate
+      const allCategories = new Set<string>()
+      for (const row of rows) {
+        try {
+          const cats = JSON.parse(row.categories) as string[]
+          cats.forEach(c => allCategories.add(c))
+        } catch {
+          // Skip invalid JSON
+        }
+      }
+
+      categoryMap.set(metadata.registry_name, Array.from(allCategories).sort())
     }
 
     // Get stats for each registry
@@ -325,7 +333,7 @@ export interface RegistryDetail {
   source_repository: string
   title: string
   topRepos: {
-    category: string
+    categories: string[]
     description: null | string
     language: null | string
     name: string
@@ -380,15 +388,18 @@ export interface FetchRepoDetailInput {
 }
 
 export interface RepoDetail {
-  category: string
+  categories: string[]
   description: null | string
   language: null | string
   lastCommit: null | string
   name: string
   owner: string
+  registries: {
+    name: string
+  }[]
   registryName: string
   relatedRepos: {
-    category: string
+    categories: string[]
     name: string
     owner: null | string
     stars: number
@@ -438,7 +449,6 @@ import { type FilterPreset, presetToSearchParams } from './filter-presets'
 
 export interface SearchParams {
   archived?: boolean
-  category?: string
   cursor?: number
   dateFrom?: string
   language?: string
@@ -452,7 +462,7 @@ export interface SearchParams {
 
 export interface SearchResult {
   data: (RegistryItem & {
-    category: string
+    categories: string[]
     id: number
     qualityScore?: number
     registry: string
@@ -473,7 +483,6 @@ export async function searchRegistryItemsHandler(
     // Execute search with defaults and preset params merged
     const results = await searchRegistryItems(db, {
       archived: data.archived ?? presetParams.archived,
-      category: data.category,
       cursor: data.cursor,
       language: data.language,
       limit: data.limit ?? 20,
@@ -516,7 +525,6 @@ export const searchInfiniteQueryOptions = (
     queryKey: [
       'search',
       baseParams.q,
-      baseParams.category,
       baseParams.language,
       baseParams.registryName,
       baseParams.sortBy,
@@ -555,16 +563,10 @@ export async function fetchCategoriesHandler(
 ): Promise<Category[]> {
   console.info('Fetching categories...', data)
   try {
-    // Get categories with counts
+    // Get all rows with categories JSON
     let query = db
-      .selectFrom('registry_items')
-      .select([
-        'registry_name',
-        'category',
-        db.fn.count<number>('id').as('count'),
-      ])
-      .groupBy(['registry_name', 'category'])
-      .orderBy('category', 'asc')
+      .selectFrom('registry_repositories')
+      .select(['registry_name', 'categories'])
 
     if (data.registry) {
       query = query.where('registry_name', '=', data.registry)
@@ -572,13 +574,35 @@ export async function fetchCategoriesHandler(
 
     const results = await query.execute()
 
+    // Aggregate categories from JSON arrays
+    const categoryMap = new Map<string, number>()
+
+    for (const row of results) {
+      let categoryList: string[] = []
+      try {
+        categoryList = JSON.parse(row.categories) as string[]
+      } catch {
+        continue
+      }
+
+      for (const category of categoryList) {
+        const key = `${row.registry_name}::${category}`
+        categoryMap.set(key, (categoryMap.get(key) || 0) + 1)
+      }
+    }
+
     // Transform to a more usable format
-    const categories: Category[] = results.map(row => ({
-      category: row.category,
-      count: row.count,
-      key: `${row.registry_name}::${row.category}`,
-      registry: row.registry_name,
-    }))
+    const categories: Category[] = Array.from(categoryMap.entries())
+      .map(([key, count]) => {
+        const [registry, category] = key.split('::')
+        return {
+          category,
+          count,
+          key,
+          registry,
+        }
+      })
+      .sort((a, b) => a.category.localeCompare(b.category))
 
     return categories
   } catch (error) {
@@ -963,7 +987,7 @@ export interface FetchUseCaseItemsInput {
 }
 
 export interface UseCaseItem {
-  category: string
+  categories: string[]
   description: null | string
   id: number
   language: null | string

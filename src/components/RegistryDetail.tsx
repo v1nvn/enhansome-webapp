@@ -484,12 +484,24 @@ function TopReposTab({
                         {repo.owner}
                       </span>
                     )}
-                    {repo.category && (
+                    {repo.categories.length > 0 && (
                       <>
                         <span className="text-muted-foreground/30">•</span>
-                        <span className="bg-muted/50 text-muted-foreground border-border/40 rounded-md border px-2.5 py-1 text-xs font-medium">
-                          {repo.category}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          {repo.categories.slice(0, 2).map(cat => (
+                            <span
+                              className="bg-muted/50 text-muted-foreground border-border/40 rounded-md border px-2.5 py-1 text-xs font-medium"
+                              key={cat}
+                            >
+                              {cat}
+                            </span>
+                          ))}
+                          {repo.categories.length > 2 && (
+                            <span className="text-muted-foreground/60 text-xs">
+                              +{repo.categories.length - 2}
+                            </span>
+                          )}
+                        </div>
                       </>
                     )}
                   </div>
