@@ -67,33 +67,35 @@ export function CompareDrawer({
   return (
     <>
       {/* Backdrop */}
-      <div
-        aria-hidden="true"
-        className="bg-background/60 fixed inset-0 z-40 backdrop-blur-sm"
+      <button
+        aria-label="Close comparison"
+        className="bg-background/60 duration-250 fixed inset-0 z-40 cursor-pointer backdrop-blur-sm transition-opacity"
         onClick={onClose}
-        role="presentation"
-        tabIndex={-1}
+        type="button"
       />
 
-      {/* Drawer - Desktop: right side panel, Mobile: full screen modal */}
-      <div className="bg-card fixed bottom-0 right-0 z-50 flex h-full w-full flex-col shadow-2xl md:h-screen md:w-[600px] lg:w-[800px]">
+      {/* Drawer Panel */}
+      <div className="bg-card fixed bottom-0 right-0 z-50 h-full w-full shadow-2xl transition-transform duration-300 ease-out md:h-screen md:w-[600px] lg:w-[800px]">
         {/* Header */}
-        <div className="border-border flex items-center justify-between border-b px-4 py-4 sm:px-6">
-          <h2 className="font-display text-xl font-semibold">
-            Compare {items.length} {items.length === 1 ? 'Item' : 'Items'}
-          </h2>
+        <div className="border-border/50 flex items-center justify-between border-b px-6 py-5">
+          <div>
+            <h2 className="font-display text-xl font-semibold">Comparison</h2>
+            <p className="text-muted-foreground mt-0.5 text-sm">
+              {items.length} {items.length === 1 ? 'item' : 'items'} selected
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <button
-              className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-xl px-4 py-2 text-sm font-medium transition-all"
               onClick={onClearAll}
               type="button"
             >
-              <RotateCcw className="mr-1 inline h-4 w-4" />
-              Clear All
+              <RotateCcw className="mr-1.5 inline h-4 w-4" />
+              Clear
             </button>
             <button
               aria-label="Close"
-              className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg p-2 transition-colors"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-xl p-2.5 transition-all"
               onClick={onClose}
               type="button"
             >
@@ -103,8 +105,8 @@ export function CompareDrawer({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {/* Comparison Grid */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Comparison Cards Grid */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {items.map(item => {
               const itemKey = getItemKey(item)
@@ -114,15 +116,32 @@ export function CompareDrawer({
                   : null
 
               return (
-                <div
-                  className="border-border bg-muted/20 rounded-lg border p-4"
-                  key={itemKey}
-                >
-                  {/* Remove button */}
-                  <div className="mb-3 flex justify-end">
+                <div className="bg-muted/20 rounded-2xl p-5" key={itemKey}>
+                  {/* Header with remove button */}
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      {repoDetailLink ? (
+                        <Link
+                          className="font-display text-foreground hover:text-primary block text-lg font-semibold leading-tight transition-colors"
+                          onClick={onClose}
+                          to={repoDetailLink}
+                        >
+                          {item.title}
+                        </Link>
+                      ) : (
+                        <h3 className="font-display text-foreground text-lg font-semibold leading-tight">
+                          {item.title}
+                        </h3>
+                      )}
+                      {item.description && (
+                        <p className="text-muted-foreground mt-1.5 line-clamp-2 text-sm leading-relaxed">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
                     <button
                       aria-label={`Remove ${item.title}`}
-                      className="text-muted-foreground hover:bg-muted hover:text-destructive rounded-full p-1.5 transition-colors"
+                      className="text-muted-foreground hover:bg-muted hover:text-destructive flex-shrink-0 rounded-xl p-2 transition-all"
                       onClick={() => {
                         onRemove(itemKey)
                       }}
@@ -132,31 +151,16 @@ export function CompareDrawer({
                     </button>
                   </div>
 
-                  {/* Title */}
-                  {repoDetailLink ? (
-                    <Link
-                      className="font-display text-foreground hover:text-primary block text-lg font-semibold leading-tight transition-colors"
-                      onClick={onClose}
-                      to={repoDetailLink}
-                    >
-                      {item.title}
-                    </Link>
-                  ) : (
-                    <h3 className="font-display text-foreground text-lg font-semibold leading-tight">
-                      {item.title}
-                    </h3>
-                  )}
-
-                  {/* Metadata Grid */}
-                  <div className="mt-4 space-y-3">
+                  {/* Metadata */}
+                  <div className="space-y-3">
                     {/* Stars */}
                     {item.repo_info?.stars !== undefined && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-xs font-semibold uppercase">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
                           Stars
                         </span>
                         <div className="flex items-center gap-1.5 font-semibold text-amber-600 dark:text-amber-500">
-                          <Star className="h-3.5 w-3.5 fill-current" />
+                          <Star className="h-4 w-4 fill-current" />
                           <span className="font-mono text-sm">
                             {item.repo_info.stars.toLocaleString()}
                           </span>
@@ -166,11 +170,11 @@ export function CompareDrawer({
 
                     {/* Language */}
                     {item.repo_info?.language && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-xs font-semibold uppercase">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
                           Language
                         </span>
-                        <span className="rounded-sm bg-indigo-100 px-2 py-0.5 font-mono text-xs font-medium text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                        <span className="rounded-lg bg-indigo-100/80 px-2.5 py-1 font-mono text-xs font-medium text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
                           {item.repo_info.language}
                         </span>
                       </div>
@@ -178,12 +182,12 @@ export function CompareDrawer({
 
                     {/* Last Updated */}
                     {item.repo_info?.last_commit && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-xs font-semibold uppercase">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
                           Updated
                         </span>
-                        <div className="text-muted-foreground flex items-center gap-1 font-mono text-xs">
-                          <Calendar className="h-3 w-3" />
+                        <div className="text-muted-foreground flex items-center gap-1.5 font-mono text-xs">
+                          <Calendar className="h-3.5 w-3.5" />
                           <span>{formatDate(item.repo_info.last_commit)}</span>
                         </div>
                       </div>
@@ -191,8 +195,8 @@ export function CompareDrawer({
 
                     {/* License */}
                     {item.license && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-xs font-semibold uppercase">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
                           License
                         </span>
                         <span className="font-mono text-xs">
@@ -203,8 +207,8 @@ export function CompareDrawer({
 
                     {/* Complexity */}
                     {item.complexity && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-xs font-semibold uppercase">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
                           Complexity
                         </span>
                         <ComplexityBadge complexity={item.complexity} />
@@ -212,8 +216,8 @@ export function CompareDrawer({
                     )}
 
                     {/* Bundle Size */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground text-xs font-semibold uppercase">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
                         Bundle Size
                       </span>
                       <span className="text-muted-foreground font-mono text-xs">
@@ -230,37 +234,17 @@ export function CompareDrawer({
                       </div>
                     )}
 
-                    {/* Pros/Cons Section (placeholder) */}
-                    <div className="border-border/50 mt-4 space-y-2 border-t pt-4">
-                      <div>
-                        <span className="text-muted-foreground text-xs font-semibold uppercase">
-                          Pros
-                        </span>
-                        <p className="text-muted-foreground mt-1 text-xs italic">
-                          Community feedback pending
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs font-semibold uppercase">
-                          Cons
-                        </span>
-                        <p className="text-muted-foreground mt-1 text-xs italic">
-                          Community feedback pending
-                        </p>
-                      </div>
-                    </div>
-
                     {/* GitHub Link */}
                     {item.repo_info?.owner && item.repo_info.repo && (
                       <div className="pt-3">
                         <a
-                          className="bg-muted hover:bg-muted/80 text-foreground inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-sm border px-3 py-2 text-xs font-semibold transition-all"
+                          className="bg-muted hover:bg-muted/80 text-foreground border-border/30 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all"
                           href={`https://github.com/${item.repo_info.owner}/${item.repo_info.repo}`}
                           rel="noopener noreferrer"
                           target="_blank"
                         >
                           <span>View on GitHub</span>
-                          <ExternalLink className="h-3 w-3" />
+                          <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       </div>
                     )}
@@ -272,10 +256,16 @@ export function CompareDrawer({
 
           {/* Empty slots indicator */}
           {items.length < 4 && (
-            <div className="mt-6 text-center">
+            <div className="bg-muted/10 mt-8 rounded-2xl p-6 text-center">
               <p className="text-muted-foreground text-sm">
-                You can compare up to {4 - items.length} more{' '}
-                {4 - items.length === 1 ? 'item' : 'items'}
+                You can compare up to{' '}
+                <span className="text-foreground font-semibold">
+                  {4 - items.length}
+                </span>{' '}
+                more {4 - items.length === 1 ? 'item' : 'items'}
+              </p>
+              <p className="text-muted-foreground mt-1 text-xs">
+                Select items from the grid to add them to comparison
               </p>
             </div>
           )}
