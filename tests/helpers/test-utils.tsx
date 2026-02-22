@@ -3,7 +3,6 @@ import {
   RenderOptions,
   screen,
   waitFor,
-  within,
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {
@@ -50,7 +49,7 @@ function render(
 }
 
 // Export commonly used testing library functions
-export { render, screen, waitFor, within }
+export { render, screen, waitFor }
 
 // Mock data generators
 export const createMockRegistryItem = (overrides = {}) => ({
@@ -68,7 +67,7 @@ export const createMockRegistryItem = (overrides = {}) => ({
   ...overrides,
 })
 
-export const createMockRegistrySection = (overrides = {}) => ({
+const createMockRegistrySection = (overrides = {}) => ({
   description: 'Test section description',
   items: [createMockRegistryItem()],
   title: 'Test Section',

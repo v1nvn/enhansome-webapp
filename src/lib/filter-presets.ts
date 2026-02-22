@@ -1,10 +1,7 @@
-import type { FilterValues } from '@/components/SearchFilters'
-
 export type FilterPreset = 'active' | 'fresh' | 'popular' | 'trending'
 
 export interface PresetConfig {
   description: string
-  filters: Partial<FilterValues> & { preset?: FilterPreset }
   label: string
 }
 
@@ -12,27 +9,19 @@ export const PRESET_CONFIGS: Record<FilterPreset, PresetConfig> = {
   trending: {
     label: 'Trending',
     description: 'Updated < 7 days, sorted by stars',
-    filters: { preset: 'trending' }, // Date filtering handled in search
   },
   popular: {
     label: 'Popular',
     description: '1,000+ stars',
-    filters: { preset: 'popular' }, // Min stars handled in search
   },
   fresh: {
     label: 'Fresh',
     description: 'Updated < 3 months',
-    filters: { preset: 'fresh' },
   },
   active: {
     label: 'Active',
     description: 'Updated < 6 months, not archived',
-    filters: { preset: 'active' },
   },
-}
-
-export function getPresetFilters(preset: FilterPreset): Partial<FilterValues> {
-  return PRESET_CONFIGS[preset].filters
 }
 
 export function presetToSearchParams(preset: FilterPreset | undefined): {

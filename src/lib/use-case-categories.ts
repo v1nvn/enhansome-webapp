@@ -28,7 +28,7 @@ export interface UseCaseCategoryWithCount {
 }
 
 // Predefined use case categories with keyword matching
-export const USE_CASE_CATEGORIES: Omit<UseCaseCategory, 'subcategories'>[] = [
+const USE_CASE_CATEGORIES: Omit<UseCaseCategory, 'subcategories'>[] = [
   {
     id: 'charts-visualization',
     title: 'Charts & Visualization',
@@ -337,45 +337,4 @@ export function getAllCategories(): UseCaseCategory[] {
  */
 export function getCategoryById(id: string): undefined | UseCaseCategory {
   return USE_CASE_CATEGORIES.find(cat => cat.id === id)
-}
-
-// Framework subfilters for category landing pages
-export const FRAMEWORK_OPTIONS = [
-  { id: 'all', label: 'All' },
-  { id: 'react', label: 'React' },
-  { id: 'vue', label: 'Vue' },
-  { id: 'svelte', label: 'Svelte' },
-  { id: 'angular', label: 'Angular' },
-  { id: 'solid', label: 'Solid' },
-  { id: 'qwik', label: 'Qwik' },
-]
-
-/**
- * Map languages to frameworks
- */
-export function languageToFramework(language: null | string): string {
-  if (!language) return 'all'
-  const lang = language.toLowerCase()
-
-  // React ecosystem
-  if (lang.includes('typescript') || lang.includes('javascript')) {
-    return 'react' // Default for TS/JS
-  }
-
-  // Vue
-  if (lang.includes('vue')) return 'vue'
-
-  // Svelte
-  if (lang.includes('svelte')) return 'svelte'
-
-  // Angular
-  if (lang.includes('angular')) return 'angular'
-
-  // Solid
-  if (lang.includes('solid')) return 'solid'
-
-  // Qwik
-  if (lang.includes('qwik')) return 'qwik'
-
-  return 'all'
 }

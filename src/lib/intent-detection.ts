@@ -434,27 +434,6 @@ export function extractIntent(query: string): DetectedIntent {
 }
 
 /**
- * Get all detectable categories for display
- */
-export function getAllDetectableCategories(): string[] {
-  return Object.keys(CATEGORY_PATTERNS).sort()
-}
-
-/**
- * Get all detectable frameworks for display
- */
-export function getAllDetectableFrameworks(): string[] {
-  return Object.keys(FRAMEWORK_PATTERNS).sort()
-}
-
-/**
- * Get all detectable languages for display
- */
-export function getAllDetectableLanguages(): string[] {
-  return Object.keys(LANGUAGE_PATTERNS).sort()
-}
-
-/**
  * Format a slug-like string into a readable label
  */
 function formatLabel(slug: string): string {
