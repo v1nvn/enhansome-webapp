@@ -4,68 +4,20 @@ import { getRequestHeader } from '@tanstack/react-start/server'
 // eslint-disable-next-line import-x/no-unresolved
 import { env } from 'cloudflare:workers'
 
-import type { RegistryFile, RegistryItem } from '@/types/registry'
+import type { RegistryItem } from '@/types/registry'
 
 import {
   createKysely,
-  getCategorySummaries,
-  getFeaturedRegistries,
   getLanguages,
-  getRegistryData,
   getRegistryDetail,
   getRegistryMetadata,
   getRegistryStats,
   getRepoDetail,
   getTrendingRegistries,
   getUseCaseCategoryCounts,
-  getUseCaseCategoryItems,
   searchRepos,
 } from './db'
 import { adminAuthMiddleware } from './middleware'
-
-// ============================================================================
-// Registry API
-// ============================================================================
-
-export async function fetchRegistryHandler(
-  db: ReturnType<typeof createKysely>,
-): Promise<RegistryFile[]> {
-  console.info('Fetching registry data...')
-  try {
-    // Get all registry metadata
-    const metadataList = await getRegistryMetadata(db)
-
-    // Fetch full data for each registry
-    const registries: RegistryFile[] = await Promise.all(
-      metadataList.map(async metadata => {
-        const data = await getRegistryData(db, metadata.registry_name)
-        return {
-          data,
-          name: metadata.registry_name,
-        }
-      }),
-    )
-
-    return registries
-  } catch (error) {
-    console.error('Registry API error:', error)
-    throw error
-  }
-}
-
-export const fetchRegistry = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    const db = createKysely(env.DB)
-    return fetchRegistryHandler(db)
-  },
-)
-
-export const registryQueryOptions = () =>
-  queryOptions<RegistryFile[]>({
-    queryFn: () => fetchRegistry(),
-    queryKey: ['registry'],
-    staleTime: 60 * 60 * 1000, // 1 hour
-  })
 
 // ============================================================================
 // Languages API
@@ -135,28 +87,35 @@ export async function fetchMetadataHandler(
     // Get all registry metadata
     const metadataList = await getRegistryMetadata(db)
 
-    // Get categories for each registry via junction table
-    // Categories are stored as JSON arrays, need to parse and deduplicate
-    const categoryMap = new Map<string, string[]>()
-    for (const metadata of metadataList) {
-      const rows = await db
-        .selectFrom('registry_repositories')
-        .select('categories')
-        .where('registry_name', '=', metadata.registry_name)
-        .execute()
+    // Single query for ALL registry_repositories to avoid N+1
+    const categoryRows = await db
+      .selectFrom('registry_repositories')
+      .select(['registry_name', 'categories'])
+      .execute()
 
-      // Parse all categories and deduplicate
-      const allCategories = new Set<string>()
-      for (const row of rows) {
-        try {
-          const cats = JSON.parse(row.categories) as string[]
-          cats.forEach(c => allCategories.add(c))
-        } catch {
-          // Skip invalid JSON
-        }
+    // Aggregate categories by registry_name in memory
+    const categoryMap = new Map<string, Set<string>>()
+    for (const row of categoryRows) {
+      let categories: string[] = []
+      try {
+        categories = JSON.parse(row.categories) as string[]
+      } catch {
+        // Skip invalid JSON
       }
 
-      categoryMap.set(metadata.registry_name, Array.from(allCategories).sort())
+      if (!categoryMap.has(row.registry_name)) {
+        categoryMap.set(row.registry_name, new Set<string>())
+      }
+      const registryCategories = categoryMap.get(row.registry_name)
+      if (registryCategories) {
+        categories.forEach(c => registryCategories.add(c))
+      }
+    }
+
+    // Convert Sets to sorted arrays
+    const sortedCategoryMap = new Map<string, string[]>()
+    for (const [registryName, categories] of categoryMap.entries()) {
+      sortedCategoryMap.set(registryName, Array.from(categories).sort())
     }
 
     // Get stats for each registry
@@ -169,7 +128,7 @@ export async function fetchMetadataHandler(
           source_repository: metadata.source_repository,
           stats: {
             ...stats,
-            categories: categoryMap.get(metadata.registry_name) ?? [],
+            categories: sortedCategoryMap.get(metadata.registry_name) ?? [],
           },
           title: metadata.title,
         }
@@ -195,48 +154,6 @@ export const metadataQueryOptions = () =>
     queryFn: () => fetchMetadata(),
     queryKey: ['registry-metadata'],
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
-  })
-
-// ============================================================================
-// Featured Registries API
-// ============================================================================
-
-export interface FeaturedRegistry {
-  description: string
-  editorial_badge: null | string
-  featured: number
-  featured_order: null | number
-  name: string
-  title: string
-  total_items: number
-  total_stars: number
-}
-
-export async function fetchFeaturedRegistriesHandler(
-  db: ReturnType<typeof createKysely>,
-): Promise<FeaturedRegistry[]> {
-  console.info('Fetching featured registries...')
-  try {
-    const featured = await getFeaturedRegistries(db)
-    return featured
-  } catch (error) {
-    console.error('Featured registries API error:', error)
-    throw error
-  }
-}
-
-export const fetchFeaturedRegistries = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  const db = createKysely(env.DB)
-  return fetchFeaturedRegistriesHandler(db)
-})
-
-export const featuredQueryOptions = () =>
-  queryOptions<FeaturedRegistry[]>({
-    queryFn: () => fetchFeaturedRegistries(),
-    queryKey: ['featured-registries'],
-    staleTime: 60 * 60 * 1000, // 1 hour
   })
 
 // ============================================================================
@@ -278,43 +195,6 @@ export const trendingQueryOptions = () =>
     queryFn: () => fetchTrendingRegistries(),
     queryKey: ['trending-registries'],
     staleTime: 30 * 60 * 1000, // 30 minutes
-  })
-
-// ============================================================================
-// Category Summaries API
-// ============================================================================
-
-export interface CategorySummary {
-  category: string
-  count: number
-  totalStars: number
-}
-
-export async function fetchCategorySummariesHandler(
-  db: ReturnType<typeof createKysely>,
-): Promise<CategorySummary[]> {
-  console.info('Fetching category summaries...')
-  try {
-    const summaries = await getCategorySummaries(db)
-    return summaries
-  } catch (error) {
-    console.error('Category summaries API error:', error)
-    throw error
-  }
-}
-
-export const fetchCategorySummaries = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    const db = createKysely(env.DB)
-    return fetchCategorySummariesHandler(db)
-  },
-)
-
-export const categorySummariesQueryOptions = () =>
-  queryOptions<CategorySummary[]>({
-    queryFn: () => fetchCategorySummaries(),
-    queryKey: ['category-summaries'],
-    staleTime: 60 * 60 * 1000, // 1 hour
   })
 
 // ============================================================================
@@ -540,95 +420,6 @@ export const searchInfiniteQueryOptions = (
     getNextPageParam: lastPage => lastPage.nextCursor,
     staleTime: 5 * 60 * 1000, // 5 minutes
     placeholderData: previousData => previousData, // Keep previous data while loading
-  })
-
-// ============================================================================
-// Categories API
-// ============================================================================
-
-export interface Category {
-  category: string
-  count: number
-  key: string
-  registry: string
-}
-
-export interface FetchCategoriesInput {
-  registry?: string
-}
-
-export async function fetchCategoriesHandler(
-  db: ReturnType<typeof createKysely>,
-  data: FetchCategoriesInput,
-): Promise<Category[]> {
-  console.info('Fetching categories...', data)
-  try {
-    // Get all rows with categories JSON
-    let query = db
-      .selectFrom('registry_repositories')
-      .select(['registry_name', 'categories'])
-
-    if (data.registry) {
-      query = query.where('registry_name', '=', data.registry)
-    }
-
-    const results = await query.execute()
-
-    // Aggregate categories from JSON arrays
-    const categoryMap = new Map<string, number>()
-
-    for (const row of results) {
-      let categoryList: string[] = []
-      try {
-        categoryList = JSON.parse(row.categories) as string[]
-      } catch {
-        continue
-      }
-
-      for (const category of categoryList) {
-        const key = `${row.registry_name}::${category}`
-        categoryMap.set(key, (categoryMap.get(key) || 0) + 1)
-      }
-    }
-
-    // Transform to a more usable format
-    const categories: Category[] = Array.from(categoryMap.entries())
-      .map(([key, count]) => {
-        const [registry, category] = key.split('::')
-        return {
-          category,
-          count,
-          key,
-          registry,
-        }
-      })
-      .sort((a, b) => a.category.localeCompare(b.category))
-
-    return categories
-  } catch (error) {
-    console.error('Categories API error:', error)
-    throw error
-  }
-}
-
-export function validateFetchCategoriesInput(
-  input: FetchCategoriesInput,
-): FetchCategoriesInput {
-  return input
-}
-
-export const fetchCategories = createServerFn({ method: 'GET' })
-  .inputValidator(validateFetchCategoriesInput)
-  .handler(async ({ data }) => {
-    const db = createKysely(env.DB)
-    return fetchCategoriesHandler(db, data)
-  })
-
-export const categoriesQueryOptions = (registryName?: string) =>
-  queryOptions<Category[]>({
-    queryFn: () => fetchCategories({ data: { registry: registryName } }),
-    queryKey: ['categories', registryName],
-    staleTime: 60 * 60 * 1000, // 1 hour
   })
 
 // ============================================================================
@@ -977,83 +768,4 @@ export const useCaseCategoriesQueryOptions = () =>
     queryFn: () => fetchUseCaseCategories(),
     queryKey: ['use-case-categories'],
     staleTime: 60 * 60 * 1000, // 1 hour
-  })
-
-export interface FetchUseCaseItemsInput {
-  categoryId: string
-  framework?: string
-  limit?: number
-  offset?: number
-}
-
-export interface UseCaseItem {
-  categories: string[]
-  description: null | string
-  id: number
-  language: null | string
-  registry: string
-  repo_info?: {
-    archived: boolean
-    language: null | string
-    last_commit: string
-    owner: string
-    repo: string
-    stars: number
-  }
-  stars: number
-  title: string
-}
-
-export async function fetchUseCaseItemsHandler(
-  db: ReturnType<typeof createKysely>,
-  data: FetchUseCaseItemsInput,
-): Promise<{
-  data: UseCaseItem[]
-  hasMore: boolean
-  total: number
-}> {
-  console.info('Fetching use case items...', data)
-  try {
-    const items = await getUseCaseCategoryItems(db, data.categoryId, {
-      framework: data.framework,
-      limit: data.limit || 50,
-      offset: data.offset || 0,
-    })
-
-    // Get total count for the category
-    const allItems = await getUseCaseCategoryItems(db, data.categoryId, {
-      framework: data.framework,
-      limit: 10000, // High limit to get all for counting
-    })
-
-    return {
-      data: items,
-      hasMore: items.length === (data.limit || 50),
-      total: allItems.length,
-    }
-  } catch (error) {
-    console.error('Use case items API error:', error)
-    throw error
-  }
-}
-
-export function validateFetchUseCaseItemsInput(
-  input: FetchUseCaseItemsInput,
-): FetchUseCaseItemsInput {
-  return input
-}
-
-export const fetchUseCaseItems = createServerFn({ method: 'GET' })
-  .inputValidator(validateFetchUseCaseItemsInput)
-  .handler(async ({ data }) => {
-    const db = createKysely(env.DB)
-    return fetchUseCaseItemsHandler(db, data)
-  })
-
-// eslint-disable-next-line @eslint-react/no-unnecessary-use-prefix
-export const useCaseItemsQueryOptions = (params: FetchUseCaseItemsInput) =>
-  queryOptions({
-    queryFn: () => fetchUseCaseItems({ data: params }),
-    queryKey: ['use-case-items', params],
-    staleTime: 30 * 60 * 1000, // 30 minutes
   })

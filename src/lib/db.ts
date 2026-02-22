@@ -989,7 +989,8 @@ export async function searchRepos(
   }
 
   // Execute the query to get all results (may have duplicates for multi-registry repos)
-  const allResults = await mainQuery.execute()
+  // Limit to 500 to prevent fetching excessive results
+  const allResults = await mainQuery.limit(500).execute()
 
   // Deduplicate by repository id and aggregate registries
   interface DataRowWithRegistry {

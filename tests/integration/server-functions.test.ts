@@ -7,17 +7,12 @@ import { applyD1Migrations, env } from 'cloudflare:test'
 
 import { createKysely } from '@/lib/db'
 import {
-  fetchCategoriesHandler,
-  fetchCategorySummariesHandler,
-  fetchFeaturedRegistriesHandler,
   fetchLanguagesHandler,
   fetchMetadataHandler,
   fetchRegistryDetailHandler,
-  fetchRegistryHandler,
   fetchRepoDetailHandler,
   fetchTrendingRegistriesHandler,
   searchReposHandler,
-  validateFetchCategoriesInput,
   validateFetchLanguagesInput,
   validateFetchRegistryDetailInput,
   validateFetchRepoDetailInput,
@@ -198,39 +193,6 @@ describe('Server Function Handlers', () => {
     await seedTestData(db)
   })
 
-  describe('fetchRegistryHandler', () => {
-    it('should return all registries with their data', async () => {
-      const db = createKysely(env.DB)
-      const result = await fetchRegistryHandler(db)
-
-      expect(Array.isArray(result)).toBe(true)
-      expect(result).toHaveLength(2)
-
-      // Check Go registry
-      const goRegistry = result.find(r => r.name === 'go')
-      expect(goRegistry).toBeDefined()
-      expect(goRegistry?.data.items).toHaveLength(2) // 2 categories: Web Frameworks, Testing
-
-      // Check Python registry
-      const pythonRegistry = result.find(r => r.name === 'python')
-      expect(pythonRegistry).toBeDefined()
-      expect(pythonRegistry?.data.items).toHaveLength(1) // 1 category: Web Frameworks
-    })
-
-    it('should return empty array when no registries exist', async () => {
-      const db = createKysely(env.DB)
-      // Need to delete in order due to foreign key constraints
-      await db.deleteFrom('registry_featured').execute()
-      await db.deleteFrom('registry_repositories').execute()
-      await db.deleteFrom('repositories').execute()
-      await db.deleteFrom('registry_metadata').execute()
-
-      const result = await fetchRegistryHandler(db)
-
-      expect(result).toHaveLength(0)
-    })
-  })
-
   describe('fetchMetadataHandler', () => {
     it('should return registry metadata with stats', async () => {
       const db = createKysely(env.DB)
@@ -309,70 +271,6 @@ describe('Server Function Handlers', () => {
     it('should handle empty input', () => {
       const input = {}
       const result = validateFetchLanguagesInput(input)
-
-      expect(result).toEqual(input)
-    })
-  })
-
-  describe('fetchCategoriesHandler', () => {
-    it('should return all categories with counts', async () => {
-      const db = createKysely(env.DB)
-      const result = await fetchCategoriesHandler(db, {})
-
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
-
-      // Check category structure
-      const category = result[0]
-      expect(category).toBeDefined()
-      expect(category).toHaveProperty('key')
-      expect(category).toHaveProperty('registry')
-      expect(category).toHaveProperty('category')
-      expect(category).toHaveProperty('count')
-
-      // Check specific category
-      const goWebFrameworks = result.find(
-        c => c.registry === 'go' && c.category === 'Web Frameworks',
-      )
-      expect(goWebFrameworks).toBeDefined()
-      expect(goWebFrameworks?.count).toBe(2)
-
-      const goTesting = result.find(
-        c => c.registry === 'go' && c.category === 'Testing',
-      )
-      expect(goTesting).toBeDefined()
-      expect(goTesting?.count).toBe(1)
-    })
-
-    it('should filter categories by registry parameter', async () => {
-      const db = createKysely(env.DB)
-      const result = await fetchCategoriesHandler(db, { registry: 'python' })
-
-      expect(result.every(c => c.registry === 'python')).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
-    })
-
-    it('should return empty array for non-existent registry', async () => {
-      const db = createKysely(env.DB)
-      const result = await fetchCategoriesHandler(db, {
-        registry: 'nonexistent',
-      })
-
-      expect(result).toHaveLength(0)
-    })
-  })
-
-  describe('validateFetchCategoriesInput', () => {
-    it('should pass through valid input', () => {
-      const input = { registry: 'go' }
-      const result = validateFetchCategoriesInput(input)
-
-      expect(result).toEqual(input)
-    })
-
-    it('should handle empty input', () => {
-      const input = {}
-      const result = validateFetchCategoriesInput(input)
 
       expect(result).toEqual(input)
     })
@@ -586,35 +484,6 @@ describe('Server Function Handlers', () => {
     })
   })
 
-  describe('fetchFeaturedRegistriesHandler', () => {
-    it('should return featured registries with metadata', async () => {
-      const db = createKysely(env.DB)
-      const result = await fetchFeaturedRegistriesHandler(db)
-
-      expect(Array.isArray(result)).toBe(true)
-      expect(result).toHaveLength(2)
-
-      // Check Go registry
-      const goRegistry = result.find(r => r.name === 'go')
-      expect(goRegistry).toBeDefined()
-      expect(goRegistry?.title).toBe('Awesome Go')
-      expect(goRegistry?.editorial_badge).toBe('editors-choice')
-
-      // Check Python registry
-      const pythonRegistry = result.find(r => r.name === 'python')
-      expect(pythonRegistry).toBeDefined()
-      expect(pythonRegistry?.editorial_badge).toBe('trending')
-    })
-
-    it('should return empty array when no featured registries exist', async () => {
-      const db = createKysely(env.DB)
-      await db.deleteFrom('registry_featured').execute()
-
-      const result = await fetchFeaturedRegistriesHandler(db)
-      expect(result).toHaveLength(0)
-    })
-  })
-
   describe('fetchTrendingRegistriesHandler', () => {
     it('should return trending registries ordered by stars', async () => {
       const db = createKysely(env.DB)
@@ -644,29 +513,6 @@ describe('Server Function Handlers', () => {
       await db.deleteFrom('registry_metadata').execute()
 
       const result = await fetchTrendingRegistriesHandler(db)
-      expect(result).toHaveLength(0)
-    })
-  })
-
-  describe('fetchCategorySummariesHandler', () => {
-    it('should return category summaries with counts', async () => {
-      const db = createKysely(env.DB)
-      const result = await fetchCategorySummariesHandler(db)
-
-      expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThan(0)
-
-      // Check Web Frameworks category
-      const webFrameworks = result.find(s => s.category === 'Web Frameworks')
-      expect(webFrameworks).toBeDefined()
-      expect(webFrameworks?.count).toBe(4)
-    })
-
-    it('should return empty array for empty database', async () => {
-      const db = createKysely(env.DB)
-      await db.deleteFrom('registry_repositories').execute()
-
-      const result = await fetchCategorySummariesHandler(db)
       expect(result).toHaveLength(0)
     })
   })
