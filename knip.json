@@ -1,5 +1,11 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "tags": ["-lintignore"],
-  "vite": { "config": [] }
+  "vite": { "config": [] },
+  "entry": [
+    "src/routes/**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}",
+    "src/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}"
+  ],
+  "project": ["**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}!"]
+
 }

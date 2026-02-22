@@ -48,11 +48,6 @@ export interface IndexingLatestTable {
 }
 
 /**
- * Parsed categories from JSON array
- */
-export type ParsedCategories = string[]
-
-/**
  * Registry featured table schema
  */
 export interface RegistryFeaturedTable {

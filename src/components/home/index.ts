@@ -1,4 +1,3 @@
-export { CompareDrawer } from '../CompareDrawer'
 export { FeaturedItems } from './FeaturedItems'
 export { LanguagePills } from './LanguagePills'
 
