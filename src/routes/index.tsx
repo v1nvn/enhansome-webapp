@@ -1,22 +1,15 @@
 import { useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 
 import {
   EnhancedSearchBar,
   type EnhancedSearchBarFilters,
 } from '@/components/EnhancedSearchBar'
+import { FrameworkPills, UseCaseCards } from '@/components/home'
 import {
-  FeaturedItems,
-  LanguagePills,
-  TrendingRegistries,
-  UseCaseCards,
-} from '@/components/home'
-import {
-  featuredQueryOptions,
   metadataQueryOptions,
-  trendingQueryOptions,
   useCaseCategoriesQueryOptions,
 } from '@/lib/server-functions'
 
@@ -25,8 +18,6 @@ export const Route = createFileRoute('/')({
 
   loader: ({ context }) => {
     void context.queryClient.ensureQueryData(metadataQueryOptions())
-    void context.queryClient.ensureQueryData(trendingQueryOptions())
-    void context.queryClient.ensureQueryData(featuredQueryOptions())
     // eslint-disable-next-line react-hooks/rules-of-hooks
     void context.queryClient.ensureQueryData(useCaseCategoriesQueryOptions())
   },
@@ -81,36 +72,24 @@ function Home() {
         <form className="mt-10 flex justify-center" onSubmit={handleSearch}>
           <div className="w-full max-w-2xl">
             <EnhancedSearchBar
-              enableIntentDetection={false}
+              enableIntentDetection={true}
               filters={filters}
               onFiltersChange={handleFiltersChange}
               onQueryChange={setSearchQuery}
-              placeholder="Search packages, categories..."
+              placeholder="Search packages, frameworks, categories..."
             />
           </div>
         </form>
-
-        {/* Browse All Registries CTA */}
-        <div className="mt-8 flex justify-center">
-          <Link
-            className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex rounded-xl px-8 py-3 text-lg font-semibold shadow-md transition-all"
-            to="/browse"
-          >
-            Browse All Registries
-          </Link>
-        </div>
       </section>
 
       {/* Discovery Section */}
       <section className="mx-auto max-w-5xl px-4 pb-20 sm:px-6 lg:px-8">
-        <div className="space-y-16">
+        <div className="space-y-12">
           <UseCaseCards
             categories={useCaseCategories}
             onCategoryClick={handleCategoryClick}
           />
-          <TrendingRegistries />
-          <FeaturedItems />
-          <LanguagePills />
+          <FrameworkPills />
         </div>
       </section>
     </div>

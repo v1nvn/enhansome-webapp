@@ -11,9 +11,6 @@ import {
   type IntentSignal,
 } from '@/lib/intent-detection'
 
-import { ActiveFilterChips } from './ActiveFilterChips'
-import { FilterPresetBadge } from './FilterPresetBadge'
-
 export interface EnhancedSearchBarFilters {
   category?: string
   lang?: string
@@ -30,7 +27,7 @@ interface EnhancedSearchBarProps {
    */
   enableIntentDetection?: boolean
   filters: EnhancedSearchBarFilters
-  onFiltersChange: (filters: EnhancedSearchBarFilters) => void
+  onFiltersChange?: (filters: EnhancedSearchBarFilters) => void
   /**
    * Callback to get search intent (for results count display)
    */
@@ -48,8 +45,6 @@ interface EnhancedSearchBarProps {
   to?: string
 }
 
-const PRESETS: FilterPreset[] = ['trending', 'popular', 'fresh', 'active']
-
 export function EnhancedSearchBar({
   defaultValue = '',
   filters,
@@ -61,6 +56,8 @@ export function EnhancedSearchBar({
   onQueryChange,
   to = '/registry',
 }: EnhancedSearchBarProps) {
+  // onFiltersChange is used by parent for state management
+  void onFiltersChange
   const [query, setQuery] = useState(defaultValue)
   const [detectedSignals, setDetectedSignals] = useState<IntentSignal[]>([])
   const navigate = useNavigate()
@@ -97,34 +94,6 @@ export function EnhancedSearchBar({
       search: trimmedQuery ? { q: trimmedQuery, ...filters } : { ...filters },
     })
   }
-
-  const handlePresetClick = (preset: FilterPreset) => {
-    const newFilters = {
-      ...filters,
-      preset: filters.preset === preset ? undefined : preset,
-    }
-    onFiltersChange(newFilters)
-    void navigate({
-      to,
-      search: { ...newFilters },
-    })
-  }
-
-  const handleRemoveFilter = (key: string) => {
-    const newFilters = { ...filters, [key]: undefined }
-    onFiltersChange(newFilters)
-    void navigate({
-      to,
-      search: { ...newFilters },
-    })
-  }
-
-  const handleClearAll = () => {
-    onFiltersChange({})
-    void navigate({ to })
-  }
-
-  const hasActiveFilters = Object.values(filters).some(v => v !== undefined)
 
   const handleRemoveSignal = (signal: IntentSignal) => {
     // Remove the signal from the query by reconstructing it
@@ -226,29 +195,6 @@ export function EnhancedSearchBar({
             </p>
           )}
         </div>
-      )}
-
-      {/* Preset Badges */}
-      <div className="flex flex-wrap gap-2">
-        {PRESETS.map(preset => (
-          <FilterPresetBadge
-            isActive={filters.preset === preset}
-            key={preset}
-            onClick={() => {
-              handlePresetClick(preset)
-            }}
-            preset={preset}
-          />
-        ))}
-      </div>
-
-      {/* Active Filter Chips */}
-      {hasActiveFilters && (
-        <ActiveFilterChips
-          filters={filters}
-          onClearAll={handleClearAll}
-          onRemoveFilter={handleRemoveFilter}
-        />
       )}
     </div>
   )

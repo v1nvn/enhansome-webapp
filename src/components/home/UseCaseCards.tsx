@@ -45,13 +45,14 @@ export function UseCaseCards({
           ◇
         </div>
         <h2 className="font-display text-foreground text-xl font-semibold">
-          Discover by Purpose
+          Start with a category
         </h2>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="scrollbar-hide flex gap-4 overflow-x-auto pb-2">
+        <style>{`.scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}.scrollbar-hide::-webkit-scrollbar{display:none}`}</style>
         {categories.map(category => (
           <button
-            className="bg-card duration-250 group relative w-full overflow-hidden rounded-xl p-5 text-left shadow-md transition-all hover:-translate-y-0.5 hover:shadow-xl"
+            className="bg-card duration-250 group relative flex w-[280px] shrink-0 overflow-hidden rounded-xl p-5 text-left shadow-md transition-all hover:-translate-y-0.5 hover:shadow-xl"
             key={category.id}
             onClick={() => {
               onCategoryClick(category.id)
