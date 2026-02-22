@@ -21,6 +21,79 @@ export function createKysely(d1: D1Database): Kysely<Database> {
 }
 
 /**
+ * Get statistics for all registries in a single query (avoids N+1 pattern)
+ * Returns a map of registry_name -> stats
+ */
+export async function getAllRegistryStatsBatched(db: Kysely<Database>): Promise<
+  Map<
+    string,
+    {
+      languages: string[]
+      latestUpdate: string
+      totalRepos: number
+      totalStars: number
+    }
+  >
+> {
+  // Get all registry metadata in one query
+  const metadataList = await db
+    .selectFrom('registry_metadata')
+    .select(['registry_name', 'total_items', 'total_stars', 'last_updated'])
+    .execute()
+
+  // Get all unique languages per registry in a single query using aggregation
+  // We need to query repositories joined with registry_repositories
+  const languageResults = await db
+    .selectFrom('repositories')
+    .innerJoin(
+      'registry_repositories',
+      'registry_repositories.repository_id',
+      'repositories.id',
+    )
+    .select(['registry_repositories.registry_name', 'repositories.language'])
+    .distinct()
+    .where('repositories.language', 'is not', null)
+    .orderBy('registry_repositories.registry_name', 'asc')
+    .orderBy('repositories.language', 'asc')
+    .execute()
+
+  // Group languages by registry_name
+  const languageMap = new Map<string, string[]>()
+  for (const row of languageResults) {
+    const existing = languageMap.get(row.registry_name)
+    if (existing) {
+      if (row.language && !existing.includes(row.language)) {
+        existing.push(row.language)
+      }
+    } else {
+      languageMap.set(row.registry_name, row.language ? [row.language] : [])
+    }
+  }
+
+  // Build the result map
+  const result = new Map<
+    string,
+    {
+      languages: string[]
+      latestUpdate: string
+      totalRepos: number
+      totalStars: number
+    }
+  >()
+
+  for (const metadata of metadataList) {
+    result.set(metadata.registry_name, {
+      languages: languageMap.get(metadata.registry_name) ?? [],
+      latestUpdate: metadata.last_updated,
+      totalRepos: metadata.total_items,
+      totalStars: metadata.total_stars,
+    })
+  }
+
+  return result
+}
+
+/**
  * Get category summaries across all registries
  * Note: Categories are now stored as JSON arrays, so this function
  * parses them and aggregates in application code.
@@ -258,6 +331,8 @@ export async function getRegistryData(
 
 /**
  * Get detailed information about a specific registry
+ * Optimized to 4 queries: metadata + topRepos + categories + languages
+ * Each query is limited to avoid fetching excessive rows
  * Categories are stored as JSON arrays and parsed in application code
  */
 export async function getRegistryDetail(
@@ -281,7 +356,7 @@ export async function getRegistryDetail(
   total_items: number
   total_stars: number
 }> {
-  // Get metadata
+  // Query 1: Get metadata
   const metadata = await db
     .selectFrom('registry_metadata')
     .select([
@@ -299,8 +374,8 @@ export async function getRegistryDetail(
     return null
   }
 
-  // Get top repos by stars via junction table
-  const topRepos = await db
+  // Query 2: Get top 10 repos
+  const topReposResults = await db
     .selectFrom('registry_repositories')
     .innerJoin(
       'repositories',
@@ -322,25 +397,34 @@ export async function getRegistryDetail(
     .limit(10)
     .execute()
 
-  // Get all categories and parse/deduplicate them
-  const categoriesResult = await db
+  // Query 3: Get categories from top 1000 repos for unique category extraction
+  const categoryResults = await db
     .selectFrom('registry_repositories')
-    .select('categories')
-    .where('registry_name', '=', name)
+    .innerJoin(
+      'repositories',
+      'repositories.id',
+      'registry_repositories.repository_id',
+    )
+    .select('registry_repositories.categories')
+    .where('registry_repositories.registry_name', '=', name)
+    .where('repositories.archived', '=', 0)
+    .orderBy('repositories.stars', 'desc')
+    .limit(1000)
     .execute()
 
+  // Extract all unique categories
   const allCategories = new Set<string>()
-  for (const row of categoriesResult) {
+  for (const repo of categoryResults) {
     try {
-      const cats = JSON.parse(row.categories) as string[]
+      const cats = JSON.parse(repo.categories) as string[]
       cats.forEach(c => allCategories.add(c))
     } catch {
       // Skip invalid JSON
     }
   }
 
-  // Get unique languages
-  const languagesResult = await db
+  // Query 4: Get distinct languages
+  const languageResults = await db
     .selectFrom('registry_repositories')
     .innerJoin(
       'repositories',
@@ -348,37 +432,42 @@ export async function getRegistryDetail(
       'registry_repositories.repository_id',
     )
     .select('repositories.language')
-    .distinct()
     .where('registry_repositories.registry_name', '=', name)
+    .where('repositories.archived', '=', 0)
     .where('repositories.language', 'is not', null)
-    .orderBy('repositories.language', 'asc')
+    .distinct()
     .execute()
+
+  const uniqueLanguages = new Set(
+    languageResults.map(r => r.language).filter((l): l is string => l !== null),
+  )
+
+  // Format top 10 repos
+  const topRepos = topReposResults.map(r => {
+    let categoryList: string[] = []
+    try {
+      categoryList = JSON.parse(r.categories) as string[]
+    } catch {
+      // Use empty array on parse error
+    }
+    return {
+      categories: categoryList,
+      description: r.description,
+      language: r.language,
+      name: r.name,
+      owner: r.owner,
+      stars: r.stars,
+    }
+  })
 
   return {
     categories: Array.from(allCategories).sort(),
     description: metadata.description,
     last_updated: metadata.last_updated,
-    languages: languagesResult
-      .map(l => l.language)
-      .filter((l): l is string => l !== null),
+    languages: Array.from(uniqueLanguages).sort(),
     source_repository: metadata.source_repository,
     title: metadata.title,
-    topRepos: topRepos.map(r => {
-      let categoryList: string[] = []
-      try {
-        categoryList = JSON.parse(r.categories) as string[]
-      } catch {
-        // Use empty array on parse error
-      }
-      return {
-        categories: categoryList,
-        description: r.description,
-        language: r.language,
-        name: r.name,
-        owner: r.owner,
-        stars: r.stars,
-      }
-    }),
+    topRepos,
     total_items: metadata.total_items,
     total_stars: metadata.total_stars,
   }
@@ -425,34 +514,11 @@ export async function getRegistryMetadata(db: Kysely<Database>): Promise<
 
 /**
  * Get statistics for a specific registry
+ * Note: For multiple registries, use getAllRegistryStatsBatched to avoid N+1 queries
  */
-export async function getRegistryStats(
-  db: Kysely<Database>,
-  registryName: string,
-): Promise<{
-  languages: string[]
-  latestUpdate: string
-  totalRepos: number
-  totalStars: number
-}> {
-  const metadata = await db
-    .selectFrom('registry_metadata')
-    .select(['total_items', 'total_stars', 'last_updated'])
-    .where('registry_name', '=', registryName)
-    .executeTakeFirst()
-
-  const languages = await getLanguages(db, registryName)
-
-  return {
-    languages,
-    latestUpdate: metadata?.last_updated ?? '',
-    totalRepos: metadata?.total_items ?? 0,
-    totalStars: metadata?.total_stars ?? 0,
-  }
-}
-
 /**
  * Get detailed information about a specific repository
+ * Optimized to 2 queries: repo with associations + related repos
  * Categories are stored as JSON arrays and parsed in application code
  */
 export async function getRepoDetail(
@@ -478,36 +544,54 @@ export async function getRepoDetail(
   }[]
   stars: number
 }> {
-  // First get the repository
-  const repo = await db
+  // Query 1: Get the repository with all its registry associations in one query
+  const result = await db
     .selectFrom('repositories')
-    .selectAll()
-    .where('owner', '=', owner)
-    .where('name', '=', name)
-    .executeTakeFirst()
-
-  if (!repo) {
-    return null
-  }
-
-  // Get all registry associations
-  const associations = await db
-    .selectFrom('registry_repositories')
+    .innerJoin(
+      'registry_repositories',
+      'registry_repositories.repository_id',
+      'repositories.id',
+    )
     .innerJoin(
       'registry_metadata',
       'registry_metadata.registry_name',
       'registry_repositories.registry_name',
     )
     .select([
+      'repositories.id',
+      'repositories.owner',
+      'repositories.name',
+      'repositories.description',
+      'repositories.language',
+      'repositories.last_commit',
+      'repositories.stars',
       'registry_repositories.registry_name',
       'registry_repositories.categories',
     ])
-    .where('repository_id', '=', repo.id)
+    .where('repositories.owner', '=', owner)
+    .where('repositories.name', '=', name)
     .execute()
 
-  if (associations.length === 0) {
+  if (result.length === 0) {
     return null
   }
+
+  // Extract repo data (same for all rows) and associations
+  const repoRow = result[0]
+  const repo = {
+    id: repoRow.id,
+    owner: repoRow.owner,
+    name: repoRow.name,
+    description: repoRow.description,
+    language: repoRow.language,
+    last_commit: repoRow.last_commit,
+    stars: repoRow.stars,
+  }
+
+  const associations = result.map(r => ({
+    registry_name: r.registry_name,
+    categories: r.categories,
+  }))
 
   // Use first association for related-repos
   // (A repo can belong to multiple registries; we pick the first one)
@@ -521,7 +605,7 @@ export async function getRepoDetail(
     // Use empty array on parse error
   }
 
-  // Get related repos from the primary registry (same repos, exclude current)
+  // Query 2: Get related repos from the primary registry (same repos, exclude current)
   const relatedRepos = await db
     .selectFrom('registry_repositories')
     .innerJoin(

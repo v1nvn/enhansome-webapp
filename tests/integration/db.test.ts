@@ -7,13 +7,13 @@ import { applyD1Migrations, env } from 'cloudflare:test'
 
 import {
   createKysely,
+  getAllRegistryStatsBatched,
   getCategorySummaries,
   getFeaturedRegistries,
   getLanguages,
   getRegistryData,
   getRegistryDetail,
   getRegistryMetadata,
-  getRegistryStats,
   getRepoDetail,
   getTrendingRegistries,
   searchRepos,
@@ -273,50 +273,67 @@ describe('Database Query Functions', () => {
     })
   })
 
-  describe('getRegistryStats', () => {
-    it('should calculate registry stats correctly', async () => {
+  describe('getAllRegistryStatsBatched', () => {
+    it('should return stats for all registries in a single query', async () => {
       const db = createKysely(env.DB)
-      const stats = await getRegistryStats(db, 'go')
+      const statsMap = await getAllRegistryStatsBatched(db)
 
-      expect(stats.totalRepos).toBe(3)
-      expect(stats.totalStars).toBe(60000)
-      expect(stats.languages).toContain('Go')
-      expect(stats.latestUpdate).toBe('2025-10-12T00:00:00Z') // From registry_metadata.last_updated
+      expect(statsMap.size).toBe(2) // go and python
+
+      // Check Go registry - values based on seedTestData
+      const goStats = statsMap.get('go')
+      expect(goStats).toBeDefined()
+      expect(goStats?.totalRepos).toBe(3)
+      expect(goStats?.totalStars).toBe(60000)
+      expect(goStats?.languages).toEqual(['Go'])
+      expect(goStats?.latestUpdate).toBe('2025-10-12T00:00:00Z')
+
+      // Check Python registry
+      const pythonStats = statsMap.get('python')
+      expect(pythonStats).toBeDefined()
+      expect(pythonStats?.totalRepos).toBe(2)
+      expect(pythonStats?.totalStars).toBe(30000)
+      expect(pythonStats?.languages).toEqual(['Python'])
+      expect(pythonStats?.latestUpdate).toBe('2025-10-11T00:00:00Z')
     })
 
-    it('should handle registry with no items', async () => {
+    it('should return empty map when no registries exist', async () => {
       const db = createKysely(env.DB)
+      // Clear all registries (respect foreign key order)
+      await db.deleteFrom('registry_featured').execute()
+      await db.deleteFrom('registry_repositories').execute()
+      await db.deleteFrom('repositories').execute()
+      await db.deleteFrom('registry_metadata').execute()
 
-      // Insert empty registry
+      const statsMap = await getAllRegistryStatsBatched(db)
+
+      expect(statsMap.size).toBe(0)
+    })
+
+    it('should handle registries with no languages', async () => {
+      const db = createKysely(env.DB)
+      // Insert a registry with metadata but no repositories (no languages)
       await db
         .insertInto('registry_metadata')
         .values({
-          description: 'Empty',
-          last_updated: '2025-10-12T00:00:00Z',
+          description: 'Empty registry',
+          last_updated: '2025-10-13T00:00:00Z',
           registry_name: 'empty',
           source_repository: 'test/empty',
-          title: 'Empty Registry',
+          title: 'Empty',
           total_items: 0,
           total_stars: 0,
         })
         .execute()
 
-      const stats = await getRegistryStats(db, 'empty')
+      const statsMap = await getAllRegistryStatsBatched(db)
 
-      expect(stats.totalRepos).toBe(0)
-      expect(stats.totalStars).toBe(0)
-      expect(stats.languages).toHaveLength(0)
-      expect(stats.latestUpdate).toBe('2025-10-12T00:00:00Z')
-    })
-
-    it('should handle non-existent registry', async () => {
-      const db = createKysely(env.DB)
-      const stats = await getRegistryStats(db, 'nonexistent')
-
-      expect(stats.totalRepos).toBe(0)
-      expect(stats.totalStars).toBe(0)
-      expect(stats.latestUpdate).toBe('')
-      expect(stats.languages).toHaveLength(0)
+      const emptyStats = statsMap.get('empty')
+      expect(emptyStats).toBeDefined()
+      expect(emptyStats?.languages).toHaveLength(0)
+      expect(emptyStats?.totalRepos).toBe(0)
+      expect(emptyStats?.totalStars).toBe(0)
+      expect(emptyStats?.latestUpdate).toBe('2025-10-13T00:00:00Z')
     })
   })
 

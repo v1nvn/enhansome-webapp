@@ -8,10 +8,10 @@ import type { RegistryItem } from '@/types/registry'
 
 import {
   createKysely,
+  getAllRegistryStatsBatched,
   getLanguages,
   getRegistryDetail,
   getRegistryMetadata,
-  getRegistryStats,
   getRepoDetail,
   getTrendingRegistries,
   getUseCaseCategoryCounts,
@@ -118,21 +118,27 @@ export async function fetchMetadataHandler(
       sortedCategoryMap.set(registryName, Array.from(categories).sort())
     }
 
-    // Get stats for each registry
-    const registriesWithStats: RegistryMetadataWithStats[] = await Promise.all(
-      metadataList.map(async metadata => {
-        const stats = await getRegistryStats(db, metadata.registry_name)
+    // Get all stats in a single batched query (avoids N+1)
+    const allStats = await getAllRegistryStatsBatched(db)
+
+    // Combine metadata with stats and categories
+    const registriesWithStats: RegistryMetadataWithStats[] = metadataList.map(
+      metadata => {
+        const stats = allStats.get(metadata.registry_name)
         return {
           description: metadata.description,
           name: metadata.registry_name,
           source_repository: metadata.source_repository,
           stats: {
-            ...stats,
             categories: sortedCategoryMap.get(metadata.registry_name) ?? [],
+            languages: stats?.languages ?? [],
+            latestUpdate: stats?.latestUpdate ?? '',
+            totalRepos: stats?.totalRepos ?? 0,
+            totalStars: stats?.totalStars ?? 0,
           },
           title: metadata.title,
         }
-      }),
+      },
     )
 
     return registriesWithStats
