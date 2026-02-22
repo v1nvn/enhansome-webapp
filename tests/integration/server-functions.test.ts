@@ -16,7 +16,7 @@ import {
   fetchRegistryHandler,
   fetchRepoDetailHandler,
   fetchTrendingRegistriesHandler,
-  searchRegistryItemsHandler,
+  searchReposHandler,
   validateFetchCategoriesInput,
   validateFetchLanguagesInput,
   validateFetchRegistryDetailInput,
@@ -378,10 +378,10 @@ describe('Server Function Handlers', () => {
     })
   })
 
-  describe('searchRegistryItemsHandler', () => {
+  describe('searchReposHandler', () => {
     it('should return all items without filters', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, {})
+      const result = await searchReposHandler(db, {})
 
       expect(result).toHaveProperty('data')
       expect(result).toHaveProperty('total')
@@ -397,17 +397,17 @@ describe('Server Function Handlers', () => {
 
     it('should filter by registry parameter', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, {
+      const result = await searchReposHandler(db, {
         registryName: 'go',
       })
 
       expect(result.total).toBe(3)
-      expect(result.data.every(item => item.registry === 'go')).toBe(true)
+      expect(result.data.every(item => item.registries.includes('go'))).toBe(true)
     })
 
     it('should filter by language parameter', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, { language: 'Python' })
+      const result = await searchReposHandler(db, { language: 'Python' })
 
       // Flask is archived and archived defaults to false, so only Django is returned
       expect(result.total).toBe(1)
@@ -418,7 +418,7 @@ describe('Server Function Handlers', () => {
 
     it('should filter by minStars parameter', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, { minStars: 10000 })
+      const result = await searchReposHandler(db, { minStars: 10000 })
 
       // Gin (50000), Django (20000) - Flask is archived
       expect(result.total).toBe(2)
@@ -429,7 +429,7 @@ describe('Server Function Handlers', () => {
 
     it('should filter by archived parameter (false)', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, { archived: false })
+      const result = await searchReposHandler(db, { archived: false })
 
       expect(result.total).toBe(4) // All except Flask
       expect(
@@ -439,7 +439,7 @@ describe('Server Function Handlers', () => {
 
     it('should filter by archived parameter (true)', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, { archived: true })
+      const result = await searchReposHandler(db, { archived: true })
 
       // Flask is the only archived repo in our test data
       expect(result.total).toBe(1)
@@ -448,7 +448,7 @@ describe('Server Function Handlers', () => {
 
     it('should search by text query parameter', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, { q: 'framework' })
+      const result = await searchReposHandler(db, { q: 'framework' })
 
       // Note: Flask (which contains 'framework' in description) is archived and excluded by default
       expect(result.total).toBeGreaterThan(0)
@@ -463,7 +463,7 @@ describe('Server Function Handlers', () => {
 
     it('should sort by sortBy parameter (name)', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, { sortBy: 'name' })
+      const result = await searchReposHandler(db, { sortBy: 'name' })
 
       const titles = result.data.map(item => item.title)
       expect(titles[0]).toBe('Django') // Alphabetically first
@@ -471,7 +471,7 @@ describe('Server Function Handlers', () => {
 
     it('should sort by sortBy parameter (stars) - default', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, { sortBy: 'stars' })
+      const result = await searchReposHandler(db, { sortBy: 'stars' })
 
       expect(result.data[0]?.title).toBe('Gin') // Highest stars
       expect(result.data[0]?.repo_info?.stars).toBe(50000)
@@ -479,7 +479,7 @@ describe('Server Function Handlers', () => {
 
     it('should handle cursor-based pagination (first page)', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, {
+      const result = await searchReposHandler(db, {
         limit: 2,
       })
 
@@ -493,12 +493,12 @@ describe('Server Function Handlers', () => {
     it('should handle cursor-based pagination (second page)', async () => {
       const db = createKysely(env.DB)
       // First get the first page to get the cursor
-      const firstPage = await searchRegistryItemsHandler(db, {
+      const firstPage = await searchReposHandler(db, {
         limit: 2,
       })
 
       // Then get the second page using the cursor
-      const result = await searchRegistryItemsHandler(db, {
+      const result = await searchReposHandler(db, {
         cursor: firstPage.nextCursor,
         limit: 2,
       })
@@ -511,14 +511,14 @@ describe('Server Function Handlers', () => {
 
     it('should combine multiple query parameters', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, {
+      const result = await searchReposHandler(db, {
         language: 'Go',
         minStars: 5000,
         registryName: 'go',
       })
 
       expect(result.total).toBe(2) // Gin and Echo
-      expect(result.data.every(item => item.registry === 'go')).toBe(true)
+      expect(result.data.every(item => item.registries.includes('go'))).toBe(true)
       expect(
         result.data.every(item => item.repo_info?.language === 'Go'),
       ).toBe(true)
@@ -529,7 +529,7 @@ describe('Server Function Handlers', () => {
 
     it('should return empty results for non-existent registry', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, {
+      const result = await searchReposHandler(db, {
         registryName: 'nonexistent',
       })
 
@@ -539,7 +539,7 @@ describe('Server Function Handlers', () => {
 
     it('should handle zero minStars', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, { minStars: 0 })
+      const result = await searchReposHandler(db, { minStars: 0 })
 
       // Note: archived defaults to false, so Flask is excluded
       expect(result.total).toBe(4)
@@ -547,7 +547,7 @@ describe('Server Function Handlers', () => {
 
     it('should handle very high minStars filtering all items', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItemsHandler(db, { minStars: 100000 })
+      const result = await searchReposHandler(db, { minStars: 100000 })
 
       expect(result.total).toBe(0)
       expect(result.data).toHaveLength(0)

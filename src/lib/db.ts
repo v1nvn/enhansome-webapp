@@ -828,8 +828,11 @@ export async function getUseCaseCategoryItems(
 /**
  * Search registry items with filters
  * Categories are stored as JSON arrays and not filterable via SQL
+ *
+ * Returns unique repositories with all associated registries aggregated into an array.
+ * Uses GROUP_CONCAT to collect all registries for each repo in a single query.
  */
-export async function searchRegistryItems(
+export async function searchRepos(
   db: Kysely<Database>,
   params: {
     archived?: boolean
@@ -846,7 +849,7 @@ export async function searchRegistryItems(
     categories: string[]
     id: number
     qualityScore?: number
-    registry: string
+    registries: string[]
   })[]
   hasMore: boolean
   nextCursor?: number
@@ -863,94 +866,206 @@ export async function searchRegistryItems(
     sortBy = 'quality',
   } = params
 
-  // Start with repositories table (unique)
-  let query = db
-    .selectFrom('repositories')
-    .innerJoin(
-      'registry_repositories',
-      'registry_repositories.repository_id',
-      'repositories.id',
-    )
+  // Get total count (unique repos) using Kysely query builder
+  let countQuery = db
+    .selectFrom('repositories as r')
+    .innerJoin('registry_repositories as rr', 'rr.repository_id', 'r.id')
+    .select(eb => eb.fn.count('r.id').distinct().as('count'))
 
-  // Apply filters
   if (registryName) {
-    query = query.where(
-      'registry_repositories.registry_name',
-      '=',
-      registryName,
-    )
+    countQuery = countQuery.where('rr.registry_name', '=', registryName)
   }
   if (language) {
-    query = query.where('repositories.language', '=', language)
+    countQuery = countQuery.where('r.language', '=', language)
   }
   if (archived) {
-    query = query.where('repositories.archived', '=', 1)
+    countQuery = countQuery.where('r.archived', '=', 1)
   } else {
-    query = query.where('repositories.archived', '=', 0)
+    countQuery = countQuery.where('r.archived', '=', 0)
   }
   if (minStars) {
-    query = query.where('repositories.stars', '>=', minStars)
+    countQuery = countQuery.where('r.stars', '>=', minStars)
   }
   if (q) {
     const searchTerm = `%${q}%`
-    query = query.where(eb =>
+    countQuery = countQuery.where(eb =>
       eb.or([
-        eb('repositories.name', 'like', searchTerm),
-        eb('repositories.owner', 'like', searchTerm),
-        eb('repositories.description', 'like', searchTerm),
+        eb('r.name', 'like', searchTerm),
+        eb('r.owner', 'like', searchTerm),
+        eb('r.description', 'like', searchTerm),
       ]),
     )
   }
 
-  // Apply sorting
+  const countResult = await countQuery.executeTakeFirst()
+  const total = Number(countResult?.count ?? 0)
+
+  // Main query - get unique repos with GROUP_CONCAT for registries
+  // We need to execute a raw SQL query with GROUP_CONCAT, so we use a workaround:
+  // We'll execute a compiled query directly
+
+  interface DataRow {
+    archived: number
+    categories: string
+    description: null | string
+    id: number
+    language: null | string
+    last_commit: null | string
+    name: string
+    owner: string
+    registries: null | string
+    stars: number
+    title: string
+  }
+
+  // Determine sort column and direction
+  let sortColumn = 'r.stars'
+  let sortDirection = 'DESC'
   switch (sortBy) {
     case 'name':
-      query = query.orderBy('repositories.name', 'asc')
+      sortColumn = 'r.name'
+      sortDirection = 'ASC'
       break
     case 'stars':
-      query = query.orderBy('repositories.stars', 'desc')
+      sortColumn = 'r.stars'
+      sortDirection = 'DESC'
       break
     case 'updated':
-      query = query.orderBy('repositories.last_commit', 'desc')
+      sortColumn = 'r.last_commit'
+      sortDirection = 'DESC'
       break
     case 'quality':
     default:
-      query = query.orderBy('repositories.stars', 'desc')
+      sortColumn = 'r.stars'
+      sortDirection = 'DESC'
       break
   }
 
-  // Get total count
-  const countResult = await query
-    .select(eb => eb.fn.count('repositories.id').as('count'))
-    .executeTakeFirst()
-  const total = Number(countResult?.count ?? 0)
+  const offset = cursor ?? 0
 
-  // Apply cursor pagination
-  if (cursor) {
-    // For simple offset-based pagination
-    query = query.offset(cursor)
+  // Build a dynamic Kysely query for the main search
+  // We'll select from a subquery that does the GROUP_CONCAT
+  let mainQuery = db
+    .selectFrom('repositories as r')
+    .innerJoin('registry_repositories as rr', 'rr.repository_id', 'r.id')
+    .select([
+      'r.id',
+      'r.owner',
+      'r.name',
+      'r.description',
+      'r.stars',
+      'r.language',
+      'r.last_commit',
+      'r.archived',
+      'rr.title',
+      'rr.categories',
+      'rr.registry_name',
+    ])
+
+  // Apply the same filters
+  if (registryName) {
+    mainQuery = mainQuery.where('rr.registry_name', '=', registryName)
+  }
+  if (language) {
+    mainQuery = mainQuery.where('r.language', '=', language)
+  }
+  if (archived) {
+    mainQuery = mainQuery.where('r.archived', '=', 1)
+  } else {
+    mainQuery = mainQuery.where('r.archived', '=', 0)
+  }
+  if (minStars) {
+    mainQuery = mainQuery.where('r.stars', '>=', minStars)
+  }
+  if (q) {
+    const searchTerm = `%${q}%`
+    mainQuery = mainQuery.where(eb =>
+      eb.or([
+        eb('r.name', 'like', searchTerm),
+        eb('r.owner', 'like', searchTerm),
+        eb('r.description', 'like', searchTerm),
+      ]),
+    )
   }
 
-  // Execute with limit
-  const results = await query
-    .select([
-      'repositories.id',
-      'repositories.owner',
-      'repositories.name',
-      'repositories.description',
-      'repositories.stars',
-      'repositories.language',
-      'repositories.last_commit',
-      'repositories.archived',
-      'registry_repositories.registry_name as registry',
-      'registry_repositories.categories',
-      'registry_repositories.title',
-    ])
-    .limit(limit + 1) // Fetch one extra to check if there's more
-    .execute()
+  // Execute the query to get all results (may have duplicates for multi-registry repos)
+  const allResults = await mainQuery.execute()
 
-  const hasMore = results.length > limit
-  const data = results.slice(0, limit).map(r => {
+  // Deduplicate by repository id and aggregate registries
+  interface DataRowWithRegistry {
+    archived: number
+    categories: string
+    description: null | string
+    id: number
+    language: null | string
+    last_commit: null | string
+    name: string
+    owner: string
+    registry_name: string
+    stars: number
+    title: string
+  }
+  const repoMap = new Map<
+    number,
+    {
+      data: Omit<DataRowWithRegistry, 'registry_name'>
+      registries: Set<string>
+    }
+  >()
+
+  for (const row of allResults as DataRowWithRegistry[]) {
+    const existing = repoMap.get(row.id)
+    const { registry_name: regName, ...dataWithoutRegistry } = row
+    if (existing) {
+      existing.registries.add(regName)
+    } else {
+      repoMap.set(row.id, {
+        data: dataWithoutRegistry,
+        registries: new Set([regName]),
+      })
+    }
+  }
+
+  // Convert map back to array
+  const aggregatedRows = Array.from(repoMap.values()).map(r => ({
+    archived: r.data.archived,
+    categories: r.data.categories,
+    description: r.data.description,
+    id: r.data.id,
+    language: r.data.language,
+    last_commit: r.data.last_commit,
+    name: r.data.name,
+    owner: r.data.owner,
+    stars: r.data.stars,
+    title: r.data.title,
+    registries:
+      r.registries.size > 1
+        ? Array.from(r.registries).sort().join(',')
+        : r.registries.values().next().value || '',
+  }))
+
+  // Apply sorting (in-memory since we need to deduplicate first)
+  const sortField = sortColumn.replace('r.', '')
+  aggregatedRows.sort((a, b) => {
+    const aVal = a[sortField as keyof DataRow]
+    const bVal = b[sortField as keyof DataRow]
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortDirection === 'DESC' ? bVal - aVal : aVal - bVal
+    }
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+      return sortDirection === 'DESC'
+        ? bVal.localeCompare(aVal)
+        : aVal.localeCompare(bVal)
+    }
+    return 0
+  })
+
+  // Apply offset/limit
+  const paginatedRows = aggregatedRows.slice(offset, offset + limit + 1)
+  const rows = paginatedRows.slice(0, limit) as DataRow[]
+
+  const hasMore = paginatedRows.length > limit
+  const data = rows.map((r: DataRow) => {
     let categoryList: string[] = []
     try {
       categoryList = JSON.parse(r.categories) as string[]
@@ -958,12 +1073,21 @@ export async function searchRegistryItems(
       categoryList = []
     }
     return {
-      ...r,
       categories: categoryList,
+      description: r.description,
+      id: r.id,
+      registries: r.registries ? r.registries.split(',') : [],
+      title: r.title,
       qualityScore: calculateQualityScore({
         last_commit: r.last_commit,
         stars: r.stars,
       }),
+      owner: r.owner,
+      name: r.name,
+      stars: r.stars,
+      language: r.language,
+      last_commit: r.last_commit,
+      archived: r.archived,
     }
   })
 
@@ -973,13 +1097,13 @@ export async function searchRegistryItems(
       categories: string[]
       id: number
       qualityScore?: number
-      registry: string
+      registries: string[]
     } = {
       categories: row.categories,
       children: [],
       description: row.description,
       id: row.id,
-      registry: row.registry,
+      registries: row.registries,
       title: row.title,
       qualityScore: row.qualityScore,
       repo_info: {
@@ -1004,7 +1128,7 @@ export async function searchRegistryItems(
   return {
     data: transformedItems,
     hasMore,
-    nextCursor: hasMore ? (cursor ?? 0) + limit : undefined,
+    nextCursor: hasMore ? offset + limit : undefined,
     total,
   }
 }

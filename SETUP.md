@@ -228,7 +228,7 @@ Located in `src/lib/db.ts`:
 - `getRegistryData(db, name)` - Get full registry data
 - `getLanguages(db, name?)` - Get unique languages
 - `getRegistryStats(db, name)` - Get aggregate stats
-- `searchRegistryItems(db, params)` - Search with filters
+- `searchRepos(db, params)` - Search with filters
 
 ### Type Safety
 

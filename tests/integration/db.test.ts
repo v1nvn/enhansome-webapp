@@ -16,7 +16,7 @@ import {
   getRegistryStats,
   getRepoDetail,
   getTrendingRegistries,
-  searchRegistryItems,
+  searchRepos,
 } from '@/lib/db'
 
 /**
@@ -409,10 +409,10 @@ describe('Database Query Functions', () => {
     })
   })
 
-  describe('searchRegistryItems', () => {
+  describe('searchRepos', () => {
     it('should return all items without filters', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, {})
+      const result = await searchRepos(db, {})
 
       // Note: archived defaults to false, so Flask (archived=1) is excluded
       expect(result.total).toBe(4)
@@ -424,15 +424,15 @@ describe('Database Query Functions', () => {
 
     it('should filter by registry', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { registryName: 'go' })
+      const result = await searchRepos(db, { registryName: 'go' })
 
       expect(result.total).toBe(3)
-      expect(result.data.every(item => item.registry === 'go')).toBe(true)
+      expect(result.data.every(item => item.registries.includes('go'))).toBe(true)
     })
 
     it('should filter by language', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { language: 'Python' })
+      const result = await searchRepos(db, { language: 'Python' })
 
       // Note: Flask is archived and excluded by default, so only Django is returned
       expect(result.total).toBe(1)
@@ -443,7 +443,7 @@ describe('Database Query Functions', () => {
 
     it('should filter by minimum stars', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { minStars: 10000 })
+      const result = await searchRepos(db, { minStars: 10000 })
 
       expect(result.total).toBe(2) // Gin (50000), Django (20000) - Flask is archived
       expect(
@@ -453,7 +453,7 @@ describe('Database Query Functions', () => {
 
     it('should filter by archived status', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { archived: false })
+      const result = await searchRepos(db, { archived: false })
 
       expect(result.total).toBe(4) // All except Flask
       expect(
@@ -465,7 +465,7 @@ describe('Database Query Functions', () => {
 
     it('should search by text query', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { q: 'framework' })
+      const result = await searchRepos(db, { q: 'framework' })
 
       expect(result.total).toBeGreaterThan(0)
       expect(
@@ -482,19 +482,19 @@ describe('Database Query Functions', () => {
 
       // LIKE wildcards are supported (%, _)
       // "test%" matches any string starting with "test"
-      const result1 = await searchRegistryItems(db, { q: 'test%' })
+      const result1 = await searchRepos(db, { q: 'test%' })
       // Testify contains "test" as a prefix (case-insensitive)
       expect(result1.total).toBe(1)
 
       // "test_" matches "test" followed by exactly one character
       // "Testify" has "testi" which matches "test_"
-      const result2 = await searchRegistryItems(db, { q: 'test_' })
+      const result2 = await searchRepos(db, { q: 'test_' })
       expect(result2.total).toBe(1)
     })
 
     it('should sort by stars descending by default', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, {})
+      const result = await searchRepos(db, {})
 
       // First item should be Gin (50000 stars)
       expect(result.data[0]?.title).toBe('Gin')
@@ -503,7 +503,7 @@ describe('Database Query Functions', () => {
 
     it('should sort by name ascending', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { sortBy: 'name' })
+      const result = await searchRepos(db, { sortBy: 'name' })
 
       // Should be alphabetically sorted
       const titles = result.data.map(item => item.title)
@@ -512,7 +512,7 @@ describe('Database Query Functions', () => {
 
     it('should handle cursor-based pagination', async () => {
       const db = createKysely(env.DB)
-      const result1 = await searchRegistryItems(db, { limit: 2 })
+      const result1 = await searchRepos(db, { limit: 2 })
 
       // Note: 4 non-archived items total
       expect(result1.total).toBe(4)
@@ -521,7 +521,7 @@ describe('Database Query Functions', () => {
       expect(result1.nextCursor).toBeDefined()
 
       // Fetch next page using cursor
-      const result2 = await searchRegistryItems(db, {
+      const result2 = await searchRepos(db, {
         limit: 2,
         cursor: result1.nextCursor,
       })
@@ -540,14 +540,14 @@ describe('Database Query Functions', () => {
 
     it('should combine multiple filters', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, {
+      const result = await searchRepos(db, {
         language: 'Go',
         minStars: 5000,
         registryName: 'go',
       })
 
       expect(result.total).toBe(2) // Gin and Echo
-      expect(result.data.every(item => item.registry === 'go')).toBe(true)
+      expect(result.data.every(item => item.registries.includes('go'))).toBe(true)
       expect(
         result.data.every(item => item.repo_info?.language === 'Go'),
       ).toBe(true)
@@ -559,7 +559,7 @@ describe('Database Query Functions', () => {
     // Negative tests
     it('should return empty results for non-existent registry', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, {
+      const result = await searchRepos(db, {
         registryName: 'nonexistent',
       })
 
@@ -570,7 +570,7 @@ describe('Database Query Functions', () => {
 
     it('should handle query with no matches', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, {
+      const result = await searchRepos(db, {
         q: 'nonexistentlibrary12345',
       })
 
@@ -580,7 +580,7 @@ describe('Database Query Functions', () => {
 
     it('should handle language with no matches', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { language: 'Rust' })
+      const result = await searchRepos(db, { language: 'Rust' })
 
       expect(result.total).toBe(0)
       expect(result.data).toHaveLength(0)
@@ -588,7 +588,7 @@ describe('Database Query Functions', () => {
 
     it('should handle minStars filtering out all items', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { minStars: 100000 })
+      const result = await searchRepos(db, { minStars: 100000 })
 
       expect(result.total).toBe(0)
       expect(result.data).toHaveLength(0)
@@ -598,19 +598,19 @@ describe('Database Query Functions', () => {
       const db = createKysely(env.DB)
 
       // Only archived items
-      const archivedResult = await searchRegistryItems(db, { archived: true })
+      const archivedResult = await searchRepos(db, { archived: true })
       expect(archivedResult.total).toBe(1)
       expect(archivedResult.data[0]?.title).toBe('Flask')
 
       // Only non-archived items
-      const activeResult = await searchRegistryItems(db, { archived: false })
+      const activeResult = await searchRepos(db, { archived: false })
       expect(activeResult.total).toBe(4)
     })
 
     // Edge cases
     it('should handle cursor beyond results', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, {
+      const result = await searchRepos(db, {
         limit: 10,
         cursor: 99999, // Very high cursor value
       })
@@ -623,7 +623,7 @@ describe('Database Query Functions', () => {
 
     it('should handle very large limit values', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { limit: 1000 })
+      const result = await searchRepos(db, { limit: 1000 })
 
       expect(result.total).toBe(4)
       expect(result.data).toHaveLength(4)
@@ -632,7 +632,7 @@ describe('Database Query Functions', () => {
 
     it('should handle zero stars filter', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { minStars: 0 })
+      const result = await searchRepos(db, { minStars: 0 })
 
       expect(result.total).toBe(4)
       expect(result.data).toHaveLength(4)
@@ -640,7 +640,7 @@ describe('Database Query Functions', () => {
 
     it('should handle case-insensitive search', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { q: 'FRAMEWORK' })
+      const result = await searchRepos(db, { q: 'FRAMEWORK' })
 
       expect(result.total).toBeGreaterThan(0)
       expect(
@@ -654,7 +654,7 @@ describe('Database Query Functions', () => {
 
     it('should handle negative minStars values', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, { minStars: -100 })
+      const result = await searchRepos(db, { minStars: -100 })
 
       // Should treat as 0 or return all non-archived items
       expect(result.total).toBe(4)
@@ -680,14 +680,14 @@ describe('Database Query Functions', () => {
       const languages = await getLanguages(db)
       expect(languages).toHaveLength(0)
 
-      const searchResult = await searchRegistryItems(db, {})
+      const searchResult = await searchRepos(db, {})
       expect(searchResult.total).toBe(0)
       expect(searchResult.data).toHaveLength(0)
     })
 
     it('should handle special characters in search query', async () => {
       const db = createKysely(env.DB)
-      const result = await searchRegistryItems(db, {
+      const result = await searchRepos(db, {
         q: 'test@#$%^&*()',
       })
 
@@ -703,7 +703,7 @@ describe('Database Query Functions', () => {
       // Very long queries cause SQLite LIKE pattern complexity errors
       // This is expected behavior - test that it throws
       await expect(
-        searchRegistryItems(db, { q: longQuery }),
+        searchRepos(db, { q: longQuery }),
       ).rejects.toThrow()
     })
   })
@@ -971,7 +971,7 @@ describe('Database Query Functions', () => {
   })
 
   describe('Repository Deduplication', () => {
-    it('should show repository in each registry context during search', async () => {
+    it('should deduplicate repos and return registries array in search', async () => {
       const db = createKysely(env.DB)
 
       // Add gin to python registry as well
@@ -990,20 +990,17 @@ describe('Database Query Functions', () => {
         })
         .execute()
 
-      // Search returns one entry per registry association
-      // This allows showing which registry each result comes from
-      const result = await searchRegistryItems(db, { q: 'gin' })
+      // Search now returns one entry per repository with all registries in array
+      const result = await searchRepos(db, { q: 'gin' })
       const ginEntries = result.data.filter(
         item => item.repo_info?.repo === 'gin' && item.repo_info?.owner === 'gin-gonic'
       )
 
-      // gin appears twice - once from go registry, once from python
-      expect(ginEntries).toHaveLength(2)
-
-      // Verify each entry has different registry context
-      expect(ginEntries[0].registry).toBeDefined()
-      expect(ginEntries[1].registry).toBeDefined()
-      expect(new Set(ginEntries.map(e => e.registry)).size).toBe(2)
+      // gin appears once with both registries in the array (deduplicated)
+      expect(ginEntries).toHaveLength(1)
+      expect(ginEntries[0].registries).toContain('go')
+      expect(ginEntries[0].registries).toContain('python')
+      expect(ginEntries[0].registries).toHaveLength(2)
     })
 
     it('should return all registries for a repo', async () => {

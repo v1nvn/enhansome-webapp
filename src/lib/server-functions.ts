@@ -19,7 +19,7 @@ import {
   getTrendingRegistries,
   getUseCaseCategoryCounts,
   getUseCaseCategoryItems,
-  searchRegistryItems,
+  searchRepos,
 } from './db'
 import { adminAuthMiddleware } from './middleware'
 
@@ -465,14 +465,14 @@ export interface SearchResult {
     categories: string[]
     id: number
     qualityScore?: number
-    registry: string
+    registries: string[]
   })[]
   hasMore: boolean
   nextCursor?: number
   total: number
 }
 
-export async function searchRegistryItemsHandler(
+export async function searchReposHandler(
   db: ReturnType<typeof createKysely>,
   data: SearchParams,
 ): Promise<SearchResult> {
@@ -481,7 +481,7 @@ export async function searchRegistryItemsHandler(
     const presetParams = presetToSearchParams(data.preset)
 
     // Execute search with defaults and preset params merged
-    const results = await searchRegistryItems(db, {
+    const results = await searchRepos(db, {
       archived: data.archived ?? presetParams.archived,
       cursor: data.cursor,
       language: data.language,
@@ -503,16 +503,16 @@ export function validateSearchParams(input: SearchParams): SearchParams {
   return input
 }
 
-export const searchRegistryItemsFn = createServerFn({ method: 'GET' })
+export const searchReposFn = createServerFn({ method: 'GET' })
   .inputValidator(validateSearchParams)
   .handler(async ({ data }) => {
     const db = createKysely(env.DB)
-    return searchRegistryItemsHandler(db, data)
+    return searchReposHandler(db, data)
   })
 
 export const searchQueryOptions = (params: SearchParams) =>
   queryOptions<SearchResult>({
-    queryFn: () => searchRegistryItemsFn({ data: params }),
+    queryFn: () => searchReposFn({ data: params }),
     queryKey: ['search', params],
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -535,7 +535,7 @@ export const searchInfiniteQueryOptions = (
       baseParams.limit,
     ] as const,
     queryFn: ({ pageParam }: { pageParam: number | undefined }) =>
-      searchRegistryItemsFn({ data: { ...baseParams, cursor: pageParam } }),
+      searchReposFn({ data: { ...baseParams, cursor: pageParam } }),
     initialPageParam: undefined as number | undefined,
     getNextPageParam: lastPage => lastPage.nextCursor,
     staleTime: 5 * 60 * 1000, // 5 minutes

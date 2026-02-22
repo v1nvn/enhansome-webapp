@@ -183,7 +183,7 @@ See [migrations/0001_initial_schema.sql](migrations/0001_initial_schema.sql) for
 - `getRegistryData(registryName)` - Get full registry with items grouped by categories
 - `getLanguages(registryName?)` - Get unique languages from repos
 - `getRegistryStats(registryName)` - Get statistics for a registry
-- `searchRegistryItems(params)` - Advanced search with filters, sorting, and pagination
+- `searchRepos(params)` - Advanced search with filters, sorting, and pagination
 
 ## Development
 
