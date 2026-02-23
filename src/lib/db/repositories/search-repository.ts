@@ -6,6 +6,12 @@
 import type { Database } from '@/types/database'
 import type { RegistryItem } from '@/types/registry'
 
+import {
+  categorizeItem,
+  getAllUseCaseCategories,
+  getUseCaseCategoryById,
+} from '@/lib/utils/categories'
+
 import { calculateQualityScore } from '../../utils/scoring'
 
 import type { Kysely } from 'kysely'
@@ -79,10 +85,6 @@ export async function getUseCaseCategoryCounts(db: Kysely<Database>): Promise<
     .where('repositories.archived', '=', 0)
     .execute()
 
-  const { categorizeItem, getAllUseCaseCategories } = await import(
-    '@/lib/utils/categories'
-  )
-
   const categories = getAllUseCaseCategories()
   const categoryCounts = new Map<string, number>()
 
@@ -136,9 +138,6 @@ export async function getUseCaseCategoryItems(
 > {
   const { limit = 50, offset = 0, framework } = options ?? {}
 
-  const { getUseCaseCategoryById, categorizeItem } = await import(
-    '@/lib/utils/categories'
-  )
   const categoryDef = getUseCaseCategoryById(categoryId)
 
   if (!categoryDef) {
