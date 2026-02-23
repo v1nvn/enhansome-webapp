@@ -19,7 +19,7 @@
     {
       "binding": "DB",
       "database_name": "enhansome-registry",
-      "database_id": "714ee4be-398d-4119-aa06-54c40bfbb655",
+      "database_id": "075b0811-23ab-41f5-bb1e-4db1087307f5",
       "migrations_dir": "migrations",
       "migrations_table": "d1_migrations"
     }

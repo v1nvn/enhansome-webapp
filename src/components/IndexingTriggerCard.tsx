@@ -6,7 +6,7 @@ import {
   indexingStatusQueryOptions,
   stopIndexing,
   triggerIndexRegistries,
-} from '@/lib/server-functions'
+} from '@/lib/api/server-functions'
 
 import { useAdminApi } from './AdminApiContext'
 

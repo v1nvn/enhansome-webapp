@@ -7,6 +7,8 @@ import JSZip from 'jszip'
 
 import type { RegistryData, RegistryItem } from '@/types/registry'
 
+import { generateSlug } from './utils/strings'
+
 const REGISTRY_ARCHIVE_URL =
   'https://github.com/v1nvn/enhansome-registry/archive/refs/heads/main.zip'
 
@@ -251,8 +253,7 @@ export async function indexRegistry(
 
 /**
  * Build all D1 statements for indexing a registry
- * Uses the new many-to-many model with repositories + junction table
- * Supports multiple categories per repository via JSON array
+ * Uses the many-to-many model with repositories + category junction table
  */
 function buildRegistryStatements(
   db: D1Database,
@@ -264,6 +265,13 @@ function buildRegistryStatements(
   const statements: D1PreparedStatement[] = []
 
   // Clear existing junction table entries for this registry
+  statements.push(
+    db
+      .prepare(
+        'DELETE FROM registry_repository_categories WHERE registry_name = ?',
+      )
+      .bind(registryName),
+  )
   statements.push(
     db
       .prepare('DELETE FROM registry_repositories WHERE registry_name = ?')
@@ -359,23 +367,52 @@ function buildRegistryStatements(
         ),
     )
 
-    // Link via junction table with categories as JSON array
+    // Link via junction table
     statements.push(
       db
         .prepare(
-          `INSERT INTO registry_repositories (registry_name, repository_id, title, categories)
-           SELECT ?, id, ?, ?
+          `INSERT INTO registry_repositories (registry_name, repository_id, title)
+           SELECT ?, id, ?
            FROM repositories
            WHERE owner = ? AND name = ?`,
         )
-        .bind(
-          registryName,
-          title,
-          JSON.stringify(categories), // Store as JSON array
-          repoInfo.owner,
-          repoInfo.repo,
-        ),
+        .bind(registryName, title, repoInfo.owner, repoInfo.repo),
     )
+
+    // Link each category via junction table
+    // We need to get the category ID for each category name
+    for (const categoryName of categories) {
+      // First, try to find existing category by name
+      // Since we can't use getOrCreateCategory here (it's async), we'll use a different approach:
+      // Insert the category if it doesn't exist (INSERT OR IGNORE), then get its ID
+      statements.push(
+        db
+          .prepare(
+            `INSERT OR IGNORE INTO categories (slug, name)
+             VALUES (?, ?)`,
+          )
+          .bind(
+            // Generate slug from category name using shared utility
+            generateSlug(categoryName),
+            categoryName,
+          ),
+      )
+
+      // Now link the repository to the category
+      // We need to get the repository_id and category_id, then insert into junction table
+      // Since we can't use subqueries with binds easily, we'll use a different approach:
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO registry_repository_categories (registry_name, repository_id, category_id)
+             SELECT ?, r.id, c.id
+             FROM repositories r
+             CROSS JOIN categories c
+             WHERE r.owner = ? AND r.name = ? AND c.name = ?`,
+          )
+          .bind(registryName, repoInfo.owner, repoInfo.repo, categoryName),
+      )
+    }
 
     // Remove from map so we don't insert again
     repoCategories.delete(key)

@@ -11,7 +11,7 @@ import { FrameworkPills, UseCaseCards } from '@/components/home'
 import {
   metadataQueryOptions,
   useCaseCategoriesQueryOptions,
-} from '@/lib/server-functions'
+} from '@/lib/api/server-functions'
 
 export const Route = createFileRoute('/')({
   component: Home,

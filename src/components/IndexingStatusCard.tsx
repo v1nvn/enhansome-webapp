@@ -4,7 +4,7 @@ import { formatRelativeTime, useCurrentTime } from '@/hooks/useCurrentTime'
 import {
   getIndexingStatus,
   indexingStatusQueryOptions,
-} from '@/lib/server-functions'
+} from '@/lib/api/server-functions'
 
 import { useAdminApi } from './AdminApiContext'
 import { IndexingStatusIcon } from './IndexingStatusIcon'

@@ -1,3 +1,9 @@
+/**
+ * Filter utilities and preset configurations
+ */
+
+import { getDateMonthsAgo, getDateWeeksAgo } from './date'
+
 export type FilterPreset = 'active' | 'fresh' | 'popular' | 'trending'
 
 export interface PresetConfig {
@@ -31,7 +37,7 @@ export function presetToSearchParams(preset: FilterPreset | undefined): {
 } {
   switch (preset) {
     case 'active':
-      return { dateFrom: getDateMonthsAgo(6), archived: false }
+      return { archived: false, dateFrom: getDateMonthsAgo(6) }
     case 'fresh':
       return { dateFrom: getDateMonthsAgo(3) }
     case 'popular':
@@ -41,16 +47,4 @@ export function presetToSearchParams(preset: FilterPreset | undefined): {
     default:
       return {}
   }
-}
-
-function getDateMonthsAgo(months: number): string {
-  const date = new Date()
-  date.setMonth(date.getMonth() - months)
-  return date.toISOString().split('T')[0]
-}
-
-function getDateWeeksAgo(weeks: number): string {
-  const date = new Date()
-  date.setDate(date.getDate() - weeks * 7)
-  return date.toISOString().split('T')[0]
 }

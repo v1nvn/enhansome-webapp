@@ -6,14 +6,26 @@
 import type { Generated } from 'kysely'
 
 /**
+ * Categories table schema (canonical categories)
+ */
+export interface CategoriesTable {
+  created_at: Generated<string>
+  id: Generated<number>
+  name: string
+  slug: string
+}
+
+/**
  * Database schema interface
  */
 export interface Database {
+  categories: CategoriesTable
   indexing_history: IndexingHistoryTable
   indexing_latest: IndexingLatestTable
   registry_featured: RegistryFeaturedTable
   registry_metadata: RegistryMetadataTable
   registry_repositories: RegistryRepositoriesTable
+  registry_repository_categories: RegistryRepositoryCategoriesTable
   repositories: RepositoriesTable
   sync_log: SyncLogTable
 }
@@ -78,12 +90,20 @@ export interface RegistryMetadataTable {
  * Registry repositories junction table schema
  */
 export interface RegistryRepositoriesTable {
-  categories: string // JSON array string, e.g., '["Web Frameworks", "HTTP Servers"]'
   created_at: Generated<string>
   id: Generated<number>
   registry_name: string
   repository_id: number
   title: string
+}
+
+/**
+ * Registry repository categories junction table schema (many-to-many)
+ */
+export interface RegistryRepositoryCategoriesTable {
+  category_id: number
+  registry_name: string
+  repository_id: number
 }
 
 /**

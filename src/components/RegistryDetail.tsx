@@ -12,7 +12,7 @@ import {
   Star,
 } from 'lucide-react'
 
-import type { RegistryDetail as RegistryDetailType } from '@/lib/server-functions'
+import type { RegistryDetail as RegistryDetailType } from '@/lib/api/server-functions'
 
 interface RegistryDetailProps {
   data: RegistryDetailType

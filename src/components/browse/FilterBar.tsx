@@ -3,9 +3,9 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChevronDown, Code, Filter, Search, X } from 'lucide-react'
 
-import type { FilterPreset } from '@/lib/filter-presets'
+import type { FilterPreset } from '@/lib/utils/filters'
 
-import { extractIntent, type IntentSignal } from '@/lib/intent-detection'
+import { extractIntent, type IntentSignal } from '@/lib/utils/search'
 
 export interface FilterBarFilters {
   category?: string

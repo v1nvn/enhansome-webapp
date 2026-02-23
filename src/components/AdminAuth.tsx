@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Loader2, Shield } from 'lucide-react'
 
-import { validateAdminApiKey } from '@/lib/server-functions'
+import { validateAdminApiKey } from '@/lib/api/server-functions'
 
 interface AdminAuthProps {
   onAuthSuccess: (apiKey: string) => void

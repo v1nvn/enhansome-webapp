@@ -8,8 +8,8 @@ import {
   Wrench,
 } from 'lucide-react'
 
-import type { UseCaseCategoryWithData } from '@/lib/server-functions'
-import type { UseCaseCategoryWithCount } from '@/lib/use-case-categories'
+import type { UseCaseCategoryWithData } from '@/lib/api/server-functions'
+import type { UseCaseCategoryWithCount } from '@/lib/utils/categories'
 
 type CategoryProp = UseCaseCategoryWithCount | UseCaseCategoryWithData
 

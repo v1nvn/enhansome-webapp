@@ -3,13 +3,13 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Search, Sparkles } from 'lucide-react'
 
-import type { FilterPreset } from '@/lib/filter-presets'
+import type { FilterPreset } from '@/lib/utils/filters'
 
 import {
   type DetectedIntent,
   extractIntent,
   type IntentSignal,
-} from '@/lib/intent-detection'
+} from '@/lib/utils/search'
 
 export interface EnhancedSearchBarFilters {
   category?: string

@@ -10,7 +10,7 @@ import {
   getIndexingHistoryHandler,
   getIndexingStatusHandler,
   stopIndexingHandler,
-} from '@/lib/server-functions'
+} from '@/lib/api/handlers/admin-handlers'
 import { TEST_ARCHIVE_URL } from './test_utils'
 
 describe('Admin Indexing with Progress Tracking', () => {

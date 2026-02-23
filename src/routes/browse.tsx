@@ -4,7 +4,7 @@ import { useInfiniteQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { ChevronDown, Loader2 } from 'lucide-react'
 
-import type { FilterPreset } from '@/lib/filter-presets'
+import type { FilterPreset } from '@/lib/utils/filters'
 import type { RegistryItem } from '@/types/registry'
 
 import {
@@ -17,7 +17,7 @@ import {
   languagesQueryOptions,
   metadataQueryOptions,
   searchInfiniteQueryOptions,
-} from '@/lib/server-functions'
+} from '@/lib/api/server-functions'
 
 const PAGE_SIZE = 20
 

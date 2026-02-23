@@ -9,7 +9,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 
-import type { RepoDetail as RepoDetailType } from '@/lib/server-functions'
+import type { RepoDetail as RepoDetailType } from '@/lib/api/server-functions'
 
 interface RepoDetailProps {
   data: RepoDetailType

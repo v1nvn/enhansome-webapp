@@ -12,28 +12,44 @@
  * 3. Other tables
  */
 export async function clearDatabase(db: D1Database): Promise<void> {
-  // Clear junction table first (has FKs to both repositories and registry_metadata)
+  // Clear order matters due to foreign key constraints
+
+  // 1. Category junction table (has FKs to categories, repositories, registry_metadata)
+  try {
+    await db.prepare('DELETE FROM registry_repository_categories').run()
+  } catch (e) {
+    console.warn('Could not clear registry_repository_categories:', e)
+  }
+
+  // 2. registry_repositories (has FKs to repositories and registry_metadata)
   try {
     await db.prepare('DELETE FROM registry_repositories').run()
   } catch (e) {
     console.warn('Could not clear registry_repositories:', e)
   }
 
-  // Clear featured registries (has FK to registry_metadata)
+  // 3. Featured registries (has FK to registry_metadata)
   try {
     await db.prepare('DELETE FROM registry_featured').run()
   } catch (e) {
     console.warn('Could not clear registry_featured:', e)
   }
 
-  // Clear repositories (parent table, no FKs from others after registry_repositories is cleared)
+  // 4. Categories table (parent table, no FKs after registry_repository_categories is cleared)
+  try {
+    await db.prepare('DELETE FROM categories').run()
+  } catch (e) {
+    console.warn('Could not clear categories:', e)
+  }
+
+  // 5. Repositories (parent table, no FKs from others after registry_repositories is cleared)
   try {
     await db.prepare('DELETE FROM repositories').run()
   } catch (e) {
     console.warn('Could not clear repositories:', e)
   }
 
-  // Clear registry metadata (parent table)
+  // 6. Registry metadata (parent table)
   try {
     await db.prepare('DELETE FROM registry_metadata').run()
   } catch (e) {

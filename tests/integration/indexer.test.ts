@@ -118,16 +118,35 @@ describe('Full Indexing Pipeline with D1', () => {
       expect(vitestRepo).toBeDefined()
       expect(playwrightRepo).toBeDefined()
 
-      // Link via junction table
+      // Link via junction table - first insert category, then link
+      // Insert a category
+      await env.DB.prepare(
+        `INSERT INTO categories (slug, name) VALUES (?, ?)`,
+      ).bind('testing', 'Testing').run()
+
+      // Get the category ID
+      const category = await env.DB.prepare('SELECT id FROM categories WHERE slug = ?')
+        .bind('testing')
+        .first<{ id: number }>()
+
+      // Link repositories to registry and category
       await env.DB.batch([
         env.DB.prepare(
-          `INSERT INTO registry_repositories (registry_name, repository_id, title, categories)
-           VALUES (?, ?, ?, ?)`,
-        ).bind(registryName, vitestRepo!.id, 'Vitest', JSON.stringify(['Testing'])),
+          `INSERT INTO registry_repositories (registry_name, repository_id, title)
+           VALUES (?, ?, ?)`,
+        ).bind(registryName, vitestRepo!.id, 'Vitest'),
         env.DB.prepare(
-          `INSERT INTO registry_repositories (registry_name, repository_id, title, categories)
-           VALUES (?, ?, ?, ?)`,
-        ).bind(registryName, playwrightRepo!.id, 'Playwright', JSON.stringify(['Testing'])),
+          `INSERT INTO registry_repositories (registry_name, repository_id, title)
+           VALUES (?, ?, ?)`,
+        ).bind(registryName, playwrightRepo!.id, 'Playwright'),
+        env.DB.prepare(
+          `INSERT INTO registry_repository_categories (registry_name, repository_id, category_id)
+           VALUES (?, ?, ?)`,
+        ).bind(registryName, vitestRepo!.id, category!.id),
+        env.DB.prepare(
+          `INSERT INTO registry_repository_categories (registry_name, repository_id, category_id)
+           VALUES (?, ?, ?)`,
+        ).bind(registryName, playwrightRepo!.id, category!.id),
       ])
 
       // Verify via junction table
@@ -194,12 +213,27 @@ describe('Full Indexing Pipeline with D1', () => {
         .bind('old-org', 'abandoned')
         .first<{ id: number }>()
 
+      // Insert a category
       await env.DB.prepare(
-        `INSERT INTO registry_repositories (registry_name, repository_id, title, categories)
-         VALUES (?, ?, ?, ?)`,
-      )
-        .bind(registryName, repo!.id, 'Abandoned Project', JSON.stringify(['Old']))
-        .run()
+        `INSERT INTO categories (slug, name) VALUES (?, ?)`,
+      ).bind('old', 'Old').run()
+
+      // Get the category ID
+      const category = await env.DB.prepare('SELECT id FROM categories WHERE slug = ?')
+        .bind('old')
+        .first<{ id: number }>()
+
+      // Link repository to registry and category
+      await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO registry_repositories (registry_name, repository_id, title)
+           VALUES (?, ?, ?)`,
+        ).bind(registryName, repo!.id, 'Abandoned Project'),
+        env.DB.prepare(
+          `INSERT INTO registry_repository_categories (registry_name, repository_id, category_id)
+           VALUES (?, ?, ?)`,
+        ).bind(registryName, repo!.id, category!.id),
+      ])
 
       const items = await env.DB.prepare(
         `SELECT r.archived
@@ -487,7 +521,7 @@ describe('Full Indexing Pipeline with D1', () => {
       expect(junctionEntries.results).toHaveLength(2)
     })
 
-    it('should store multiple categories as JSON array', async () => {
+    it('should store multiple categories via junction table', async () => {
       // Create registry with same repo in 2 categories
       const data: RegistryData = {
         metadata: {
@@ -541,16 +575,23 @@ describe('Full Indexing Pipeline with D1', () => {
       await indexRegistry(env.DB, 'multi-category-registry', data)
 
       // Should have 1 registry_repositories entry (unique registry_name, repository_id)
-      const result = await env.DB.prepare(
-        'SELECT categories FROM registry_repositories WHERE registry_name = ?'
-      ).bind('multi-category-registry').first<{ categories: string }>()
+      const regRepoResult = await env.DB.prepare(
+        'SELECT * FROM registry_repositories WHERE registry_name = ?'
+      ).bind('multi-category-registry').all()
 
-      expect(result).toBeDefined()
+      expect(regRepoResult.results).toHaveLength(1)
 
-      // Categories should be JSON array
-      const categories = JSON.parse(result!.categories) as string[]
-      expect(categories).toEqual(expect.arrayContaining(['Web Frameworks', 'HTTP Servers']))
-      expect(categories).toHaveLength(2)
+      // Should have 2 junction table entries (one per category)
+      const junctionResult = await env.DB.prepare(
+        'SELECT c.name FROM registry_repository_categories rrc JOIN categories c ON c.id = rrc.category_id WHERE rrc.registry_name = ?'
+      ).bind('multi-category-registry').all()
+
+      expect(junctionResult.results).toHaveLength(2)
+
+      // Extract category names
+      const categoryNames = junctionResult.results.map(r => r.name)
+      expect(categoryNames).toContain('Web Frameworks')
+      expect(categoryNames).toContain('HTTP Servers')
     })
   })
 })

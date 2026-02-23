@@ -12,8 +12,8 @@ import { formatRelativeTime, useCurrentTime } from '@/hooks/useCurrentTime'
 import {
   getIndexingHistory,
   indexingHistoryQueryOptions,
-} from '@/lib/server-functions'
-import { formatDuration } from '@/utils/formatDuration'
+} from '@/lib/api/server-functions'
+import { formatDuration } from '@/lib/utils/date'
 
 import { useAdminApi } from './AdminApiContext'
 

@@ -13,165 +13,15 @@ import {
   fetchRepoDetailHandler,
   fetchTrendingRegistriesHandler,
   searchReposHandler,
+} from '@/lib/api/handlers'
+import {
   validateFetchLanguagesInput,
   validateFetchRegistryDetailInput,
   validateFetchRepoDetailInput,
   validateSearchParams,
-} from '@/lib/server-functions'
-
-/**
- * Helper to seed test data with the new many-to-many schema
- */
-async function seedTestData(db: ReturnType<typeof createKysely>) {
-  // Insert repositories
-  await db
-    .insertInto('repositories')
-    .values([
-      {
-        archived: 0,
-        description: 'HTTP web framework',
-        language: 'Go',
-        last_commit: '2025-10-10T00:00:00Z',
-        name: 'gin',
-        owner: 'gin-gonic',
-        stars: 50000,
-      },
-      {
-        archived: 0,
-        description: 'High performance framework',
-        language: 'Go',
-        last_commit: '2025-10-09T00:00:00Z',
-        name: 'echo',
-        owner: 'labstack',
-        stars: 8000,
-      },
-      {
-        archived: 0,
-        description: 'Testing toolkit',
-        language: 'Go',
-        last_commit: '2025-10-08T00:00:00Z',
-        name: 'testify',
-        owner: 'stretchr',
-        stars: 2000,
-      },
-      {
-        archived: 0,
-        description: 'Web framework',
-        language: 'Python',
-        last_commit: '2025-10-07T00:00:00Z',
-        name: 'django',
-        owner: 'django',
-        stars: 20000,
-      },
-      {
-        archived: 1,
-        description: 'Micro framework',
-        language: 'Python',
-        last_commit: '2025-10-06T00:00:00Z',
-        name: 'flask',
-        owner: 'pallets',
-        stars: 10000,
-      },
-    ])
-    .execute()
-
-  // Get repository IDs for linking
-  const repos = await db
-    .selectFrom('repositories')
-    .select(['id', 'owner', 'name'])
-    .execute()
-
-  const repoMap = new Map(
-    repos.map(r => [`${r.owner}/${r.name}`, r.id]),
-  )
-
-  const ginId = repoMap.get('gin-gonic/gin')!
-  const echoId = repoMap.get('labstack/echo')!
-  const testifyId = repoMap.get('stretchr/testify')!
-  const djangoId = repoMap.get('django/django')!
-  const flaskId = repoMap.get('pallets/flask')!
-
-  // Insert registry metadata
-  await db
-    .insertInto('registry_metadata')
-    .values([
-      {
-        description: 'Go frameworks and libraries',
-        last_updated: '2025-10-12T00:00:00Z',
-        registry_name: 'go',
-        source_repository: 'avelino/awesome-go',
-        title: 'Awesome Go',
-        total_items: 3,
-        total_stars: 60000,
-      },
-      {
-        description: 'Python libraries',
-        last_updated: '2025-10-11T00:00:00Z',
-        registry_name: 'python',
-        source_repository: 'vinta/awesome-python',
-        title: 'Awesome Python',
-        total_items: 2,
-        total_stars: 30000,
-      },
-    ])
-    .execute()
-
-  // Link repositories via junction table
-  await db
-    .insertInto('registry_repositories')
-    .values([
-      {
-        categories: JSON.stringify(['Web Frameworks']),
-        registry_name: 'go',
-        repository_id: ginId,
-        title: 'Gin',
-      },
-      {
-        categories: JSON.stringify(['Web Frameworks']),
-        registry_name: 'go',
-        repository_id: echoId,
-        title: 'Echo',
-      },
-      {
-        categories: JSON.stringify(['Testing']),
-        registry_name: 'go',
-        repository_id: testifyId,
-        title: 'Testify',
-      },
-      {
-        categories: JSON.stringify(['Web Frameworks']),
-        registry_name: 'python',
-        repository_id: djangoId,
-        title: 'Django',
-      },
-      {
-        categories: JSON.stringify(['Web Frameworks']),
-        registry_name: 'python',
-        repository_id: flaskId,
-        title: 'Flask',
-      },
-    ])
-    .execute()
-
-  // Insert featured registries
-  await db
-    .insertInto('registry_featured')
-    .values([
-      {
-        editorial_badge: 'editors-choice',
-        featured: 1,
-        featured_order: 1,
-        registry_name: 'go',
-      },
-      {
-        editorial_badge: 'trending',
-        featured: 1,
-        featured_order: 2,
-        registry_name: 'python',
-      },
-    ])
-    .execute()
-}
+} from '@/lib/api/server-functions'
+import { clearDatabase } from '../helpers/cleanup-database'
+import { seedTestData } from '../helpers/seed-test-data'
 
 describe('Server Function Handlers', () => {
   beforeAll(async () => {
@@ -180,16 +30,9 @@ describe('Server Function Handlers', () => {
   })
 
   beforeEach(async () => {
-    // Clear and seed test data
+    // Clear and seed test data using shared helpers
     const db = createKysely(env.DB)
-
-    // Clear existing data in correct order due to foreign key constraints
-    await db.deleteFrom('registry_featured').execute()
-    await db.deleteFrom('registry_repositories').execute()
-    await db.deleteFrom('repositories').execute()
-    await db.deleteFrom('registry_metadata').execute()
-
-    // Seed test data
+    await clearDatabase(db)
     await seedTestData(db)
   })
 
@@ -219,11 +62,7 @@ describe('Server Function Handlers', () => {
 
     it('should return empty array when no registries exist', async () => {
       const db = createKysely(env.DB)
-      // Need to delete in order due to foreign key constraints
-      await db.deleteFrom('registry_featured').execute()
-      await db.deleteFrom('registry_repositories').execute()
-      await db.deleteFrom('repositories').execute()
-      await db.deleteFrom('registry_metadata').execute()
+      await clearDatabase(db)
 
       const result = await fetchMetadataHandler(db)
 
@@ -506,11 +345,7 @@ describe('Server Function Handlers', () => {
 
     it('should return empty array when no registries exist', async () => {
       const db = createKysely(env.DB)
-      // Need to delete in order due to foreign key constraints
-      await db.deleteFrom('registry_featured').execute()
-      await db.deleteFrom('registry_repositories').execute()
-      await db.deleteFrom('repositories').execute()
-      await db.deleteFrom('registry_metadata').execute()
+      await clearDatabase(db)
 
       const result = await fetchTrendingRegistriesHandler(db)
       expect(result).toHaveLength(0)

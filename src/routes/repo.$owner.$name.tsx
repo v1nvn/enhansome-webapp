@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
 import { RepoDetail } from '@/components/RepoDetail'
-import { repoDetailQueryOptions } from '@/lib/server-functions'
+import { repoDetailQueryOptions } from '@/lib/api/server-functions'
 
 export const Route = createFileRoute('/repo/$owner/$name')({
   component: RepoDetailPage,

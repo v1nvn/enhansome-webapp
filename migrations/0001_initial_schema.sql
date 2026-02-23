@@ -1,6 +1,7 @@
--- Migration: Initial schema for Enhansome Registry with deduplicated repositories
--- Created: 2025-10-11
--- Updated: 2025-02-21 - Repository deduplication with many-to-many model
+-- Migration: Initial schema for Enhansome Registry with normalized categories
+-- Created: 2025-02-22
+-- This schema uses a many-to-many relationship between repositories and categories
+-- via the registry_repository_categories junction table
 
 -- Registry metadata table
 CREATE TABLE registry_metadata (
@@ -30,17 +31,35 @@ CREATE TABLE repositories (
   UNIQUE(owner, name)
 );
 
+-- Canonical categories table
+CREATE TABLE categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Junction table: many-to-many relationship between registries and repositories
 CREATE TABLE registry_repositories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   registry_name TEXT NOT NULL,
   repository_id INTEGER NOT NULL,
   title TEXT NOT NULL,
-  categories TEXT NOT NULL DEFAULT '[]',  -- JSON array of category strings
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (registry_name) REFERENCES registry_metadata(registry_name) ON DELETE CASCADE,
   FOREIGN KEY (repository_id) REFERENCES repositories(id) ON DELETE CASCADE,
   UNIQUE(registry_name, repository_id)
+);
+
+-- Junction table: many-to-many relationship between registry_repositories and categories
+CREATE TABLE registry_repository_categories (
+  registry_name TEXT NOT NULL,
+  repository_id INTEGER NOT NULL,
+  category_id INTEGER NOT NULL,
+  PRIMARY KEY (registry_name, repository_id, category_id),
+  FOREIGN KEY (registry_name) REFERENCES registry_metadata(registry_name) ON DELETE CASCADE,
+  FOREIGN KEY (repository_id) REFERENCES repositories(id) ON DELETE CASCADE,
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
 );
 
 -- Featured registries table
@@ -100,10 +119,19 @@ CREATE INDEX idx_repositories_stars ON repositories(stars DESC);
 CREATE INDEX idx_repositories_language ON repositories(language);
 CREATE INDEX idx_repositories_archived ON repositories(archived);
 CREATE INDEX idx_repositories_search ON repositories(owner, name, description);
+CREATE INDEX idx_repositories_last_commit ON repositories(last_commit DESC);
+
+-- Indexes for performance - categories
+CREATE INDEX idx_categories_slug ON categories(slug);
 
 -- Indexes for performance - registry_repositories
 CREATE INDEX idx_registry_repositories_registry ON registry_repositories(registry_name);
 CREATE INDEX idx_registry_repositories_repository ON registry_repositories(repository_id);
+
+-- Indexes for performance - registry_repository_categories
+CREATE INDEX idx_registry_repo_categories_category ON registry_repository_categories(category_id);
+CREATE INDEX idx_registry_repo_categories_repo ON registry_repository_categories(repository_id);
+CREATE INDEX idx_registry_repo_categories_registry ON registry_repository_categories(registry_name, category_id);
 
 -- Indexes for performance - registry_featured
 CREATE INDEX idx_registry_featured_order ON registry_featured(featured, featured_order);

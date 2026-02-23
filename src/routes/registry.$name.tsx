@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
 import { RegistryDetail } from '@/components/RegistryDetail'
-import { registryDetailQueryOptions } from '@/lib/server-functions'
+import { registryDetailQueryOptions } from '@/lib/api/server-functions'
 
 export const Route = createFileRoute('/registry/$name')({
   component: RegistryDetailPage,

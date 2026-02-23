@@ -7,171 +7,23 @@ import { applyD1Migrations, env } from 'cloudflare:test'
 
 import {
   createKysely,
+} from '@/lib/db'
+import {
   getAllRegistryStatsBatched,
   getCategorySummaries,
   getFeaturedRegistries,
-  getLanguages,
   getRegistryData,
   getRegistryDetail,
   getRegistryMetadata,
   getRepoDetail,
   getTrendingRegistries,
   searchRepos,
-} from '@/lib/db'
-
-/**
- * Helper to seed test data with the new many-to-many schema
- */
-async function seedTestData(db: ReturnType<typeof createKysely>) {
-  // Insert repositories
-  await db
-    .insertInto('repositories')
-    .values([
-      {
-        archived: 0,
-        description: 'HTTP web framework',
-        language: 'Go',
-        last_commit: '2025-10-10T00:00:00Z',
-        name: 'gin',
-        owner: 'gin-gonic',
-        stars: 50000,
-      },
-      {
-        archived: 0,
-        description: 'High performance framework',
-        language: 'Go',
-        last_commit: '2025-10-09T00:00:00Z',
-        name: 'echo',
-        owner: 'labstack',
-        stars: 8000,
-      },
-      {
-        archived: 0,
-        description: 'Testing toolkit',
-        language: 'Go',
-        last_commit: '2025-10-08T00:00:00Z',
-        name: 'testify',
-        owner: 'stretchr',
-        stars: 2000,
-      },
-      {
-        archived: 0,
-        description: 'Web framework',
-        language: 'Python',
-        last_commit: '2025-10-07T00:00:00Z',
-        name: 'django',
-        owner: 'django',
-        stars: 20000,
-      },
-      {
-        archived: 1,
-        description: 'Micro framework',
-        language: 'Python',
-        last_commit: '2025-10-06T00:00:00Z',
-        name: 'flask',
-        owner: 'pallets',
-        stars: 10000,
-      },
-    ])
-    .execute()
-
-  // Get repository IDs for linking
-  const repos = await db
-    .selectFrom('repositories')
-    .select(['id', 'owner', 'name'])
-    .execute()
-
-  const repoMap = new Map(
-    repos.map(r => [`${r.owner}/${r.name}`, r.id]),
-  )
-
-  const ginId = repoMap.get('gin-gonic/gin')!
-  const echoId = repoMap.get('labstack/echo')!
-  const testifyId = repoMap.get('stretchr/testify')!
-  const djangoId = repoMap.get('django/django')!
-  const flaskId = repoMap.get('pallets/flask')!
-
-  // Insert registry metadata
-  await db
-    .insertInto('registry_metadata')
-    .values([
-      {
-        description: 'Go frameworks and libraries',
-        last_updated: '2025-10-12T00:00:00Z',
-        registry_name: 'go',
-        source_repository: 'avelino/awesome-go',
-        title: 'Awesome Go',
-        total_items: 3,
-        total_stars: 60000,
-      },
-      {
-        description: 'Python libraries',
-        last_updated: '2025-10-11T00:00:00Z',
-        registry_name: 'python',
-        source_repository: 'vinta/awesome-python',
-        title: 'Awesome Python',
-        total_items: 2,
-        total_stars: 30000,
-      },
-    ])
-    .execute()
-
-  // Link repositories via junction table
-  await db
-    .insertInto('registry_repositories')
-    .values([
-      {
-        categories: JSON.stringify(['Web Frameworks']),
-        registry_name: 'go',
-        repository_id: ginId,
-        title: 'Gin',
-      },
-      {
-        categories: JSON.stringify(['Web Frameworks']),
-        registry_name: 'go',
-        repository_id: echoId,
-        title: 'Echo',
-      },
-      {
-        categories: JSON.stringify(['Testing']),
-        registry_name: 'go',
-        repository_id: testifyId,
-        title: 'Testify',
-      },
-      {
-        categories: JSON.stringify(['Web Frameworks']),
-        registry_name: 'python',
-        repository_id: djangoId,
-        title: 'Django',
-      },
-      {
-        categories: JSON.stringify(['Web Frameworks']),
-        registry_name: 'python',
-        repository_id: flaskId,
-        title: 'Flask',
-      },
-    ])
-    .execute()
-
-  // Insert featured registries
-  await db
-    .insertInto('registry_featured')
-    .values([
-      {
-        editorial_badge: 'editors-choice',
-        featured: 1,
-        featured_order: 1,
-        registry_name: 'go',
-      },
-      {
-        editorial_badge: 'trending',
-        featured: 1,
-        featured_order: 2,
-        registry_name: 'python',
-      },
-    ])
-    .execute()
-}
+} from '@/lib/db/repositories'
+import {
+  getLanguages,
+} from '@/lib/db/queries/aggregator'
+import { clearDatabase } from '../helpers/cleanup-database'
+import { seedTestData } from '../helpers/seed-test-data'
 
 describe('Database Query Functions', () => {
   beforeAll(async () => {
@@ -180,16 +32,9 @@ describe('Database Query Functions', () => {
   })
 
   beforeEach(async () => {
-    // Clear and seed test data
+    // Clear and seed test data using shared helpers
     const db = createKysely(env.DB)
-
-    // Clear existing data in correct order due to foreign key constraints
-    await db.deleteFrom('registry_featured').execute()
-    await db.deleteFrom('registry_repositories').execute()
-    await db.deleteFrom('repositories').execute()
-    await db.deleteFrom('registry_metadata').execute()
-
-    // Seed test data
+    await clearDatabase(db)
     await seedTestData(db)
   })
 
@@ -216,11 +61,7 @@ describe('Database Query Functions', () => {
 
     it('should return empty array for empty database', async () => {
       const db = createKysely(env.DB)
-      // Need to delete in order due to foreign key constraints
-      await db.deleteFrom('registry_featured').execute()
-      await db.deleteFrom('registry_repositories').execute()
-      await db.deleteFrom('repositories').execute()
-      await db.deleteFrom('registry_metadata').execute()
+      await clearDatabase(db)
 
       const metadata = await getRegistryMetadata(db)
       expect(metadata).toHaveLength(0)
@@ -299,11 +140,7 @@ describe('Database Query Functions', () => {
 
     it('should return empty map when no registries exist', async () => {
       const db = createKysely(env.DB)
-      // Clear all registries (respect foreign key order)
-      await db.deleteFrom('registry_featured').execute()
-      await db.deleteFrom('registry_repositories').execute()
-      await db.deleteFrom('repositories').execute()
-      await db.deleteFrom('registry_metadata').execute()
+      await clearDatabase(db)
 
       const statsMap = await getAllRegistryStatsBatched(db)
 
@@ -364,8 +201,7 @@ describe('Database Query Functions', () => {
 
     it('should return empty array for empty database', async () => {
       const db = createKysely(env.DB)
-      await db.deleteFrom('registry_repositories').execute()
-      await db.deleteFrom('repositories').execute()
+      await clearDatabase(db)
 
       const languages = await getLanguages(db)
       expect(languages).toHaveLength(0)
@@ -373,23 +209,21 @@ describe('Database Query Functions', () => {
   })
 
   describe('Categories Query', () => {
-    it('should parse categories from JSON arrays', async () => {
+    it('should return categories from junction table', async () => {
       const db = createKysely(env.DB)
 
-      // Get all rows with categories
+      // Get all rows with categories via junction table
       const rows = await db
-        .selectFrom('registry_repositories')
-        .select(['registry_name', 'categories'])
+        .selectFrom('registry_repository_categories')
+        .innerJoin('categories', 'categories.id', 'registry_repository_categories.category_id')
+        .select(['registry_repository_categories.registry_name', 'categories.name'])
         .execute()
 
-      // Aggregate and parse categories
+      // Aggregate categories
       const categoryMap = new Map<string, number>()
       for (const row of rows) {
-        const cats = JSON.parse(row.categories) as string[]
-        for (const cat of cats) {
-          const key = `${row.registry_name}::${cat}`
-          categoryMap.set(key, (categoryMap.get(key) || 0) + 1)
-        }
+        const key = `${row.registry_name}::${row.name}`
+        categoryMap.set(key, (categoryMap.get(key) || 0) + 1)
       }
 
       expect(categoryMap.size).toBeGreaterThanOrEqual(2)
@@ -409,16 +243,16 @@ describe('Database Query Functions', () => {
       const db = createKysely(env.DB)
 
       const rows = await db
-        .selectFrom('registry_repositories')
-        .select(['registry_name', 'categories'])
-        .where('registry_name', '=', 'python')
+        .selectFrom('registry_repository_categories')
+        .innerJoin('categories', 'categories.id', 'registry_repository_categories.category_id')
+        .select(['registry_repository_categories.registry_name', 'categories.name'])
+        .where('registry_repository_categories.registry_name', '=', 'python')
         .execute()
 
-      // Parse and aggregate categories
+      // Aggregate categories
       const categorySet = new Set<string>()
       for (const row of rows) {
-        const cats = JSON.parse(row.categories) as string[]
-        cats.forEach(c => categorySet.add(c))
+        categorySet.add(row.name)
       }
 
       expect(categorySet.size).toBeGreaterThan(0)
@@ -685,11 +519,7 @@ describe('Database Query Functions', () => {
     it('should handle empty database gracefully', async () => {
       const db = createKysely(env.DB)
 
-      // Clear all data in correct order due to foreign key constraints
-      await db.deleteFrom('registry_featured').execute()
-      await db.deleteFrom('registry_repositories').execute()
-      await db.deleteFrom('repositories').execute()
-      await db.deleteFrom('registry_metadata').execute()
+      await clearDatabase(db)
 
       const metadata = await getRegistryMetadata(db)
       expect(metadata).toHaveLength(0)
@@ -746,7 +576,7 @@ describe('Database Query Functions', () => {
 
     it('should return empty array for empty database', async () => {
       const db = createKysely(env.DB)
-      await db.deleteFrom('registry_repositories').execute()
+      await clearDatabase(db)
 
       const summaries = await getCategorySummaries(db)
       expect(summaries).toHaveLength(0)
@@ -850,11 +680,7 @@ describe('Database Query Functions', () => {
 
     it('should return empty array when no registries exist', async () => {
       const db = createKysely(env.DB)
-      // Need to delete in order due to foreign key constraints
-      await db.deleteFrom('registry_featured').execute()
-      await db.deleteFrom('registry_repositories').execute()
-      await db.deleteFrom('repositories').execute()
-      await db.deleteFrom('registry_metadata').execute()
+      await clearDatabase(db)
 
       const trending = await getTrendingRegistries(db)
       expect(trending).toHaveLength(0)
@@ -991,21 +817,42 @@ describe('Database Query Functions', () => {
     it('should deduplicate repos and return registries array in search', async () => {
       const db = createKysely(env.DB)
 
+      // Get the web frameworks category ID
+      const category = await db
+        .selectFrom('categories')
+        .select('id')
+        .where('slug', '=', 'web-frameworks')
+        .executeTakeFirst()
+
+      // Get gin repository ID
+      const ginRepo = await db
+        .selectFrom('repositories')
+        .select('id')
+        .where('owner', '=', 'gin-gonic')
+        .where('name', '=', 'gin')
+        .executeTakeFirst()
+
       // Add gin to python registry as well
-      await db
-        .insertInto('registry_repositories')
-        .values({
-          categories: JSON.stringify(['Web Frameworks']),
-          registry_name: 'python',
-          repository_id: await db.selectFrom('repositories')
-            .select('id')
-            .where('owner', '=', 'gin-gonic')
-            .where('name', '=', 'gin')
-            .executeTakeFirst()
-            .then(r => r!.id),
-          title: 'Gin',
-        })
-        .execute()
+      if (category && ginRepo) {
+        await db
+          .insertInto('registry_repositories')
+          .values({
+            registry_name: 'python',
+            repository_id: ginRepo.id,
+            title: 'Gin',
+          })
+          .execute()
+
+        // Link gin to web frameworks category in python registry
+        await db
+          .insertInto('registry_repository_categories')
+          .values({
+            registry_name: 'python',
+            repository_id: ginRepo.id,
+            category_id: category.id,
+          })
+          .execute()
+      }
 
       // Search now returns one entry per repository with all registries in array
       const result = await searchRepos(db, { q: 'gin' })
@@ -1031,15 +878,34 @@ describe('Database Query Functions', () => {
         .where('name', '=', 'gin')
         .executeTakeFirst()
 
+      // Get web frameworks category
+      const category = await db
+        .selectFrom('categories')
+        .select('id')
+        .where('slug', '=', 'web-frameworks')
+        .executeTakeFirst()
+
+      // Add gin to python registry
       await db
         .insertInto('registry_repositories')
         .values({
-          categories: JSON.stringify(['Web Frameworks']),
           registry_name: 'python',
           repository_id: ginRepo!.id,
           title: 'Gin',
         })
         .execute()
+
+      // Link gin to web frameworks category in python registry
+      if (category) {
+        await db
+          .insertInto('registry_repository_categories')
+          .values({
+            registry_name: 'python',
+            repository_id: ginRepo!.id,
+            category_id: category.id,
+          })
+          .execute()
+      }
 
       const detail = await getRepoDetail(db, 'gin-gonic', 'gin')
 

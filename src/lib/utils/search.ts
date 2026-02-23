@@ -5,7 +5,12 @@
  * apply relevant filters and improve search results.
  */
 
-// Noise words that don't contribute to intent
+import { formatLabel } from './strings'
+
+// ============================================================================
+// Noise Words
+// ============================================================================
+
 const NOISE_WORDS = new Set([
   'a',
   'about',
@@ -69,7 +74,10 @@ const NOISE_WORDS = new Set([
   'with',
 ])
 
-// Language/technology patterns to detect
+// ============================================================================
+// Language Patterns
+// ============================================================================
+
 const LANGUAGE_PATTERNS: Record<string, RegExp[]> = {
   javascript: [/\bjavascript\b/i, /\bjs\b/i],
   typescript: [/\btypescript\b/i, /\bts\b/i],
@@ -91,7 +99,10 @@ const LANGUAGE_PATTERNS: Record<string, RegExp[]> = {
   matlab: [/\bmatlab\b/i],
 }
 
-// Framework patterns (mapped to their primary language)
+// ============================================================================
+// Framework Patterns
+// ============================================================================
+
 const FRAMEWORK_PATTERNS: Record<
   string,
   { language: string; regex: RegExp[] }
@@ -148,7 +159,10 @@ const FRAMEWORK_PATTERNS: Record<
   },
 }
 
-// Category/use case patterns
+// ============================================================================
+// Category Patterns
+// ============================================================================
+
 const CATEGORY_PATTERNS: Record<string, RegExp[]> = {
   // Charts & Visualization
   charts: [
@@ -292,25 +306,18 @@ const CATEGORY_PATTERNS: Record<string, RegExp[]> = {
   ],
 }
 
-/**
- * Detected intent signals from a search query
- */
+// ============================================================================
+// Types
+// ============================================================================
+
 export interface DetectedIntent {
-  /** Category ID if detected (e.g., "charts", "state-management") */
   category?: string
-  /** Raw search query with noise words removed */
   cleanedQuery: string
-  /** Framework name if detected (e.g., "react", "vue") */
   framework?: string
-  /** Language name if detected (e.g., "JavaScript", "Python") */
   language?: string
-  /** Detected signals for display */
   signals: IntentSignal[]
 }
 
-/**
- * A single intent signal that can be displayed as a chip
- */
 export interface IntentSignal {
   filterKey: string
   filterValue: string
@@ -318,6 +325,10 @@ export interface IntentSignal {
   label: string
   type: 'category' | 'framework' | 'language' | 'preset'
 }
+
+// ============================================================================
+// Intent Detection
+// ============================================================================
 
 /**
  * Extract intent from a natural language search query
@@ -335,11 +346,11 @@ export function extractIntent(query: string): DetectedIntent {
         detectedFramework = frameworkId
         detectedLanguage = config.language
         signals.push({
-          type: 'framework',
+          filterKey: 'q',
+          filterValue: frameworkId,
           id: frameworkId,
           label: formatLabel(frameworkId),
-          filterKey: 'q',
-          filterValue: frameworkId, // Keep in search for better matching
+          type: 'framework',
         })
         break
       }
@@ -354,11 +365,11 @@ export function extractIntent(query: string): DetectedIntent {
         if (regex.test(query)) {
           detectedLanguage = langId.charAt(0).toUpperCase() + langId.slice(1)
           signals.push({
-            type: 'language',
-            id: langId,
-            label: formatLabel(langId),
             filterKey: 'lang',
             filterValue: detectedLanguage,
+            id: langId,
+            label: formatLabel(langId),
+            type: 'language',
           })
           break
         }
@@ -373,11 +384,11 @@ export function extractIntent(query: string): DetectedIntent {
       if (regex.test(query)) {
         detectedCategory = catId
         signals.push({
-          type: 'category',
+          filterKey: 'q',
+          filterValue: catId,
           id: catId,
           label: formatLabel(catId),
-          filterKey: 'q',
-          filterValue: catId, // Keep in search query
+          type: 'category',
         })
         break
       }
@@ -388,57 +399,37 @@ export function extractIntent(query: string): DetectedIntent {
   // Clean the query by removing detected signals and noise words
   let cleanedQuery = query.toLowerCase()
 
-  // Remove detected framework terms
   if (detectedFramework) {
     const frameworkPatterns = FRAMEWORK_PATTERNS[detectedFramework]
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (frameworkPatterns?.regex) {
-      for (const regex of frameworkPatterns.regex) {
-        cleanedQuery = cleanedQuery.replace(regex, ' ')
-      }
+    for (const regex of frameworkPatterns.regex) {
+      cleanedQuery = cleanedQuery.replace(regex, ' ')
     }
   }
 
-  // Remove detected language terms
   if (detectedLanguage && !detectedFramework) {
     const langKey = detectedLanguage.toLowerCase()
     const langPatterns = LANGUAGE_PATTERNS[langKey]
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (langPatterns) {
-      for (const regex of langPatterns) {
-        cleanedQuery = cleanedQuery.replace(regex, ' ')
-      }
+    for (const regex of langPatterns) {
+      cleanedQuery = cleanedQuery.replace(regex, ' ')
     }
   }
 
-  // Remove detected category terms
   if (detectedCategory) {
     for (const regex of CATEGORY_PATTERNS[detectedCategory]) {
       cleanedQuery = cleanedQuery.replace(regex, ' ')
     }
   }
 
-  // Remove noise words
   cleanedQuery = cleanedQuery
     .split(/\s+/)
     .filter(word => word.length > 0 && !NOISE_WORDS.has(word))
     .join(' ')
 
   return {
-    framework: detectedFramework,
-    language: detectedLanguage,
     category: detectedCategory,
     cleanedQuery: cleanedQuery.trim(),
+    framework: detectedFramework,
+    language: detectedLanguage,
     signals,
   }
-}
-
-/**
- * Format a slug-like string into a readable label
- */
-function formatLabel(slug: string): string {
-  return slug
-    .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
 }
