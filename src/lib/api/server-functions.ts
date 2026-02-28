@@ -134,8 +134,6 @@ export const repoDetailQueryOptions = (owner: string, name: string) =>
 // Search API
 // ============================================================================
 
-import { type FilterPreset } from '../utils/filters'
-
 export interface SearchParams {
   archived?: boolean
   categoryName?: string
@@ -144,7 +142,6 @@ export interface SearchParams {
   language?: string
   limit?: number
   minStars?: number
-  preset?: FilterPreset
   q?: string
   registryName?: string
   sortBy?: 'name' | 'quality' | 'stars' | 'updated'
@@ -182,7 +179,6 @@ export const searchInfiniteQueryOptions = (
       baseParams.minStars,
       baseParams.archived,
       baseParams.dateFrom,
-      baseParams.preset,
       baseParams.limit,
       baseParams.categoryName,
     ] as const,

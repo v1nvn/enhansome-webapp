@@ -5,7 +5,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ChevronDown, Loader2 } from 'lucide-react'
 
 import type { FilterOptions } from '@/lib/api/server-functions'
-import type { FilterPreset } from '@/lib/utils/filters'
 import type { RegistryItem } from '@/types/registry'
 
 import {
@@ -25,7 +24,6 @@ const PAGE_SIZE = 20
 interface BrowseSearch {
   cat?: string
   lang?: string
-  preset?: FilterPreset
   q?: string
   registry?: string
   sort?: 'name' | 'quality' | 'stars' | 'updated'
@@ -37,7 +35,6 @@ export const Route = createFileRoute('/browse')({
   validateSearch: (search: Record<string, unknown>): BrowseSearch => ({
     cat: search.cat as string | undefined,
     lang: search.lang as string | undefined,
-    preset: search.preset as FilterPreset | undefined,
     q: search.q as string | undefined,
     registry: search.registry as string | undefined,
     sort:
@@ -102,7 +99,6 @@ function BrowsePage() {
     return {
       categoryName: search.cat,
       lang: search.lang,
-      preset: search.preset,
       registry: search.registry,
       sort: search.sort || 'quality',
     }
@@ -114,7 +110,6 @@ function BrowsePage() {
       ...search,
       cat: filters.categoryName,
       lang: filters.lang,
-      preset: filters.preset,
       registry: filters.registry,
       sort: filters.sort || 'quality',
     }
@@ -127,7 +122,6 @@ function BrowsePage() {
       categoryName: search.cat,
       language: search.lang,
       limit: PAGE_SIZE,
-      preset: search.preset,
       q: search.q?.trim(),
       registryName: search.registry,
       sortBy: search.sort || 'quality',
@@ -148,11 +142,7 @@ function BrowsePage() {
 
   // Check if we're on the homepage (no search/filters applied)
   const isHomepage =
-    !search.q &&
-    !search.preset &&
-    !search.registry &&
-    !search.lang &&
-    !search.cat
+    !search.q && !search.registry && !search.lang && !search.cat
 
   return (
     <div className="bg-background min-h-screen">

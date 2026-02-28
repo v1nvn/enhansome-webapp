@@ -44,7 +44,6 @@ function Home() {
     if (searchQuery.trim()) search.q = searchQuery.trim()
     if (filters.category) search.category = filters.category
     if (filters.lang) search.lang = filters.lang
-    if (filters.preset) search.preset = filters.preset
     if (filters.registry) search.registry = filters.registry
     if (filters.sort) search.sort = filters.sort
     void navigate({ to: '/browse', search })
@@ -53,7 +52,7 @@ function Home() {
   const handleCategoryClick = (categoryId: string) => {
     void navigate({
       to: '/browse',
-      search: { category: categoryId },
+      search: { cat: categoryId },
     })
   }
 

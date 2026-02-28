@@ -323,7 +323,7 @@ export interface IntentSignal {
   filterValue: string
   id: string
   label: string
-  type: 'category' | 'framework' | 'language' | 'preset'
+  type: 'category' | 'framework' | 'language'
 }
 
 // ============================================================================

@@ -3,8 +3,6 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Search, Sparkles } from 'lucide-react'
 
-import type { FilterPreset } from '@/lib/utils/filters'
-
 import {
   type DetectedIntent,
   extractIntent,
@@ -14,7 +12,6 @@ import {
 export interface EnhancedSearchBarFilters {
   category?: string
   lang?: string
-  preset?: FilterPreset
   registry?: string
   sort?: 'name' | 'quality' | 'stars' | 'updated'
 }

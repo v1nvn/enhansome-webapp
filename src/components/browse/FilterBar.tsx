@@ -4,7 +4,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { ChevronDown, Code, Filter, Search, Tag, X } from 'lucide-react'
 
 import type { FilterOptions } from '@/lib/api/server-functions'
-import type { FilterPreset } from '@/lib/utils/filters'
 
 import { extractIntent, type IntentSignal } from '@/lib/utils/search'
 
@@ -16,7 +15,6 @@ export interface FilterBarFilters {
   category?: string
   categoryName?: string
   lang?: string
-  preset?: FilterPreset
   registry?: string
   sort?: 'name' | 'quality' | 'stars' | 'updated'
 }
@@ -196,12 +194,6 @@ export function FilterBar({
 
   // Build active filter chips
   const activeChips: { key: string; label: string }[] = []
-  if (filters.preset) {
-    activeChips.push({
-      key: 'preset',
-      label: filters.preset.charAt(0).toUpperCase() + filters.preset.slice(1),
-    })
-  }
   if (filters.registry && selectedRegistry) {
     activeChips.push({
       key: 'registry',

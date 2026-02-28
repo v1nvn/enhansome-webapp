@@ -7,15 +7,12 @@
 
 import type { Database } from '@/types/database'
 
-import type { FilterPreset } from '../../utils/filters'
-
 import {
   getFilterOptions,
   getUseCaseCategoryCounts,
   searchRepos,
 } from '../../db/repositories/search-repository'
 import { getAllUseCaseCategories } from '../../utils/categories'
-import { presetToSearchParams } from '../../utils/filters'
 
 export type { FilterOptions } from '../../db/repositories/search-repository'
 
@@ -29,7 +26,6 @@ export interface SearchParamsInternal {
   language?: string
   limit?: number
   minStars?: number
-  preset?: FilterPreset
   q?: string
   registryName?: string
   sortBy?: 'name' | 'quality' | 'stars' | 'updated'
@@ -71,15 +67,13 @@ export async function searchReposHandler(
   db: Kysely<Database>,
   data: SearchParamsInternal,
 ) {
-  const presetParams = presetToSearchParams(data.preset)
-
   return searchRepos(db as any, {
-    archived: data.archived ?? presetParams.archived,
+    archived: data.archived,
     categoryName: data.categoryName,
     cursor: data.cursor,
     language: data.language,
     limit: data.limit ?? 20,
-    minStars: data.minStars ?? presetParams.minStars,
+    minStars: data.minStars,
     q: data.q,
     registryName: data.registryName,
     sortBy: data.sortBy ?? 'quality',
