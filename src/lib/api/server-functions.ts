@@ -11,7 +11,7 @@ import { env } from 'cloudflare:workers'
 
 import { createKysely } from '../db/client'
 import {
-  fetchLanguagesHandler,
+  fetchFilterOptionsHandler,
   fetchMetadataHandler,
   fetchRegistryDetailHandler,
   fetchRepoDetailHandler,
@@ -32,35 +32,10 @@ export type {
 } from './handlers/registry-handlers'
 export type { RepoDetail } from './handlers/repository-handlers'
 
-export type { UseCaseCategoryWithData } from './handlers/search-handlers'
-
-// ============================================================================
-// Languages API
-// ============================================================================
-
-export interface FetchLanguagesInput {
-  registry?: string
-}
-
-export function validateFetchLanguagesInput(
-  input: FetchLanguagesInput,
-): FetchLanguagesInput {
-  return input
-}
-
-export const fetchLanguages = createServerFn({ method: 'GET' })
-  .inputValidator(validateFetchLanguagesInput)
-  .handler(async ({ data }) => {
-    const db = createKysely(env.DB)
-    return fetchLanguagesHandler(db, data)
-  })
-
-export const languagesQueryOptions = (registryName?: string) =>
-  queryOptions<string[]>({
-    queryFn: () => fetchLanguages({ data: { registry: registryName } }),
-    queryKey: ['languages', registryName],
-    staleTime: 24 * 60 * 60 * 1000,
-  })
+export type {
+  FilterOptions,
+  UseCaseCategoryWithData,
+} from './handlers/search-handlers'
 
 // ============================================================================
 // Metadata API
@@ -163,6 +138,7 @@ import { type FilterPreset } from '../utils/filters'
 
 export interface SearchParams {
   archived?: boolean
+  categoryName?: string
   cursor?: number
   dateFrom?: string
   language?: string
@@ -208,6 +184,7 @@ export const searchInfiniteQueryOptions = (
       baseParams.dateFrom,
       baseParams.preset,
       baseParams.limit,
+      baseParams.categoryName,
     ] as const,
     queryFn: ({ pageParam }: { pageParam: number | undefined }) =>
       searchReposFn({ data: { ...baseParams, cursor: pageParam } }),
@@ -234,6 +211,36 @@ export const useCaseCategoriesQueryOptions = () =>
     queryFn: () => fetchUseCaseCategories(),
     queryKey: ['use-case-categories'],
     staleTime: 60 * 60 * 1000,
+  })
+
+// ============================================================================
+// Filter Options API (unified facets query)
+// ============================================================================
+
+export interface FetchFilterOptionsInput {
+  categoryName?: string
+  language?: string
+  registryName?: string
+}
+
+export function validateFetchFilterOptionsInput(
+  input: FetchFilterOptionsInput,
+): FetchFilterOptionsInput {
+  return input
+}
+
+export const fetchFilterOptions = createServerFn({ method: 'GET' })
+  .inputValidator(validateFetchFilterOptionsInput)
+  .handler(async ({ data }) => {
+    const db = createKysely(env.DB)
+    return fetchFilterOptionsHandler(db, data)
+  })
+
+export const filterOptionsQueryOptions = (params?: FetchFilterOptionsInput) =>
+  queryOptions({
+    queryFn: () => fetchFilterOptions({ data: params ?? {} }),
+    queryKey: ['filter-options', { params }],
+    staleTime: 24 * 60 * 60 * 1000,
   })
 
 // ============================================================================

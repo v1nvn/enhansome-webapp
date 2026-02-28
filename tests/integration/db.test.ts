@@ -19,9 +19,7 @@ import {
   getTrendingRegistries,
   searchRepos,
 } from '@/lib/db/repositories'
-import {
-  getLanguages,
-} from '@/lib/db/queries/aggregator'
+import { getFilterOptions } from '@/lib/db/repositories/search-repository'
 import { clearDatabase } from '../helpers/cleanup-database'
 import { seedTestData } from '../helpers/seed-test-data'
 
@@ -171,40 +169,6 @@ describe('Database Query Functions', () => {
       expect(emptyStats?.totalRepos).toBe(0)
       expect(emptyStats?.totalStars).toBe(0)
       expect(emptyStats?.latestUpdate).toBe('2025-10-13T00:00:00Z')
-    })
-  })
-
-  describe('getLanguages', () => {
-    it('should return all unique languages', async () => {
-      const db = createKysely(env.DB)
-      const languages = await getLanguages(db)
-
-      expect(languages).toHaveLength(2)
-      expect(languages).toContain('Go')
-      expect(languages).toContain('Python')
-    })
-
-    it('should filter languages by registry', async () => {
-      const db = createKysely(env.DB)
-      const languages = await getLanguages(db, 'go')
-
-      expect(languages).toHaveLength(1)
-      expect(languages).toContain('Go')
-    })
-
-    it('should return empty array for non-existent registry', async () => {
-      const db = createKysely(env.DB)
-      const languages = await getLanguages(db, 'nonexistent')
-
-      expect(languages).toHaveLength(0)
-    })
-
-    it('should return empty array for empty database', async () => {
-      const db = createKysely(env.DB)
-      await clearDatabase(db)
-
-      const languages = await getLanguages(db)
-      expect(languages).toHaveLength(0)
     })
   })
 
@@ -523,9 +487,6 @@ describe('Database Query Functions', () => {
 
       const metadata = await getRegistryMetadata(db)
       expect(metadata).toHaveLength(0)
-
-      const languages = await getLanguages(db)
-      expect(languages).toHaveLength(0)
 
       const searchResult = await searchRepos(db, {})
       expect(searchResult.total).toBe(0)
@@ -912,6 +873,106 @@ describe('Database Query Functions', () => {
       expect(detail?.registries.length).toBe(2)
       expect(detail?.registries.map(r => r.name)).toContain('go')
       expect(detail?.registries.map(r => r.name)).toContain('python')
+    })
+  })
+
+  describe('getFilterOptions', () => {
+    it('should return registries, languages, and categories without filters', async () => {
+      const db = createKysely(env.DB)
+      const result = await getFilterOptions(db, {})
+
+      expect(result.registries.length).toBe(2)
+      expect(result.languages.length).toBe(2)
+      expect(result.categories.length).toBe(2) // Web Frameworks, Testing
+
+      const go = result.registries.find(r => r.name === 'go')
+      expect(go).toBeDefined()
+      expect(go!.count).toBe(3) // gin, echo, testify
+
+      const python = result.registries.find(r => r.name === 'python')
+      expect(python).toBeDefined()
+      expect(python!.count).toBe(1) // django (flask is archived, excluded)
+    })
+
+    it('should strip awesome/enhansome prefix from registry labels', async () => {
+      const db = createKysely(env.DB)
+      const result = await getFilterOptions(db, {})
+
+      const go = result.registries.find(r => r.name === 'go')
+      // 'Awesome Go' -> 'Go'
+      expect(go!.label).toBe('Go')
+
+      const python = result.registries.find(r => r.name === 'python')
+      // 'Awesome Python' -> 'Python'
+      expect(python!.label).toBe('Python')
+    })
+
+    it('should cross-filter registries by language (not filter registries by registry)', async () => {
+      const db = createKysely(env.DB)
+      const result = await getFilterOptions(db, { language: 'Go' })
+
+      // Registries should be cross-filtered by language
+      expect(result.registries.every(r => r.count > 0)).toBe(true)
+      const go = result.registries.find(r => r.name === 'go')
+      expect(go!.count).toBe(3) // gin, echo, testify are Go
+
+      // python registry has no Go repos, so it should not appear
+      const python = result.registries.find(r => r.name === 'python')
+      expect(python).toBeUndefined()
+    })
+
+    it('should cross-filter registries by category', async () => {
+      const db = createKysely(env.DB)
+      const result = await getFilterOptions(db, { categoryName: 'Testing' })
+
+      // Only go registry has Testing category
+      expect(result.registries).toHaveLength(1)
+      expect(result.registries[0].name).toBe('go')
+      expect(result.registries[0].count).toBe(1)
+    })
+
+    it('should cross-filter languages by registry', async () => {
+      const db = createKysely(env.DB)
+      const result = await getFilterOptions(db, { registryName: 'go' })
+
+      // Language list should only contain Go (not Python) since cross-filtered by go registry
+      expect(result.languages).toHaveLength(1)
+      expect(result.languages[0].name).toBe('Go')
+    })
+
+    it('should cross-filter categories by language', async () => {
+      const db = createKysely(env.DB)
+      const result = await getFilterOptions(db, { language: 'Python' })
+
+      // Only Web Frameworks has Python repos (django)
+      expect(result.categories).toHaveLength(1)
+      expect(result.categories[0].name).toBe('Web Frameworks')
+    })
+
+    it('should return empty results when database is empty', async () => {
+      const db = createKysely(env.DB)
+      await clearDatabase(db)
+
+      const result = await getFilterOptions(db, {})
+
+      expect(result.registries).toHaveLength(0)
+      expect(result.languages).toHaveLength(0)
+      expect(result.categories).toHaveLength(0)
+    })
+
+    it('should sort each group by count descending', async () => {
+      const db = createKysely(env.DB)
+      const result = await getFilterOptions(db, {})
+
+      // Registries: go (3) > python (1)
+      expect(result.registries[0].name).toBe('go')
+      expect(result.registries[0].count).toBeGreaterThanOrEqual(result.registries[1]?.count ?? 0)
+
+      // Categories: Web Frameworks (3: gin, echo, django) > Testing (1: testify)
+      const webFrameworks = result.categories.find(c => c.name === 'Web Frameworks')
+      const testing = result.categories.find(c => c.name === 'Testing')
+      expect(webFrameworks!.count).toBeGreaterThan(testing!.count)
+      expect(result.categories[0].count).toBeGreaterThanOrEqual(result.categories[1]?.count ?? 0)
     })
   })
 })

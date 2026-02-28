@@ -19,7 +19,10 @@ import type { Database } from '@/types/database'
 export async function clearDatabase(db: Kysely<Database>): Promise<void> {
   // Clear order matters due to foreign key constraints
 
-  // 1. Category junction table (has FKs to categories, repositories, registry_metadata)
+  // 1. Denormalized facets table (no FKs, safe to clear first)
+  await db.deleteFrom('repository_facets').execute()
+
+  // 2. Category junction table (has FKs to categories, repositories, registry_metadata)
   await db.deleteFrom('registry_repository_categories').execute()
 
   // 2. registry_repositories (has FKs to repositories and registry_metadata)

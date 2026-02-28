@@ -7,7 +7,7 @@ import { applyD1Migrations, env } from 'cloudflare:test'
 
 import { createKysely } from '@/lib/db'
 import {
-  fetchLanguagesHandler,
+  fetchFilterOptionsHandler,
   fetchMetadataHandler,
   fetchRegistryDetailHandler,
   fetchRepoDetailHandler,
@@ -15,7 +15,7 @@ import {
   searchReposHandler,
 } from '@/lib/api/handlers'
 import {
-  validateFetchLanguagesInput,
+  validateFetchFilterOptionsInput,
   validateFetchRegistryDetailInput,
   validateFetchRepoDetailInput,
   validateSearchParams,
@@ -67,51 +67,6 @@ describe('Server Function Handlers', () => {
       const result = await fetchMetadataHandler(db)
 
       expect(result).toHaveLength(0)
-    })
-  })
-
-  describe('fetchLanguagesHandler', () => {
-    it('should return all unique languages', async () => {
-      const db = createKysely(env.DB)
-      const result = await fetchLanguagesHandler(db, {})
-
-      expect(Array.isArray(result)).toBe(true)
-      expect(result).toHaveLength(2)
-      expect(result).toContain('Go')
-      expect(result).toContain('Python')
-    })
-
-    it('should filter languages by registry parameter', async () => {
-      const db = createKysely(env.DB)
-      const result = await fetchLanguagesHandler(db, { registry: 'go' })
-
-      expect(result).toHaveLength(1)
-      expect(result).toContain('Go')
-    })
-
-    it('should return empty array for non-existent registry', async () => {
-      const db = createKysely(env.DB)
-      const result = await fetchLanguagesHandler(db, {
-        registry: 'nonexistent',
-      })
-
-      expect(result).toHaveLength(0)
-    })
-  })
-
-  describe('validateFetchLanguagesInput', () => {
-    it('should pass through valid input', () => {
-      const input = { registry: 'go' }
-      const result = validateFetchLanguagesInput(input)
-
-      expect(result).toEqual(input)
-    })
-
-    it('should handle empty input', () => {
-      const input = {}
-      const result = validateFetchLanguagesInput(input)
-
-      expect(result).toEqual(input)
     })
   })
 
@@ -434,6 +389,78 @@ describe('Server Function Handlers', () => {
     it('should pass through valid input', () => {
       const input = { name: 'gin', owner: 'gin-gonic' }
       const result = validateFetchRepoDetailInput(input)
+
+      expect(result).toEqual(input)
+    })
+  })
+
+  describe('fetchFilterOptionsHandler', () => {
+    it('should return registries, languages, and categories', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchFilterOptionsHandler(db, {})
+
+      expect(result).toHaveProperty('registries')
+      expect(result).toHaveProperty('languages')
+      expect(result).toHaveProperty('categories')
+      expect(Array.isArray(result.registries)).toBe(true)
+      expect(Array.isArray(result.languages)).toBe(true)
+      expect(Array.isArray(result.categories)).toBe(true)
+    })
+
+    it('should return correct counts without filters', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchFilterOptionsHandler(db, {})
+
+      expect(result.registries).toHaveLength(2)
+      expect(result.languages).toHaveLength(2)
+      expect(result.categories).toHaveLength(2)
+    })
+
+    it('should cross-filter by registryName', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchFilterOptionsHandler(db, { registryName: 'go' })
+
+      // Languages cross-filtered: only Go
+      expect(result.languages).toHaveLength(1)
+      expect(result.languages[0].name).toBe('Go')
+      // Categories cross-filtered: Web Frameworks and Testing
+      expect(result.categories.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('should cross-filter by language', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchFilterOptionsHandler(db, { language: 'Python' })
+
+      // Registries cross-filtered: only python
+      const python = result.registries.find(r => r.name === 'python')
+      expect(python).toBeDefined()
+      const go = result.registries.find(r => r.name === 'go')
+      expect(go).toBeUndefined()
+    })
+
+    it('should return empty results when no data exists', async () => {
+      const db = createKysely(env.DB)
+      await clearDatabase(db)
+
+      const result = await fetchFilterOptionsHandler(db, {})
+
+      expect(result.registries).toHaveLength(0)
+      expect(result.languages).toHaveLength(0)
+      expect(result.categories).toHaveLength(0)
+    })
+  })
+
+  describe('validateFetchFilterOptionsInput', () => {
+    it('should pass through valid input', () => {
+      const input = { registryName: 'go', language: 'Go' }
+      const result = validateFetchFilterOptionsInput(input)
+
+      expect(result).toEqual(input)
+    })
+
+    it('should handle empty input', () => {
+      const input = {}
+      const result = validateFetchFilterOptionsInput(input)
 
       expect(result).toEqual(input)
     })

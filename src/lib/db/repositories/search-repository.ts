@@ -3,21 +3,32 @@
  * Handles search queries with filters
  */
 
+import { sql } from 'kysely'
+
 import type { Database } from '@/types/database'
 import type { RegistryItem } from '@/types/registry'
 
-import {
-  categorizeItem,
-  getAllUseCaseCategories,
-  getUseCaseCategoryById,
-} from '@/lib/utils/categories'
+import { categorizeItem, getAllUseCaseCategories } from '@/lib/utils/categories'
 
 import { calculateQualityScore } from '../../utils/scoring'
 
 import type { Kysely } from 'kysely'
 
+export interface FilterOptions {
+  categories: { count: number; name: string }[]
+  languages: { count: number; name: string }[]
+  registries: { count: number; label: string; name: string }[]
+}
+
+export interface GetFilterOptionsParams {
+  categoryName?: string
+  language?: string
+  registryName?: string
+}
+
 export interface SearchRepositoryParams {
   archived?: boolean
+  categoryName?: string
   cursor?: number
   language?: string
   limit?: number
@@ -53,6 +64,113 @@ export interface SearchResult {
   total: number
 }
 
+export async function getFilterOptions(
+  db: Kysely<Database>,
+  params: GetFilterOptionsParams = {},
+): Promise<FilterOptions> {
+  const { categoryName, language, registryName } = params
+
+  interface FacetRow {
+    count: number
+    label: string
+    slug: string
+    type: string
+    value: string
+  }
+
+  // Registry counts: cross-filtered by language + category, NOT by registry
+  let registryQuery = db
+    .selectFrom('repository_facets as f')
+    .innerJoin('registry_metadata as rm', 'rm.registry_name', 'f.registry_name')
+    .select([
+      sql<string>`'registry'`.as('type'),
+      'f.registry_name as value',
+      'rm.title as label',
+      sql<string>`''`.as('slug'),
+      sql<number>`COUNT(DISTINCT f.repository_id)`.as('count'),
+    ])
+    .groupBy(['f.registry_name', 'rm.title'])
+
+  if (language) {
+    registryQuery = registryQuery.where('f.language', '=', language)
+  }
+  if (categoryName) {
+    registryQuery = registryQuery.where('f.category_name', '=', categoryName)
+  }
+
+  // Language counts: cross-filtered by registry + category, NOT by language
+  let languageQuery = db
+    .selectFrom('repository_facets as f')
+    .select([
+      sql<string>`'language'`.as('type'),
+      'f.language as value',
+      'f.language as label',
+      sql<string>`''`.as('slug'),
+      sql<number>`COUNT(DISTINCT f.repository_id)`.as('count'),
+    ])
+    .where('f.language', 'is not', null)
+    .groupBy('f.language')
+
+  if (registryName) {
+    languageQuery = languageQuery.where('f.registry_name', '=', registryName)
+  }
+  if (categoryName) {
+    languageQuery = languageQuery.where('f.category_name', '=', categoryName)
+  }
+
+  // Category counts: cross-filtered by registry + language, NOT by category
+  let categoryQuery = db
+    .selectFrom('repository_facets as f')
+    .select([
+      sql<string>`'category'`.as('type'),
+      'f.category_name as value',
+      'f.category_name as label',
+      sql<string>`''`.as('slug'),
+      sql<number>`COUNT(DISTINCT f.repository_id)`.as('count'),
+    ])
+    .groupBy('f.category_name')
+
+  if (registryName) {
+    categoryQuery = categoryQuery.where('f.registry_name', '=', registryName)
+  }
+  if (language) {
+    categoryQuery = categoryQuery.where('f.language', '=', language)
+  }
+
+  const [registryRows, languageRows, categoryRows] = await Promise.all([
+    registryQuery.execute(),
+    languageQuery.execute(),
+    categoryQuery.execute(),
+  ])
+
+  const registries = (registryRows as FacetRow[])
+    .map(r => ({
+      count: r.count,
+      label: stripRegistryPrefix(r.label),
+      name: r.value,
+    }))
+    .filter(r => r.count > 0)
+    .sort((a, b) => b.count - a.count)
+
+  const languages = (languageRows as FacetRow[])
+    .map(r => ({
+      count: r.count,
+      name: r.value,
+    }))
+    .filter(l => l.count > 0)
+    .sort((a, b) => b.count - a.count)
+
+  const categories = (categoryRows as FacetRow[])
+    .map(r => ({
+      count: r.count,
+      name: r.value,
+    }))
+    .filter(c => c.count > 0)
+    .sort((a, b) => b.count - a.count)
+
+  return { categories, languages, registries }
+}
+
 export async function getUseCaseCategoryCounts(db: Kysely<Database>): Promise<
   {
     categoryId: string
@@ -60,29 +178,15 @@ export async function getUseCaseCategoryCounts(db: Kysely<Database>): Promise<
   }[]
 > {
   const items = await db
-    .selectFrom('registry_repositories')
-    .innerJoin(
-      'repositories',
-      'repositories.id',
-      'registry_repositories.repository_id',
+    .selectFrom('repository_facets as f')
+    .innerJoin('repositories as r', 'r.id', 'f.repository_id')
+    .innerJoin('registry_repositories as rr', eb =>
+      eb
+        .onRef('rr.repository_id', '=', 'f.repository_id')
+        .onRef('rr.registry_name', '=', 'f.registry_name'),
     )
-    .innerJoin(
-      'registry_repository_categories',
-      'registry_repository_categories.repository_id',
-      'repositories.id',
-    )
-    .innerJoin(
-      'categories',
-      'categories.id',
-      'registry_repository_categories.category_id',
-    )
-    .select([
-      'categories.name as category_name',
-      'registry_repositories.title',
-      'repositories.description',
-      'repositories.language',
-    ])
-    .where('repositories.archived', '=', 0)
+    .select(['f.category_name', 'rr.title', 'r.description', 'r.language'])
+    .where('r.archived', '=', 0)
     .execute()
 
   const categories = getAllUseCaseCategories()
@@ -109,173 +213,13 @@ export async function getUseCaseCategoryCounts(db: Kysely<Database>): Promise<
     .sort((a, b) => b.count - a.count)
 }
 
-export async function getUseCaseCategoryItems(
-  db: Kysely<Database>,
-  categoryId: string,
-  options?: {
-    framework?: string
-    limit?: number
-    offset?: number
-  },
-): Promise<
-  {
-    categories: string[]
-    description: null | string
-    id: number
-    language: null | string
-    registry: string
-    repo_info?: {
-      archived: boolean
-      language: null | string
-      last_commit: string
-      owner: string
-      repo: string
-      stars: number
-    }
-    stars: number
-    title: string
-  }[]
-> {
-  const { limit = 50, offset = 0, framework } = options ?? {}
-
-  const categoryDef = getUseCaseCategoryById(categoryId)
-
-  if (!categoryDef) {
-    return []
-  }
-
-  let query = db
-    .selectFrom('registry_repositories')
-    .innerJoin(
-      'repositories',
-      'repositories.id',
-      'registry_repositories.repository_id',
-    )
-    .innerJoin(
-      'registry_repository_categories',
-      'registry_repository_categories.repository_id',
-      'repositories.id',
-    )
-    .innerJoin(
-      'categories',
-      'categories.id',
-      'registry_repository_categories.category_id',
-    )
-    .select([
-      'categories.name as category_name',
-      'repositories.id',
-      'registry_repositories.registry_name',
-      'registry_repositories.title',
-      'repositories.description',
-      'repositories.owner',
-      'repositories.name',
-      'repositories.stars',
-      'repositories.language',
-      'repositories.last_commit',
-      'repositories.archived',
-    ])
-    .where('repositories.archived', '=', 0)
-
-  if (framework && framework !== 'all') {
-    const frameworkPatterns: Record<string, string[]> = {
-      react: ['typescript', 'javascript'],
-      vue: ['vue', 'typescript'],
-      svelte: ['svelte'],
-      angular: ['angular', 'typescript'],
-      solid: ['solid'],
-      qwik: ['qwik'],
-    }
-
-    const patterns = frameworkPatterns[framework]
-    query = query.where('repositories.language', 'in', patterns)
-  }
-
-  const items = await query
-    .orderBy('repositories.stars', 'desc')
-    .limit(limit + offset)
-    .execute()
-
-  const repoMap = new Map<
-    number,
-    {
-      archived: number
-      categories: Set<string>
-      description: null | string
-      id: number
-      language: null | string
-      last_commit: null | string
-      name: string
-      owner: string
-      registry_name: string
-      stars: number
-      title: string
-    }
-  >()
-
-  for (const row of items) {
-    if (!repoMap.has(row.id)) {
-      repoMap.set(row.id, {
-        archived: row.archived,
-        categories: new Set(),
-        description: row.description,
-        id: row.id,
-        language: row.language,
-        registry_name: row.registry_name,
-        stars: row.stars,
-        title: row.title,
-        owner: row.owner,
-        name: row.name,
-        last_commit: row.last_commit,
-      })
-    }
-    const existing = repoMap.get(row.id)
-    if (existing) {
-      existing.categories.add(row.category_name)
-    }
-  }
-
-  const repoArray = Array.from(repoMap.values())
-  const matchedItems = repoArray
-    .filter(repo => {
-      for (const categoryName of repo.categories) {
-        const matchedCategories = categorizeItem(
-          repo.title,
-          repo.description,
-          categoryName,
-        )
-        if (matchedCategories.includes(categoryId)) {
-          return true
-        }
-      }
-      return false
-    })
-    .slice(offset, offset + limit)
-
-  return matchedItems.map(repo => ({
-    categories: Array.from(repo.categories).sort(),
-    description: repo.description,
-    id: repo.id,
-    language: repo.language,
-    registry: repo.registry_name,
-    stars: repo.stars,
-    title: repo.title,
-    repo_info: {
-      archived: Boolean(repo.archived),
-      language: repo.language,
-      last_commit: repo.last_commit || '',
-      owner: repo.owner,
-      repo: repo.name,
-      stars: repo.stars,
-    },
-  }))
-}
-
 export async function searchRepos(
   db: Kysely<Database>,
   params: SearchRepositoryParams,
 ): Promise<SearchResult> {
   const {
     archived = false,
+    categoryName,
     cursor,
     language,
     limit = 20,
@@ -296,6 +240,17 @@ export async function searchRepos(
   }
   if (language) {
     countQuery = countQuery.where('r.language', '=', language)
+  }
+  if (categoryName) {
+    countQuery = countQuery.where(eb =>
+      eb.exists(
+        eb
+          .selectFrom('repository_facets as f')
+          .select(sql`1`.as('one'))
+          .whereRef('f.repository_id', '=', 'r.id')
+          .where('f.category_name', '=', categoryName),
+      ),
+    )
   }
   if (archived) {
     countQuery = countQuery.where('r.archived', '=', 1)
@@ -325,12 +280,11 @@ export async function searchRepos(
   let mainQuery = db
     .selectFrom('repositories as r')
     .innerJoin('registry_repositories as rr', 'rr.repository_id', 'r.id')
-    .innerJoin(
-      'registry_repository_categories as rrc',
-      'rrc.repository_id',
-      'r.id',
+    .leftJoin('repository_facets as f', eb =>
+      eb
+        .onRef('f.repository_id', '=', 'r.id')
+        .onRef('f.registry_name', '=', 'rr.registry_name'),
     )
-    .innerJoin('categories as c', 'c.id', 'rrc.category_id')
     .select([
       'r.id',
       'r.owner',
@@ -342,7 +296,7 @@ export async function searchRepos(
       'r.archived',
       'rr.title',
       'rr.registry_name',
-      'c.name as category_name',
+      'f.category_name as category_name',
     ])
 
   if (registryName) {
@@ -350,6 +304,9 @@ export async function searchRepos(
   }
   if (language) {
     mainQuery = mainQuery.where('r.language', '=', language)
+  }
+  if (categoryName) {
+    mainQuery = mainQuery.where('f.category_name', '=', categoryName)
   }
   if (archived) {
     mainQuery = mainQuery.where('r.archived', '=', 1)
@@ -394,11 +351,13 @@ export async function searchRepos(
     const existing = repoMap.get(row.id)
     if (existing) {
       existing.registries.add(row.registry_name)
-      existing.categories.add(row.category_name)
+      if (row.category_name) existing.categories.add(row.category_name)
     } else {
       repoMap.set(row.id, {
         archived: row.archived,
-        categories: new Set([row.category_name]),
+        categories: row.category_name
+          ? new Set([row.category_name])
+          : new Set(),
         description: row.description,
         id: row.id,
         language: row.language,
@@ -499,4 +458,11 @@ export async function searchRepos(
     nextCursor: hasMore ? offset + limit : undefined,
     total,
   }
+}
+
+function stripRegistryPrefix(title: string): string {
+  return title
+    .replace(/^(awesome|enhansome)\s*/i, '')
+    .replace(/\s+with stars$/i, '')
+    .trim()
 }

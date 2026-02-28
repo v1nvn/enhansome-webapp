@@ -4,6 +4,7 @@ import { useInfiniteQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { ChevronDown, Loader2 } from 'lucide-react'
 
+import type { FilterOptions } from '@/lib/api/server-functions'
 import type { FilterPreset } from '@/lib/utils/filters'
 import type { RegistryItem } from '@/types/registry'
 
@@ -14,7 +15,7 @@ import {
 } from '@/components/browse'
 import { CompareDrawer } from '@/components/CompareDrawer'
 import {
-  languagesQueryOptions,
+  filterOptionsQueryOptions,
   metadataQueryOptions,
   searchInfiniteQueryOptions,
 } from '@/lib/api/server-functions'
@@ -22,7 +23,7 @@ import {
 const PAGE_SIZE = 20
 
 interface BrowseSearch {
-  category?: string
+  cat?: string
   lang?: string
   preset?: FilterPreset
   q?: string
@@ -34,7 +35,7 @@ export const Route = createFileRoute('/browse')({
   component: BrowsePage,
 
   validateSearch: (search: Record<string, unknown>): BrowseSearch => ({
-    category: search.category as string | undefined,
+    cat: search.cat as string | undefined,
     lang: search.lang as string | undefined,
     preset: search.preset as FilterPreset | undefined,
     q: search.q as string | undefined,
@@ -44,7 +45,7 @@ export const Route = createFileRoute('/browse')({
       'quality',
   }),
   loaderDeps: ({ search }) => ({
-    category: search.category,
+    cat: search.cat,
     registry: search.registry,
   }),
   loader: async ({ context }) => {
@@ -86,14 +87,20 @@ function BrowsePage() {
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
 
-  // Fetch registry metadata and languages
+  // Fetch registry metadata and unified filter options
   const { data: registries = [] } = useSuspenseQuery(metadataQueryOptions())
-  const { data: languages = [] } = useSuspenseQuery(languagesQueryOptions())
+  const { data: filterOptions } = useSuspenseQuery(
+    filterOptionsQueryOptions({
+      categoryName: search.cat,
+      language: search.lang,
+      registryName: search.registry,
+    }),
+  )
 
   // Filters
   const currentFilters = useMemo((): FilterBarFilters => {
     return {
-      category: search.category,
+      categoryName: search.cat,
       lang: search.lang,
       preset: search.preset,
       registry: search.registry,
@@ -105,7 +112,7 @@ function BrowsePage() {
   const handleFiltersChange = (filters: FilterBarFilters) => {
     const newSearch: BrowseSearch = {
       ...search,
-      category: filters.category,
+      cat: filters.categoryName,
       lang: filters.lang,
       preset: filters.preset,
       registry: filters.registry,
@@ -117,7 +124,7 @@ function BrowsePage() {
   // Build search params object
   const searchParams = useMemo(
     () => ({
-      category: search.category,
+      categoryName: search.cat,
       language: search.lang,
       limit: PAGE_SIZE,
       preset: search.preset,
@@ -145,7 +152,7 @@ function BrowsePage() {
     !search.preset &&
     !search.registry &&
     !search.lang &&
-    !search.category
+    !search.cat
 
   return (
     <div className="bg-background min-h-screen">
@@ -154,11 +161,11 @@ function BrowsePage() {
           allItems={allItems}
           currentFilters={currentFilters}
           fetchNextPage={fetchNextPage}
+          filterOptions={filterOptions}
           handleFiltersChange={handleFiltersChange}
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           isHomepage={isHomepage}
-          languages={languages}
           registries={registries}
           searchQuery={search.q}
           total={total}
@@ -172,11 +179,11 @@ function BrowsePageContent({
   allItems,
   currentFilters,
   fetchNextPage,
+  filterOptions,
   handleFiltersChange,
   hasNextPage,
   isFetchingNextPage,
   isHomepage,
-  languages,
   registries,
   searchQuery,
   total,
@@ -184,11 +191,11 @@ function BrowsePageContent({
   allItems: RegistryItem[]
   currentFilters: FilterBarFilters
   fetchNextPage: () => Promise<unknown>
+  filterOptions: FilterOptions | undefined
   handleFiltersChange: (filters: FilterBarFilters) => void
   hasNextPage: boolean
   isFetchingNextPage: boolean
   isHomepage: boolean
-  languages: string[]
   registries: { name: string; stats: { totalRepos: number }; title: string }[]
   searchQuery?: string
   total: number
@@ -253,8 +260,8 @@ function BrowsePageContent({
         <FilterBar
           defaultValue={searchQuery}
           enableIntentDetection={true}
+          filterOptions={filterOptions}
           filters={currentFilters}
-          languages={languages}
           onFiltersChange={handleFiltersChange}
           placeholder="Search repositories..."
           registries={registries}

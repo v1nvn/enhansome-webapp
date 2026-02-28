@@ -183,6 +183,8 @@ export async function indexAllRegistries(
       await flushProgressBatch(db, historyId, progressBuffer, syncLogBuffer)
     }
 
+    await rebuildFacets(db)
+
     await completeHistoryEntry(
       db,
       historyId,
@@ -249,6 +251,27 @@ export async function indexRegistry(
 
   console.log(`  Successfully indexed ${registryName}`)
   return items.length
+}
+
+/**
+ * Rebuild the repository_facets denormalized table.
+ * Called once after all registries are indexed. Clears and repopulates
+ * from repositories + registry_repositories + registry_repository_categories + categories.
+ */
+export async function rebuildFacets(db: D1Database): Promise<void> {
+  console.log('Rebuilding repository_facets table...')
+  const deleteStmt = db.prepare('DELETE FROM repository_facets')
+  const insertStmt = db.prepare(
+    `INSERT INTO repository_facets (repository_id, registry_name, language, category_name)
+     SELECT r.id, rr.registry_name, r.language, c.name
+     FROM repositories r
+     JOIN registry_repositories rr ON rr.repository_id = r.id
+     JOIN registry_repository_categories rrc ON rrc.repository_id = r.id AND rrc.registry_name = rr.registry_name
+     JOIN categories c ON c.id = rrc.category_id
+     WHERE r.archived = 0`,
+  )
+  await db.batch([deleteStmt, insertStmt])
+  console.log('repository_facets rebuilt successfully')
 }
 
 /**

@@ -14,6 +14,13 @@
 export async function clearDatabase(db: D1Database): Promise<void> {
   // Clear order matters due to foreign key constraints
 
+  // 0. Denormalized facets table (no FKs, safe to clear first)
+  try {
+    await db.prepare('DELETE FROM repository_facets').run()
+  } catch (e) {
+    console.warn('Could not clear repository_facets:', e)
+  }
+
   // 1. Category junction table (has FKs to categories, repositories, registry_metadata)
   try {
     await db.prepare('DELETE FROM registry_repository_categories').run()

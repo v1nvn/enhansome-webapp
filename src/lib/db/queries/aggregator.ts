@@ -119,63 +119,6 @@ export async function countRepositories(
 }
 
 /**
- * Get all unique languages
- */
-export async function getAllLanguages(db: Kysely<Database>): Promise<string[]> {
-  const results = await db
-    .selectFrom('repositories')
-    .select('language')
-    .distinct()
-    .where('language', 'is not', null)
-    .orderBy('language', 'asc')
-    .execute()
-
-  return results
-    .map(r => r.language)
-    .filter((lang): lang is string => lang !== null)
-}
-
-/**
- * Get all unique languages or languages for a specific registry
- * This is a convenience function that combines getAllLanguages and getLanguagesForRegistry
- */
-export async function getLanguages(
-  db: Kysely<Database>,
-  registryName?: string,
-): Promise<string[]> {
-  if (registryName) {
-    return getLanguagesForRegistry(db, registryName)
-  }
-  return getAllLanguages(db)
-}
-
-/**
- * Get languages for a specific registry
- */
-export async function getLanguagesForRegistry(
-  db: Kysely<Database>,
-  registryName: string,
-): Promise<string[]> {
-  const results = await db
-    .selectFrom('repositories')
-    .innerJoin(
-      'registry_repositories',
-      'registry_repositories.repository_id',
-      'repositories.id',
-    )
-    .select('repositories.language')
-    .distinct()
-    .where('repositories.language', 'is not', null)
-    .where('registry_repositories.registry_name', '=', registryName)
-    .orderBy('repositories.language', 'asc')
-    .execute()
-
-  return results
-    .map(r => r.language)
-    .filter((lang): lang is string => lang !== null)
-}
-
-/**
  * Group repository rows by ID and aggregate registries/categories
  */
 export function groupRepositoriesById(

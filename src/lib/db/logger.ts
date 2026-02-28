@@ -5,7 +5,7 @@
 
 import type { LogEvent } from 'kysely'
 
-const SLOW_QUERY_THRESHOLD_MS = 10
+const SLOW_QUERY_THRESHOLD_MS = 20
 
 export function createQueryLogger() {
   return (event: LogEvent): void => {

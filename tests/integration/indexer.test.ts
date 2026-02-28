@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { env, applyD1Migrations } from 'cloudflare:test'
 import { clearDatabase } from '../helpers/db-setup'
-import { indexRegistry } from '@/lib/indexer'
+import { indexRegistry, rebuildFacets } from '@/lib/indexer'
 import validRegistry from '../fixtures/valid-registry.json'
 import minimalRegistry from '../fixtures/minimal-registry.json'
 import emptyRegistry from '../fixtures/empty-registry.json'
@@ -521,6 +521,47 @@ describe('Full Indexing Pipeline with D1', () => {
       expect(junctionEntries.results).toHaveLength(2)
     })
 
+    it('should rebuild facets after indexing multiple registries', async () => {
+      const registry1: RegistryData = {
+        metadata: {
+          last_updated: '2025-10-12T00:00:00Z',
+          source_repository: 'test/registry1',
+          source_repository_description: 'Test registry 1',
+          title: 'Registry 1',
+        },
+        items: [
+          {
+            description: 'Go web framework',
+            items: [
+              {
+                title: 'Gin',
+                description: 'Go web framework',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'Go',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'gin-gonic',
+                  repo: 'gin',
+                  stars: 50000,
+                },
+              },
+            ],
+            title: 'Web Frameworks',
+          },
+        ],
+      }
+
+      await indexRegistry(env.DB, 'registry1', registry1)
+      await rebuildFacets(env.DB)
+
+      const facets = await env.DB.prepare('SELECT * FROM repository_facets').all()
+      expect(facets.results).toHaveLength(1)
+      expect(facets.results[0].registry_name).toBe('registry1')
+      expect(facets.results[0].language).toBe('Go')
+      expect(facets.results[0].category_name).toBe('Web Frameworks')
+    })
+
     it('should store multiple categories via junction table', async () => {
       // Create registry with same repo in 2 categories
       const data: RegistryData = {
@@ -592,6 +633,85 @@ describe('Full Indexing Pipeline with D1', () => {
       const categoryNames = junctionResult.results.map(r => r.name)
       expect(categoryNames).toContain('Web Frameworks')
       expect(categoryNames).toContain('HTTP Servers')
+    })
+  })
+
+  describe('rebuildFacets', () => {
+    it('should populate repository_facets from current data', async () => {
+      const data = validRegistry as RegistryData
+      await indexRegistry(env.DB, 'valid-registry', data)
+      await rebuildFacets(env.DB)
+
+      const facets = await env.DB.prepare('SELECT * FROM repository_facets').all()
+      // validRegistry has 4 items; one is archived so facets should not include it
+      expect(facets.results.length).toBeGreaterThan(0)
+      // All facets should be for the valid-registry
+      expect(facets.results.every(f => f.registry_name === 'valid-registry')).toBe(true)
+    })
+
+    it('should exclude archived repositories from facets', async () => {
+      const data = validRegistry as RegistryData
+      await indexRegistry(env.DB, 'valid-registry', data)
+      await rebuildFacets(env.DB)
+
+      // Get archived repos
+      const archivedInFacets = await env.DB.prepare(
+        `SELECT f.repository_id FROM repository_facets f
+         JOIN repositories r ON r.id = f.repository_id
+         WHERE r.archived = 1`,
+      ).all()
+
+      expect(archivedInFacets.results).toHaveLength(0)
+    })
+
+    it('should clear and rebuild on subsequent calls', async () => {
+      const registry1: RegistryData = {
+        metadata: {
+          last_updated: '2025-10-12T00:00:00Z',
+          source_repository: 'test/r1',
+          source_repository_description: 'R1',
+          title: 'R1',
+        },
+        items: [
+          {
+            description: 'Frameworks',
+            items: [
+              {
+                title: 'Gin',
+                description: 'Go framework',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'Go',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'gin-gonic',
+                  repo: 'gin',
+                  stars: 50000,
+                },
+              },
+            ],
+            title: 'Web Frameworks',
+          },
+        ],
+      }
+      await indexRegistry(env.DB, 'r1', registry1)
+      await rebuildFacets(env.DB)
+
+      const firstCount = await env.DB.prepare('SELECT COUNT(*) as c FROM repository_facets').first<{ c: number }>()
+      expect(firstCount!.c).toBe(1)
+
+      // Rebuild again — count should stay the same (no duplication)
+      await rebuildFacets(env.DB)
+
+      const secondCount = await env.DB.prepare('SELECT COUNT(*) as c FROM repository_facets').first<{ c: number }>()
+      expect(secondCount!.c).toBe(1)
+    })
+
+    it('should return empty facets when database is empty', async () => {
+      await rebuildFacets(env.DB)
+
+      const facets = await env.DB.prepare('SELECT COUNT(*) as c FROM repository_facets').first<{ c: number }>()
+      expect(facets!.c).toBe(0)
     })
   })
 })

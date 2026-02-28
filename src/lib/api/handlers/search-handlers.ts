@@ -10,17 +10,20 @@ import type { Database } from '@/types/database'
 import type { FilterPreset } from '../../utils/filters'
 
 import {
+  getFilterOptions,
   getUseCaseCategoryCounts,
-  getUseCaseCategoryItems,
   searchRepos,
 } from '../../db/repositories/search-repository'
 import { getAllUseCaseCategories } from '../../utils/categories'
 import { presetToSearchParams } from '../../utils/filters'
 
+export type { FilterOptions } from '../../db/repositories/search-repository'
+
 import type { Kysely } from 'kysely'
 
 export interface SearchParamsInternal {
   archived?: boolean
+  categoryName?: string
   cursor?: number
   dateFrom?: string
   language?: string
@@ -40,6 +43,13 @@ export interface UseCaseCategoryWithData {
   title: string
 }
 
+export async function fetchFilterOptionsHandler(
+  db: Kysely<Database>,
+  options?: { categoryName?: string; language?: string; registryName?: string },
+) {
+  return getFilterOptions(db as any, options ?? {})
+}
+
 export async function fetchUseCaseCategoriesHandler(
   db: Kysely<Database>,
 ): Promise<UseCaseCategoryWithData[]> {
@@ -57,18 +67,6 @@ export async function fetchUseCaseCategoriesHandler(
     .sort((a, b) => b.count - a.count)
 }
 
-export async function fetchUseCaseCategoryItemsHandler(
-  db: Kysely<Database>,
-  categoryId: string,
-  options?: {
-    framework?: string
-    limit?: number
-    offset?: number
-  },
-) {
-  return getUseCaseCategoryItems(db as any, categoryId, options)
-}
-
 export async function searchReposHandler(
   db: Kysely<Database>,
   data: SearchParamsInternal,
@@ -77,6 +75,7 @@ export async function searchReposHandler(
 
   return searchRepos(db as any, {
     archived: data.archived ?? presetParams.archived,
+    categoryName: data.categoryName,
     cursor: data.cursor,
     language: data.language,
     limit: data.limit ?? 20,

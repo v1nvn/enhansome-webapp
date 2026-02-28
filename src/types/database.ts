@@ -27,6 +27,7 @@ export interface Database {
   registry_repositories: RegistryRepositoriesTable
   registry_repository_categories: RegistryRepositoryCategoriesTable
   repositories: RepositoriesTable
+  repository_facets: RepositoryFacetsTable
   sync_log: SyncLogTable
 }
 
@@ -120,6 +121,16 @@ export interface RepositoriesTable {
   owner: string
   stars: number
   updated_at: Generated<string>
+}
+
+/**
+ * Repository facets denormalized table schema (rebuilt at ingestion time)
+ */
+export interface RepositoryFacetsTable {
+  category_name: string
+  language: null | string
+  registry_name: string
+  repository_id: number
 }
 
 /**

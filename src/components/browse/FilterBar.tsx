@@ -1,14 +1,20 @@
 import { useMemo, useState } from 'react'
 
 import { useNavigate } from '@tanstack/react-router'
-import { ChevronDown, Code, Filter, Search, X } from 'lucide-react'
+import { ChevronDown, Code, Filter, Search, Tag, X } from 'lucide-react'
 
+import type { FilterOptions } from '@/lib/api/server-functions'
 import type { FilterPreset } from '@/lib/utils/filters'
 
 import { extractIntent, type IntentSignal } from '@/lib/utils/search'
 
+import type { FilterDropdownItem } from './FilterDropdown'
+
+import { FilterDropdown } from './FilterDropdown'
+
 export interface FilterBarFilters {
   category?: string
+  categoryName?: string
   lang?: string
   preset?: FilterPreset
   registry?: string
@@ -18,8 +24,8 @@ export interface FilterBarFilters {
 interface FilterBarProps {
   defaultValue?: string
   enableIntentDetection?: boolean
+  filterOptions?: FilterOptions
   filters: FilterBarFilters
-  languages?: string[]
   onFiltersChange: (filters: FilterBarFilters) => void
   placeholder?: string
   registries: { name: string; stats: { totalRepos: number }; title: string }[]
@@ -34,13 +40,11 @@ const SORT_OPTIONS = [
   { value: 'name', label: 'A–Z' },
 ] as const
 
-const DEFAULT_LANGUAGES: string[] = []
-
 export function FilterBar({
   defaultValue = '',
   enableIntentDetection = true,
+  filterOptions,
   filters,
-  languages = DEFAULT_LANGUAGES,
   onFiltersChange,
   placeholder = 'Search repositories...',
   registries,
@@ -49,10 +53,6 @@ export function FilterBar({
 }: FilterBarProps) {
   const [query, setQuery] = useState(defaultValue)
   const [detectedSignals, setDetectedSignals] = useState<IntentSignal[]>([])
-  const [isRegistryOpen, setIsRegistryOpen] = useState(false)
-  const [isLanguageOpen, setIsLanguageOpen] = useState(false)
-  const [registrySearch, setRegistrySearch] = useState('')
-  const [languageSearch, setLanguageSearch] = useState('')
   const navigate = useNavigate()
 
   // Extract intent from query
@@ -72,30 +72,47 @@ export function FilterBar({
     }
   }, [intent])
 
-  // Filtered registries
-  const filteredRegistries = useMemo(() => {
-    if (!registrySearch.trim()) {
-      return registries.sort((a, b) => b.stats.totalRepos - a.stats.totalRepos)
+  // Build registry dropdown items from filterOptions
+  const registryItems = useMemo((): FilterDropdownItem[] => {
+    if (filterOptions?.registries) {
+      return filterOptions.registries.map(r => ({
+        count: r.count,
+        label: r.label,
+        value: r.name,
+      }))
     }
-    const term = registrySearch.toLowerCase()
+    // Fallback: derive from registries metadata
     return registries
-      .filter(
-        r =>
-          r.name.toLowerCase().includes(term) ||
-          r.title.toLowerCase().includes(term),
-      )
       .sort((a, b) => b.stats.totalRepos - a.stats.totalRepos)
-  }, [registries, registrySearch])
+      .map(r => ({
+        count: r.stats.totalRepos,
+        label: r.title
+          .replace(/^(awesome|enhansome)\s*/i, '')
+          .replace(/\s+with stars$/i, '')
+          .trim(),
+        value: r.name,
+      }))
+  }, [filterOptions?.registries, registries])
 
-  // Filtered languages
-  const filteredLanguages = useMemo(() => {
-    if (!languageSearch.trim()) {
-      return languages
-    }
-    return languages.filter(lang =>
-      lang.toLowerCase().includes(languageSearch.toLowerCase()),
-    )
-  }, [languages, languageSearch])
+  // Build language dropdown items from filterOptions
+  const languageItems = useMemo((): FilterDropdownItem[] => {
+    if (!filterOptions?.languages) return []
+    return filterOptions.languages.map(l => ({
+      count: l.count,
+      label: l.name,
+      value: l.name,
+    }))
+  }, [filterOptions?.languages])
+
+  // Build category dropdown items from filterOptions
+  const categoryItems = useMemo((): FilterDropdownItem[] => {
+    if (!filterOptions?.categories) return []
+    return filterOptions.categories.map(c => ({
+      count: c.count,
+      label: c.name,
+      value: c.name,
+    }))
+  }, [filterOptions?.categories])
 
   const selectedRegistry = registries.find(r => r.name === filters.registry)
   const displayRegistryTitle = selectedRegistry
@@ -103,7 +120,7 @@ export function FilterBar({
         .replace(/^(awesome|enhansome)/i, '')
         .replace(/ with stars$/i, '')
         .trim()
-    : 'All Registries'
+    : undefined
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -123,14 +140,18 @@ export function FilterBar({
   const handleRegistryChange = (registry: string | undefined) => {
     const newFilters = { ...filters, registry }
     onFiltersChange(newFilters)
-    setIsRegistryOpen(false)
     void navigate({ to, search: { ...newFilters } })
   }
 
   const handleLanguageChange = (lang: string | undefined) => {
-    const newFilters = { ...filters, lang: lang }
+    const newFilters = { ...filters, lang }
     onFiltersChange(newFilters)
-    setIsLanguageOpen(false)
+    void navigate({ to, search: { ...newFilters } })
+  }
+
+  const handleCategoryChange = (catName: string | undefined) => {
+    const newFilters = { ...filters, categoryName: catName }
+    onFiltersChange(newFilters)
     void navigate({ to, search: { ...newFilters } })
   }
 
@@ -184,11 +205,14 @@ export function FilterBar({
   if (filters.registry && selectedRegistry) {
     activeChips.push({
       key: 'registry',
-      label: displayRegistryTitle,
+      label: displayRegistryTitle ?? filters.registry,
     })
   }
   if (filters.lang) {
     activeChips.push({ key: 'lang', label: filters.lang })
+  }
+  if (filters.categoryName) {
+    activeChips.push({ key: 'categoryName', label: filters.categoryName })
   }
   if (filters.category) {
     activeChips.push({ key: 'category', label: filters.category })
@@ -249,186 +273,35 @@ export function FilterBar({
         </div>
 
         {/* Registry Dropdown */}
-        <div className="relative">
-          <button
-            className="bg-card hover:bg-muted/20 border-border/30 flex items-center gap-2 rounded-xl border-2 px-4 py-3 pr-3 text-sm font-medium shadow-sm transition-all"
-            onClick={() => {
-              setIsRegistryOpen(!isRegistryOpen)
-            }}
-            type="button"
-          >
-            <Filter className="text-muted-foreground h-4 w-4" />
-            <span className="max-w-[120px] truncate">
-              {displayRegistryTitle}
-            </span>
-            <ChevronDown
-              className={`text-muted-foreground h-4 w-4 transition-transform ${isRegistryOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
-
-          {isRegistryOpen && (
-            <>
-              <button
-                aria-label="Close registry dropdown"
-                className="fixed inset-0 z-10 cursor-pointer"
-                onClick={() => {
-                  setIsRegistryOpen(false)
-                }}
-                type="button"
-              />
-              <div className="bg-card border-border/30 shadow-foreground/5 absolute right-0 top-full z-20 mt-2 w-72 rounded-2xl border shadow-xl">
-                {/* Search */}
-                <div className="border-border/30 border-b p-3">
-                  <div className="relative">
-                    <Search className="text-muted-foreground/50 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-                    <input
-                      className="bg-muted/30 focus:ring-primary/20 w-full rounded-xl border-0 py-2 pl-9 pr-3 text-sm outline-none focus:ring-2"
-                      onChange={e => {
-                        setRegistrySearch(e.target.value)
-                      }}
-                      placeholder="Search registries..."
-                      type="text"
-                      value={registrySearch}
-                    />
-                  </div>
-                </div>
-
-                {/* List */}
-                <div className="max-h-64 overflow-y-auto p-2">
-                  <button
-                    className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-                      !filters.registry
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:bg-muted/30'
-                    }`}
-                    onClick={() => {
-                      handleRegistryChange(undefined)
-                    }}
-                    type="button"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>All Registries</span>
-                      <span className="text-muted-foreground/50 text-xs">
-                        {registries
-                          .reduce((sum, r) => sum + r.stats.totalRepos, 0)
-                          .toLocaleString()}
-                      </span>
-                    </div>
-                  </button>
-                  {filteredRegistries.map(registry => {
-                    const title = registry.title
-                      .replace(/^(awesome|enhansome)/i, '')
-                      .replace(/ with stars$/i, '')
-                      .trim()
-                    return (
-                      <button
-                        className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-                          filters.registry === registry.name
-                            ? 'bg-primary/10 text-primary font-medium'
-                            : 'text-muted-foreground hover:bg-muted/30'
-                        }`}
-                        key={registry.name}
-                        onClick={() => {
-                          handleRegistryChange(registry.name)
-                        }}
-                        type="button"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="truncate">{title}</span>
-                          <span className="text-muted-foreground/50 text-xs">
-                            {registry.stats.totalRepos.toLocaleString()}
-                          </span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <FilterDropdown
+          allLabel="All Registries"
+          icon={Filter}
+          items={registryItems}
+          onSelect={handleRegistryChange}
+          searchPlaceholder="Search registries..."
+          selectedValue={filters.registry}
+        />
 
         {/* Language Dropdown */}
-        <div className="relative">
-          <button
-            className="bg-card hover:bg-muted/20 border-border/30 flex items-center gap-2 rounded-xl border-2 px-4 py-3 pr-3 text-sm font-medium shadow-sm transition-all"
-            onClick={() => {
-              setIsLanguageOpen(!isLanguageOpen)
-            }}
-            type="button"
-          >
-            <Code className="text-muted-foreground h-4 w-4" />
-            <span className="max-w-[120px] truncate">
-              {filters.lang || 'All Languages'}
-            </span>
-            <ChevronDown
-              className={`text-muted-foreground h-4 w-4 transition-transform ${isLanguageOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
+        <FilterDropdown
+          allLabel="All Languages"
+          icon={Code}
+          items={languageItems}
+          onSelect={handleLanguageChange}
+          searchPlaceholder="Search languages..."
+          selectedValue={filters.lang}
+          widthClass="w-64"
+        />
 
-          {isLanguageOpen && (
-            <>
-              <button
-                aria-label="Close language dropdown"
-                className="fixed inset-0 z-10 cursor-pointer"
-                onClick={() => {
-                  setIsLanguageOpen(false)
-                }}
-                type="button"
-              />
-              <div className="bg-card border-border/30 shadow-foreground/5 absolute right-0 top-full z-20 mt-2 w-64 rounded-2xl border shadow-xl">
-                {/* Search */}
-                <div className="border-border/30 border-b p-3">
-                  <div className="relative">
-                    <Search className="text-muted-foreground/50 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-                    <input
-                      className="bg-muted/30 focus:ring-primary/20 w-full rounded-xl border-0 py-2 pl-9 pr-3 text-sm outline-none focus:ring-2"
-                      onChange={e => {
-                        setLanguageSearch(e.target.value)
-                      }}
-                      placeholder="Search languages..."
-                      type="text"
-                      value={languageSearch}
-                    />
-                  </div>
-                </div>
-
-                {/* List */}
-                <div className="max-h-64 overflow-y-auto p-2">
-                  <button
-                    className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-                      !filters.lang
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:bg-muted/30'
-                    }`}
-                    onClick={() => {
-                      handleLanguageChange(undefined)
-                    }}
-                    type="button"
-                  >
-                    All Languages
-                  </button>
-                  {filteredLanguages.map(language => (
-                    <button
-                      className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-                        filters.lang === language
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-muted-foreground hover:bg-muted/30'
-                      }`}
-                      key={language}
-                      onClick={() => {
-                        handleLanguageChange(language)
-                      }}
-                      type="button"
-                    >
-                      {language}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        {/* Category Dropdown */}
+        <FilterDropdown
+          allLabel="All Categories"
+          icon={Tag}
+          items={categoryItems}
+          onSelect={handleCategoryChange}
+          searchPlaceholder="Search categories..."
+          selectedValue={filters.categoryName}
+        />
       </div>
 
       {/* Detected Intent Signals */}
