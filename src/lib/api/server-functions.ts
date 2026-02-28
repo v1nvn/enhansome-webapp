@@ -16,7 +16,6 @@ import {
   fetchRegistryDetailHandler,
   fetchRepoDetailHandler,
   fetchTrendingRegistriesHandler,
-  fetchUseCaseCategoriesHandler,
   getIndexingHistoryHandler,
   getIndexingStatusHandler,
   searchReposHandler,
@@ -32,10 +31,7 @@ export type {
 } from './handlers/registry-handlers'
 export type { RepoDetail } from './handlers/repository-handlers'
 
-export type {
-  FilterOptions,
-  UseCaseCategoryWithData,
-} from './handlers/search-handlers'
+export type { FilterOptions } from './handlers/search-handlers'
 
 // ============================================================================
 // Metadata API
@@ -188,25 +184,6 @@ export const searchInfiniteQueryOptions = (
     getNextPageParam: lastPage => lastPage.nextCursor,
     staleTime: 5 * 60 * 1000,
     placeholderData: previousData => previousData,
-  })
-
-// ============================================================================
-// Use Case Categories API
-// ============================================================================
-
-export const fetchUseCaseCategories = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    const db = createKysely(env.DB)
-    return fetchUseCaseCategoriesHandler(db)
-  },
-)
-
-// eslint-disable-next-line @eslint-react/no-unnecessary-use-prefix
-export const useCaseCategoriesQueryOptions = () =>
-  queryOptions({
-    queryFn: () => fetchUseCaseCategories(),
-    queryKey: ['use-case-categories'],
-    staleTime: 60 * 60 * 1000,
   })
 
 // ============================================================================

@@ -9,10 +9,8 @@ import type { Database } from '@/types/database'
 
 import {
   getFilterOptions,
-  getUseCaseCategoryCounts,
   searchRepos,
 } from '../../db/repositories/search-repository'
-import { getAllUseCaseCategories } from '../../utils/categories'
 
 export type { FilterOptions } from '../../db/repositories/search-repository'
 
@@ -31,36 +29,11 @@ export interface SearchParamsInternal {
   sortBy?: 'name' | 'quality' | 'stars' | 'updated'
 }
 
-export interface UseCaseCategoryWithData {
-  count: number
-  description: string
-  icon: string
-  id: string
-  title: string
-}
-
 export async function fetchFilterOptionsHandler(
   db: Kysely<Database>,
   options?: { categoryName?: string; language?: string; registryName?: string },
 ) {
   return getFilterOptions(db as any, options ?? {})
-}
-
-export async function fetchUseCaseCategoriesHandler(
-  db: Kysely<Database>,
-): Promise<UseCaseCategoryWithData[]> {
-  const counts = await getUseCaseCategoryCounts(db as any)
-  const allCategories = getAllUseCaseCategories()
-
-  const countMap = new Map(counts.map(c => [c.categoryId, c.count]))
-
-  return allCategories
-    .map(cat => ({
-      ...cat,
-      count: countMap.get(cat.id) || 0,
-    }))
-    .filter(cat => cat.count > 0)
-    .sort((a, b) => b.count - a.count)
 }
 
 export async function searchReposHandler(

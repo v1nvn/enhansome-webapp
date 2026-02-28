@@ -1,6 +1,6 @@
 /**
  * Category utilities
- * Consolidates category normalization, matching, and use case categories
+ * Consolidates category normalization and matching
  */
 
 import {
@@ -21,304 +21,6 @@ export interface NormalizedCategory {
   slug: string
 }
 
-export interface UseCaseCategory {
-  count?: number
-  description: string
-  icon: string
-  id: string
-  keywords: string[]
-  subcategories?: {
-    count: number
-    id: string
-    title: string
-  }[]
-  title: string
-}
-
-export interface UseCaseCategoryWithCount {
-  count: number
-  description: string
-  icon: string
-  id: string
-  title: string
-}
-
-// ============================================================================
-// Use Case Categories Configuration
-// ============================================================================
-
-const USE_CASE_CATEGORIES: Omit<UseCaseCategory, 'subcategories'>[] = [
-  {
-    id: 'charts-visualization',
-    title: 'Charts & Visualization',
-    description:
-      'Libraries for rendering charts, graphs, and data visualizations',
-    icon: 'bar-chart',
-    keywords: [
-      'chart',
-      'graph',
-      'visualization',
-      'plot',
-      'diagram',
-      'd3',
-      'recharts',
-      'chartjs',
-      'nivo',
-      'vis',
-      'plotly',
-      'highcharts',
-      'echarts',
-      'victory',
-      'observable',
-    ],
-  },
-  {
-    id: 'state-management',
-    title: 'State Management',
-    description: 'Tools for managing application state and data flow',
-    icon: 'database',
-    keywords: [
-      'state',
-      'store',
-      'redux',
-      'mobx',
-      'zustand',
-      'recoil',
-      'jotai',
-      'valtio',
-      'flux',
-      'vuex',
-      'pinia',
-      'effector',
-      'signal',
-      'react-query',
-      'swr',
-    ],
-  },
-  {
-    id: 'api-clients',
-    title: 'API Clients',
-    description: 'HTTP clients, API wrappers, and data fetching libraries',
-    icon: 'globe',
-    keywords: [
-      'api',
-      'http',
-      'fetch',
-      'axios',
-      'ky',
-      'got',
-      'superagent',
-      'request',
-      'graphql',
-      'gql',
-      'rest',
-      'openapi',
-      'swagger',
-      'grpc',
-      'soap',
-    ],
-  },
-  {
-    id: 'testing',
-    title: 'Testing',
-    description: 'Testing frameworks, assertion libraries, and test utilities',
-    icon: 'flask-conical',
-    keywords: [
-      'test',
-      'testing',
-      'jest',
-      'vitest',
-      'mocha',
-      'jasmine',
-      'karma',
-      'chai',
-      'assert',
-      'cypress',
-      'playwright',
-      'selenium',
-      'puppeteer',
-      'msw',
-      'testing-library',
-      'mock',
-      'stub',
-      'spy',
-    ],
-  },
-  {
-    id: 'ui-components',
-    title: 'UI Components',
-    description: 'Component libraries and UI toolkits',
-    icon: 'layout',
-    keywords: [
-      'component',
-      'ui kit',
-      'design system',
-      'material',
-      'ant',
-      'chakra',
-      'mantine',
-      'shadcn',
-      'radix',
-      'headless',
-      'daisy',
-      'tailwind',
-      'bootstrap',
-      'bulma',
-      'element',
-      'prime',
-      'vuetify',
-    ],
-  },
-  {
-    id: 'build-tools',
-    title: 'Build Tools',
-    description: 'Bundlers, compilers, and development tooling',
-    icon: 'wrench',
-    keywords: [
-      'build',
-      'bundle',
-      'bundler',
-      'webpack',
-      'vite',
-      'rollup',
-      'esbuild',
-      'parcel',
-      'browserify',
-      'babel',
-      'swc',
-      'turbopack',
-      'rspack',
-      'compiler',
-      'transpiler',
-    ],
-  },
-  {
-    id: 'authentication',
-    title: 'Authentication',
-    description: 'Auth libraries, identity management, and session handling',
-    icon: 'lock',
-    keywords: [
-      'auth',
-      'authentication',
-      'oauth',
-      'jwt',
-      'passport',
-      'next-auth',
-      'clerk',
-      'auth0',
-      'supabase',
-      'firebase',
-      'identity',
-      'login',
-      'session',
-      'token',
-      'sso',
-      'ldap',
-    ],
-  },
-  {
-    id: 'mobile-development',
-    title: 'Mobile Development',
-    description: 'Cross-platform and native mobile development frameworks',
-    icon: 'smartphone',
-    keywords: [
-      'mobile',
-      'react native',
-      'flutter',
-      'ionic',
-      'capacitor',
-      'cordova',
-      'expo',
-      'native',
-      'android',
-      'ios',
-      'swift',
-      'kotlin',
-      'dart',
-    ],
-  },
-  {
-    id: 'database',
-    title: 'Database & ORM',
-    description: 'Database clients, ORMs, and query builders',
-    icon: 'database',
-    keywords: [
-      'database',
-      'orm',
-      'sql',
-      'nosql',
-      'prisma',
-      'drizzle',
-      'typeorm',
-      'sequelize',
-      'mongoose',
-      'knex',
-      'qb',
-      'query builder',
-      'postgres',
-      'mysql',
-      'mongodb',
-      'redis',
-      'sqlite',
-    ],
-  },
-  {
-    id: 'forms',
-    title: 'Forms & Validation',
-    description: 'Form handling, validation, and input management',
-    icon: 'file-input',
-    keywords: [
-      'form',
-      'validation',
-      'react-hook-form',
-      'formik',
-      'yup',
-      'zod',
-      'joi',
-      'validator',
-      'input',
-      'field',
-      'schema',
-    ],
-  },
-  {
-    id: 'date-time',
-    title: 'Date & Time',
-    description: 'Date manipulation, formatting, and timezone utilities',
-    icon: 'calendar',
-    keywords: [
-      'date',
-      'time',
-      'moment',
-      'date-fns',
-      'dayjs',
-      'luxon',
-      'timezone',
-      'calendar',
-      'datetime',
-      'formatting',
-    ],
-  },
-  {
-    id: 'animation',
-    title: 'Animation',
-    description: 'Animation libraries and motion design tools',
-    icon: 'sparkles',
-    keywords: [
-      'animation',
-      'animate',
-      'framer',
-      'motion',
-      'gsap',
-      'anime',
-      'lottie',
-      'react-spring',
-      'auto-animate',
-      'transition',
-    ],
-  },
-]
-
 // ============================================================================
 // Category Normalization
 // ============================================================================
@@ -330,10 +32,10 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   'web framework': 'Web Frameworks',
   'frontend framework': 'Frontend Frameworks',
   'frontend frameworks': 'Frontend Frameworks',
-  'ui framework': 'UI Frameworks',
-  'ui frameworks': 'UI Frameworks',
-  'component library': 'Component Libraries',
-  'component libraries': 'Component Libraries',
+  'ui framework': 'UI Components',
+  'ui frameworks': 'UI Components',
+  'component library': 'UI Components',
+  'component libraries': 'UI Components',
 
   // Backend categories
   backend: 'Backend',
@@ -352,6 +54,7 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   orms: 'ORMs',
   sql: 'SQL',
   nosql: 'NoSQL',
+  'orm and datamapping': 'ORMs',
 
   // Tool categories
   tool: 'Tools',
@@ -359,9 +62,16 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   'developer tool': 'Developer Tools',
   'developer tools': 'Developer Tools',
   devtools: 'Developer Tools',
+  'system tools': 'Developer Tools',
+  development: 'Developer Tools',
+  'development tools': 'Developer Tools',
+  'development environment': 'Developer Tools',
+  'other tools and integrations': 'Developer Tools',
   cli: 'CLI Tools',
   'command line': 'CLI Tools',
   'command-line': 'CLI Tools',
+  'command-line apps': 'CLI Tools',
+  'command-line utilities': 'CLI Tools',
 
   // Testing categories
   testing: 'Testing',
@@ -418,10 +128,24 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   // Utility libraries
   utility: 'Utilities',
   utilities: 'Utilities',
+  utils: 'Utilities',
+  'mixed utilities': 'Utilities',
   helper: 'Helpers',
   helpers: 'Helpers',
-  lib: 'Libraries',
-  library: 'Libraries',
+  lib: 'Libraries & Frameworks',
+  library: 'Libraries & Frameworks',
+  libraries: 'Libraries & Frameworks',
+  frameworks: 'Libraries & Frameworks',
+  'new libraries': 'Libraries & Frameworks',
+  'framework components': 'Libraries & Frameworks',
+  'frameworks/engines/libraries': 'Libraries & Frameworks',
+
+  // Misc/Other/Generic
+  miscellaneous: 'Miscellaneous',
+  misc: 'Miscellaneous',
+  other: 'Miscellaneous',
+  others: 'Miscellaneous',
+  general: 'Miscellaneous',
 
   // Data processing
   data: 'Data',
@@ -430,10 +154,18 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   parsers: 'Parsers',
   formatter: 'Formatters',
   formatters: 'Formatters',
+  'algorithms and data structures': 'Algorithms',
+  'data analysis / data visualization': 'Data Visualization',
+  'text and numbers': 'Text Processing',
 
   // HTTP/networking
   http: 'HTTP',
+  'http clients': 'HTTP Clients',
+  'http servers': 'HTTP Servers',
+  'http server': 'HTTP Servers',
   networking: 'Networking',
+  network: 'Networking',
+  'network programming': 'Networking',
   websocket: 'WebSockets',
   fetch: 'Fetch',
   axios: 'HTTP Clients',
@@ -443,8 +175,13 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   file: 'File Handling',
   upload: 'File Upload',
   storage: 'Storage',
+  'file transfer - single-click & drag-n-drop upload': 'File Management',
 
   // UI components
+  ui: 'UI Components',
+  gui: 'UI Components',
+  'ui libraries': 'UI Components',
+  components: 'UI Components',
   form: 'Forms',
   forms: 'Forms',
   table: 'Tables',
@@ -478,13 +215,44 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   l10n: 'Localization',
   translation: 'Translations',
 
-  // Image processing
-  image: 'Images',
-  images: 'Images',
-  img: 'Images',
+  // Image/graphics
+  image: 'Graphics & Images',
+  images: 'Graphics & Images',
+  img: 'Graphics & Images',
+  'image processing': 'Graphics & Images',
+  graphics: 'Graphics & Images',
   video: 'Video',
   audio: 'Audio',
   media: 'Media',
+  'media streaming - audio streaming': 'Media',
+
+  // AI/ML
+  ai: 'Machine Learning',
+  ml: 'Machine Learning',
+  'machine learning': 'Machine Learning',
+  'general-purpose machine learning': 'Machine Learning',
+  'artificial intelligence': 'Machine Learning',
+  'natural language processing': 'Machine Learning',
+  'knowledge & memory': 'Machine Learning',
+  'coding agents': 'Machine Learning',
+  llm: 'LLMs',
+  openai: 'OpenAI',
+  chatgpt: 'ChatGPT',
+
+  // Game development
+  game: 'Games',
+  games: 'Games',
+  gaming: 'Games',
+  arcade: 'Games',
+  strategy: 'Games',
+  fps: 'Games',
+  rpg: 'Games',
+  puzzle: 'Games',
+  'game engine': 'Games',
+  'godot 4': 'Games',
+  'godot 3': 'Games',
+  unity: 'Unity',
+  unreal: 'Unreal',
 
   // Authentication/authorization specific
   oauth: 'OAuth',
@@ -526,6 +294,7 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   'react native': 'React Native',
   'react-native': 'React Native',
   flutter: 'Flutter',
+  'capgo capacitor plugins': 'Mobile',
 
   // Desktop
   desktop: 'Desktop',
@@ -536,6 +305,7 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   cms: 'CMS',
   'headless cms': 'Headless CMS',
   'content management': 'CMS',
+  'content management systems': 'CMS',
 
   // E-commerce
   ecommerce: 'E-commerce',
@@ -544,13 +314,9 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   payments: 'Payments',
   stripe: 'Stripe',
 
-  // AI/ML
-  ai: 'AI',
-  ml: 'Machine Learning',
-  'machine learning': 'Machine Learning',
-  llm: 'LLMs',
-  openai: 'OpenAI',
-  chatgpt: 'ChatGPT',
+  // Finance
+  'finance & fintech': 'Finance',
+  'money, budgeting & management': 'Finance',
 
   // Blockchain
   blockchain: 'Blockchain',
@@ -559,13 +325,6 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   ethereum: 'Ethereum',
   bitcoin: 'Bitcoin',
   nft: 'NFTs',
-
-  // Game development
-  game: 'Game Development',
-  games: 'Game Development',
-  gaming: 'Game Development',
-  unity: 'Unity',
-  unreal: 'Unreal',
 
   // Design
   design: 'Design',
@@ -579,6 +338,27 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   editor: 'Editors',
   vscode: 'VS Code',
   extension: 'Extensions',
+  'editing support': 'Editor Plugins',
+
+  // Cloud
+  'cloud platforms': 'Cloud',
+
+  // Search
+  'search & data extraction': 'Search',
+
+  // Automation
+  'browser automation': 'Automation',
+
+  // Productivity
+  'workplace & productivity': 'Productivity',
+
+  // Communication
+  communication: 'Communication',
+  'communication - custom communication systems': 'Communication',
+  'communication - social networks and forums': 'Communication',
+
+  // Web applications
+  'open source rails apps': 'Web Applications',
 
   // Misc common terms
   boilerplate: 'Boilerplates',
@@ -592,38 +372,14 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
   wrapper: 'Wrappers',
   sdk: 'SDKs',
   'api wrapper': 'API Wrappers',
+  'third-party apis': 'APIs',
 }
 
 const SYNONYM_GROUPS: Record<string, string[]> = {
-  'Web Frameworks': ['web', 'frontend', 'client-side'],
-  Backend: ['server', 'backend', 'api', 'serverside'],
-  'Developer Tools': ['devtools', 'tooling', 'development'],
+  'Developer Tools': ['devtools', 'tooling'],
   Testing: ['test', 'testing', 'spec'],
   'Build Tools': ['build', 'compile', 'bundle', 'transpile'],
   Styling: ['css', 'style', 'sass', 'less'],
-}
-
-/**
- * Map items to use case categories based on keywords
- */
-export function categorizeItem(
-  title: string,
-  description: null | string,
-  category: string,
-): string[] {
-  const searchText = `${title} ${description || ''} ${category}`.toLowerCase()
-  const matchedCategories: string[] = []
-
-  for (const useCase of USE_CASE_CATEGORIES) {
-    const hasMatch = useCase.keywords.some(keyword =>
-      searchText.includes(keyword.toLowerCase()),
-    )
-    if (hasMatch) {
-      matchedCategories.push(useCase.id)
-    }
-  }
-
-  return matchedCategories
 }
 
 /**
@@ -641,17 +397,6 @@ export async function getAllCategories(db: D1Database): Promise<
     .all<{ id: number; name: string; slug: string }>()
 
   return results.results
-}
-
-// ============================================================================
-// Use Case Category Functions
-// ============================================================================
-
-/**
- * Get all use case categories
- */
-export function getAllUseCaseCategories(): UseCaseCategory[] {
-  return USE_CASE_CATEGORIES
 }
 
 /**
@@ -723,15 +468,6 @@ export async function getOrCreateCategory(
 }
 
 /**
- * Get use case category by ID
- */
-export function getUseCaseCategoryById(
-  id: string,
-): undefined | UseCaseCategory {
-  return USE_CASE_CATEGORIES.find(cat => cat.id === id)
-}
-
-/**
  * Clean and normalize a category name
  */
 export function normalizeCategoryName(raw: string): NormalizedCategory {
@@ -756,13 +492,20 @@ export function normalizeCategoryName(raw: string): NormalizedCategory {
     .replace(/-+$/, '')
 
   // Stage 5: Apply mappings
-  cleaned = applyMappings(cleaned)
+  const { mapped: wasMapped, result: mappedResult } = applyMappings(cleaned)
+  cleaned = mappedResult
 
   // Stage 6: Clean up extra whitespace
   cleaned = cleaned
     .replace(/\s+/g, ' ')
     .replace(/[^a-zA-Z0-9\s/&-]/g, '')
     .trim()
+
+  // If a direct mapping was found, trust its casing — skip title case and pluralize
+  if (wasMapped) {
+    const slug = generateSlug(cleaned)
+    return { name: cleaned, slug }
+  }
 
   // Stage 7: Title case for display name
   const words = cleaned.split(/\s+/)
@@ -813,18 +556,18 @@ export function normalizeCategoryName(raw: string): NormalizedCategory {
 /**
  * Apply category mappings to normalize to canonical form
  */
-function applyMappings(name: string): string {
+function applyMappings(name: string): { mapped: boolean; result: string } {
   const lower = name.toLowerCase().trim()
 
   if (CATEGORY_MAPPINGS[lower]) {
-    return CATEGORY_MAPPINGS[lower]
+    return { mapped: true, result: CATEGORY_MAPPINGS[lower] }
   }
 
   for (const [canonical, synonyms] of Object.entries(SYNONYM_GROUPS)) {
     if (synonyms.some(s => lower.includes(s))) {
-      return canonical
+      return { mapped: true, result: canonical }
     }
   }
 
-  return name
+  return { mapped: false, result: name }
 }

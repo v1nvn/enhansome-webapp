@@ -7,7 +7,7 @@ import JSZip from 'jszip'
 
 import type { RegistryData, RegistryItem } from '@/types/registry'
 
-import { generateSlug } from './utils/strings'
+import { normalizeCategoryName } from './utils/categories'
 
 const REGISTRY_ARCHIVE_URL =
   'https://github.com/v1nvn/enhansome-registry/archive/refs/heads/main.zip'
@@ -405,25 +405,19 @@ function buildRegistryStatements(
     // Link each category via junction table
     // We need to get the category ID for each category name
     for (const categoryName of categories) {
-      // First, try to find existing category by name
-      // Since we can't use getOrCreateCategory here (it's async), we'll use a different approach:
-      // Insert the category if it doesn't exist (INSERT OR IGNORE), then get its ID
+      const normalized = normalizeCategoryName(categoryName)
+
+      // Insert the category if it doesn't exist (INSERT OR IGNORE), using normalized name
       statements.push(
         db
           .prepare(
             `INSERT OR IGNORE INTO categories (slug, name)
              VALUES (?, ?)`,
           )
-          .bind(
-            // Generate slug from category name using shared utility
-            generateSlug(categoryName),
-            categoryName,
-          ),
+          .bind(normalized.slug, normalized.name),
       )
 
-      // Now link the repository to the category
-      // We need to get the repository_id and category_id, then insert into junction table
-      // Since we can't use subqueries with binds easily, we'll use a different approach:
+      // Link the repository to the category using the normalized name
       statements.push(
         db
           .prepare(
@@ -433,7 +427,7 @@ function buildRegistryStatements(
              CROSS JOIN categories c
              WHERE r.owner = ? AND r.name = ? AND c.name = ?`,
           )
-          .bind(registryName, repoInfo.owner, repoInfo.repo, categoryName),
+          .bind(registryName, repoInfo.owner, repoInfo.repo, normalized.name),
       )
     }
 

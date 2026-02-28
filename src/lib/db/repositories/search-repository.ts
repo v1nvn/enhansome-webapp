@@ -8,8 +8,6 @@ import { sql } from 'kysely'
 import type { Database } from '@/types/database'
 import type { RegistryItem } from '@/types/registry'
 
-import { categorizeItem, getAllUseCaseCategories } from '@/lib/utils/categories'
-
 import { calculateQualityScore } from '../../utils/scoring'
 
 import type { Kysely } from 'kysely'
@@ -169,48 +167,6 @@ export async function getFilterOptions(
     .sort((a, b) => b.count - a.count)
 
   return { categories, languages, registries }
-}
-
-export async function getUseCaseCategoryCounts(db: Kysely<Database>): Promise<
-  {
-    categoryId: string
-    count: number
-  }[]
-> {
-  const items = await db
-    .selectFrom('repository_facets as f')
-    .innerJoin('repositories as r', 'r.id', 'f.repository_id')
-    .innerJoin('registry_repositories as rr', eb =>
-      eb
-        .onRef('rr.repository_id', '=', 'f.repository_id')
-        .onRef('rr.registry_name', '=', 'f.registry_name'),
-    )
-    .select(['f.category_name', 'rr.title', 'r.description', 'r.language'])
-    .where('r.archived', '=', 0)
-    .execute()
-
-  const categories = getAllUseCaseCategories()
-  const categoryCounts = new Map<string, number>()
-
-  for (const cat of categories) {
-    categoryCounts.set(cat.id, 0)
-  }
-
-  for (const item of items) {
-    const matchedCategories = categorizeItem(
-      item.title,
-      item.description,
-      item.category_name,
-    )
-    for (const catId of matchedCategories) {
-      categoryCounts.set(catId, (categoryCounts.get(catId) ?? 0) + 1)
-    }
-  }
-
-  return Array.from(categoryCounts.entries())
-    .map(([categoryId, count]) => ({ categoryId, count }))
-    .filter(c => c.count > 0)
-    .sort((a, b) => b.count - a.count)
 }
 
 export async function searchRepos(

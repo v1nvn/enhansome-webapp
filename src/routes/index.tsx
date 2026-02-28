@@ -9,8 +9,8 @@ import {
 } from '@/components/EnhancedSearchBar'
 import { FrameworkPills, UseCaseCards } from '@/components/home'
 import {
+  filterOptionsQueryOptions,
   metadataQueryOptions,
-  useCaseCategoriesQueryOptions,
 } from '@/lib/api/server-functions'
 
 export const Route = createFileRoute('/')({
@@ -18,8 +18,7 @@ export const Route = createFileRoute('/')({
 
   loader: ({ context }) => {
     void context.queryClient.ensureQueryData(metadataQueryOptions())
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    void context.queryClient.ensureQueryData(useCaseCategoriesQueryOptions())
+    void context.queryClient.ensureQueryData(filterOptionsQueryOptions())
   },
 })
 
@@ -29,9 +28,7 @@ function Home() {
   const [filters, setFilters] = useState<EnhancedSearchBarFilters>({})
 
   const { data: registries } = useSuspenseQuery(metadataQueryOptions())
-  const { data: useCaseCategories } = useSuspenseQuery(
-    useCaseCategoriesQueryOptions(),
-  )
+  const { data: filterOptions } = useSuspenseQuery(filterOptionsQueryOptions())
 
   const handleFiltersChange = (newFilters: EnhancedSearchBarFilters) => {
     setFilters(newFilters)
@@ -49,12 +46,14 @@ function Home() {
     void navigate({ to: '/browse', search })
   }
 
-  const handleCategoryClick = (categoryId: string) => {
+  const handleCategoryClick = (categoryName: string) => {
     void navigate({
       to: '/browse',
-      search: { cat: categoryId },
+      search: { cat: categoryName },
     })
   }
+
+  const topCategories = filterOptions.categories.slice(0, 15)
 
   return (
     <div className="bg-background min-h-screen">
@@ -85,7 +84,7 @@ function Home() {
       <section className="mx-auto max-w-5xl px-4 pb-20 sm:px-6 lg:px-8">
         <div className="space-y-12">
           <UseCaseCards
-            categories={useCaseCategories}
+            categories={topCategories}
             onCategoryClick={handleCategoryClick}
           />
           <FrameworkPills />

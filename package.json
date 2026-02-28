@@ -55,6 +55,7 @@
     "kysely": "^0.28.8",
     "kysely-d1": "^0.4.0",
     "lucide-react": "^0.545.0",
+    "pluralize-esm": "^9.0.5",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

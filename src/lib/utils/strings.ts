@@ -2,6 +2,8 @@
  * String utility functions
  */
 
+import pluralizeLib from 'pluralize-esm'
+
 /**
  * Format a slug-like string into a readable label
  */
@@ -38,73 +40,49 @@ export function normalizeSpecialChars(str: string): string {
 }
 
 /**
- * Pluralize a category name for consistency
+ * Pluralize a category name for consistency.
+ * Only pluralizes the last word, leaving multi-word names intact.
  */
 export function pluralize(name: string): string {
-  const lower = name.toLowerCase().trim()
+  const trimmed = name.trim()
 
-  // Words that should stay singular
-  const singularExceptions = [
-    'Authentication',
-    'Authorization',
-    'Caching',
-    'Deployment',
-    'Documentation',
-    'Encryption',
-    'Internationalization',
-    'Localization',
-    'Logging',
-    'Monitoring',
-    'Networking',
-    'Optimization',
-    'Performance',
-    'Research',
-    'Scheduling',
-    'Security',
-    'Storage',
-    'Translation',
-    'Validation',
-  ]
+  // Words that should stay singular (gerunds, mass nouns, etc.)
+  const singularExceptions = new Set([
+    'authentication',
+    'authorization',
+    'caching',
+    'deployment',
+    'documentation',
+    'encryption',
+    'internationalization',
+    'localization',
+    'logging',
+    'monitoring',
+    'networking',
+    'optimization',
+    'performance',
+    'research',
+    'scheduling',
+    'security',
+    'storage',
+    'translation',
+    'validation',
+  ])
 
-  if (singularExceptions.some(e => e.toLowerCase() === lower)) {
-    return name
+  const words = trimmed.split(/(\s+)/)
+  const lastWord = words[words.length - 1]
+  if (singularExceptions.has(lastWord.toLowerCase())) {
+    return trimmed
   }
 
-  // Already plural or exceptions
-  const pluralOrExceptions = [
-    'APIs',
-    'CSS',
-    'CI/CD',
-    'CMS',
-    'Data',
-    'GUI',
-    'HR',
-    'IDEs',
-    'iOS',
-    'LLMs',
-    'ML',
-    'OAuth',
-    'ORMs',
-    'SDKs',
-    'SQL',
-    'UI',
-    'UX',
-    'Web3',
-    'WebSockets',
-  ]
-
-  if (pluralOrExceptions.some(e => e.toLowerCase() === lower)) {
-    return name
+  // If the last word is already plural, return as-is
+  if (pluralizeLib.isPlural(lastWord)) {
+    return trimmed
   }
 
-  // Simple pluralization rules
-  if (lower.endsWith('y')) {
-    return name.slice(0, -1) + 'ies'
-  }
-  if (lower.endsWith('s') || lower.endsWith('x') || lower.endsWith('ch')) {
-    return name + 'es'
-  }
-  return name + 's'
+  // Pluralize only the last word
+  words[words.length - 1] = pluralizeLib.plural(words[words.length - 1])
+  return words.join('')
 }
 
 /**

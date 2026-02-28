@@ -714,4 +714,207 @@ describe('Full Indexing Pipeline with D1', () => {
       expect(facets!.c).toBe(0)
     })
   })
+
+  describe('Category Normalization at Index Time', () => {
+    it('should store normalized category names (not raw names)', async () => {
+      const data: RegistryData = {
+        metadata: {
+          last_updated: '2025-10-12T00:00:00Z',
+          source_repository: 'test/norm',
+          source_repository_description: 'Normalization test',
+          title: 'Normalization Test',
+        },
+        items: [
+          {
+            description: 'raw misc category',
+            items: [
+              {
+                title: 'Some Tool',
+                description: 'A tool',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'Go',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'example',
+                  repo: 'tool',
+                  stars: 100,
+                },
+              },
+            ],
+            title: 'Other',
+          },
+        ],
+      }
+
+      await indexRegistry(env.DB, 'norm-registry', data)
+
+      const category = await env.DB.prepare(
+        "SELECT name FROM categories WHERE name = 'Miscellaneous'",
+      ).first<{ name: string }>()
+
+      expect(category).toBeDefined()
+      expect(category!.name).toBe('Miscellaneous')
+
+      // Raw name "Other" should not exist
+      const rawCategory = await env.DB.prepare(
+        "SELECT name FROM categories WHERE name = 'Other'",
+      ).first()
+
+      expect(rawCategory).toBeNull()
+    })
+
+    it('should deduplicate categories with equivalent raw names (Utils + Utilities → Utilities)', async () => {
+      const data: RegistryData = {
+        metadata: {
+          last_updated: '2025-10-12T00:00:00Z',
+          source_repository: 'test/dedup',
+          source_repository_description: 'Dedup test',
+          title: 'Dedup Test',
+        },
+        items: [
+          {
+            description: 'Utils section',
+            items: [
+              {
+                title: 'Repo A',
+                description: 'A util',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'TypeScript',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'org',
+                  repo: 'repo-a',
+                  stars: 50,
+                },
+              },
+            ],
+            title: 'Utils',
+          },
+          {
+            description: 'Utilities section',
+            items: [
+              {
+                title: 'Repo B',
+                description: 'Another util',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'TypeScript',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'org',
+                  repo: 'repo-b',
+                  stars: 60,
+                },
+              },
+            ],
+            title: 'Utilities',
+          },
+        ],
+      }
+
+      await indexRegistry(env.DB, 'dedup-registry', data)
+
+      // Both "Utils" and "Utilities" normalize to "Utilities" — should be one row
+      const categories = await env.DB.prepare(
+        "SELECT name FROM categories WHERE name = 'Utilities'",
+      ).all<{ name: string }>()
+
+      expect(categories.results).toHaveLength(1)
+
+      // Both repos should be linked to the single "Utilities" category
+      const junctionEntries = await env.DB.prepare(
+        `SELECT rrc.repository_id FROM registry_repository_categories rrc
+         JOIN categories c ON c.id = rrc.category_id
+         WHERE rrc.registry_name = ? AND c.name = 'Utilities'`,
+      ).bind('dedup-registry').all()
+
+      expect(junctionEntries.results).toHaveLength(2)
+    })
+
+    it('should normalize emoji-prefixed MCP category names', async () => {
+      const data: RegistryData = {
+        metadata: {
+          last_updated: '2025-10-12T00:00:00Z',
+          source_repository: 'test/mcp',
+          source_repository_description: 'MCP test',
+          title: 'MCP Test',
+        },
+        items: [
+          {
+            description: 'Finance tools',
+            items: [
+              {
+                title: 'Finance Tool',
+                description: 'A finance tool',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'Python',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'org',
+                  repo: 'finance-tool',
+                  stars: 200,
+                },
+              },
+            ],
+            title: '💰 Finance & Fintech',
+          },
+        ],
+      }
+
+      await indexRegistry(env.DB, 'mcp-registry', data)
+
+      // Emoji stripped + mapped to "Finance"
+      const category = await env.DB.prepare(
+        "SELECT name FROM categories WHERE name = 'Finance'",
+      ).first<{ name: string }>()
+
+      expect(category).toBeDefined()
+      expect(category!.name).toBe('Finance')
+    })
+
+    it('should store normalized category names in repository_facets after rebuild', async () => {
+      const data: RegistryData = {
+        metadata: {
+          last_updated: '2025-10-12T00:00:00Z',
+          source_repository: 'test/facets',
+          source_repository_description: 'Facets test',
+          title: 'Facets Test',
+        },
+        items: [
+          {
+            description: 'ML tools',
+            items: [
+              {
+                title: 'ML Lib',
+                description: 'A machine learning library',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'Python',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'ml-org',
+                  repo: 'ml-lib',
+                  stars: 5000,
+                },
+              },
+            ],
+            title: 'Artificial Intelligence',
+          },
+        ],
+      }
+
+      await indexRegistry(env.DB, 'ai-registry', data)
+      await rebuildFacets(env.DB)
+
+      const facet = await env.DB.prepare(
+        'SELECT category_name FROM repository_facets WHERE registry_name = ?',
+      ).bind('ai-registry').first<{ category_name: string }>()
+
+      expect(facet).toBeDefined()
+      expect(facet!.category_name).toBe('Machine Learning')
+    })
+  })
 })
