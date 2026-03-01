@@ -632,7 +632,7 @@ describe('Full Indexing Pipeline with D1', () => {
       // Extract category names
       const categoryNames = junctionResult.results.map(r => r.name)
       expect(categoryNames).toContain('Web Frameworks')
-      expect(categoryNames).toContain('HTTP Servers')
+      expect(categoryNames).toContain('HTTP')
     })
   })
 

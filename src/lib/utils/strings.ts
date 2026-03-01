@@ -46,32 +46,47 @@ export function normalizeSpecialChars(str: string): string {
 export function pluralize(name: string): string {
   const trimmed = name.trim()
 
-  // Words that should stay singular (gerunds, mass nouns, etc.)
+  // Mass nouns and other words that should never be pluralized
   const singularExceptions = new Set([
     'authentication',
     'authorization',
-    'caching',
+    'compliance',
+    'data',
     'deployment',
     'documentation',
     'encryption',
+    'hardware',
+    'infrastructure',
     'internationalization',
     'localization',
-    'logging',
-    'monitoring',
-    'networking',
+    'media',
+    'middleware',
     'optimization',
     'performance',
     'research',
-    'scheduling',
     'security',
+    'software',
     'storage',
-    'translation',
     'validation',
   ])
 
   const words = trimmed.split(/(\s+)/)
   const lastWord = words[words.length - 1]
-  if (singularExceptions.has(lastWord.toLowerCase())) {
+  const lastWordLower = lastWord.toLowerCase()
+
+  // Rule: if the last word ends in -ing (gerund/present participle), don't pluralize
+  // This catches "programming", "debugging", "testing", "streaming", "monitoring", etc.
+  if (lastWordLower.endsWith('ing')) {
+    return trimmed
+  }
+
+  // Rule: if the last word ends in -ment, don't pluralize
+  // This catches "management", "development", "environment", etc.
+  if (lastWordLower.endsWith('ment')) {
+    return trimmed
+  }
+
+  if (singularExceptions.has(lastWordLower)) {
     return trimmed
   }
 
@@ -89,5 +104,7 @@ export function pluralize(name: string): string {
  * Remove all emojis and special Unicode characters from a string
  */
 export function removeEmojis(str: string): string {
-  return str.replace(/[\p{Emoji}\p{Extended_Pictographic}\p{Symbol}]/gu, '')
+  // Use Extended_Pictographic + Emoji_Presentation to target actual emoji
+  // without catching ASCII symbols like & and / (which \p{Symbol} matches)
+  return str.replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}]/gu, '')
 }

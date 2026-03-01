@@ -407,6 +407,9 @@ function buildRegistryStatements(
     for (const categoryName of categories) {
       const normalized = normalizeCategoryName(categoryName)
 
+      // Skip categories that normalization determined are noise (meta-sections, etc.)
+      if (!normalized) continue
+
       // Insert the category if it doesn't exist (INSERT OR IGNORE), using normalized name
       statements.push(
         db
