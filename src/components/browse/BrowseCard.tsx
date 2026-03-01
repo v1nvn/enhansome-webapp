@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { Calendar, ExternalLink, MoreVertical, Star } from 'lucide-react'
 
 import type { RegistryItem } from '@/types/registry'
@@ -8,11 +9,6 @@ interface BrowseCardProps {
 }
 
 export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
-  const repoDetailLink =
-    item.repo_info?.owner && item.repo_info.repo
-      ? `/repo/${item.repo_info.owner}/${item.repo_info.repo}`
-      : null
-
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
     const now = new Date()
@@ -41,13 +37,17 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
       </div>
 
       {/* Title as main link */}
-      {repoDetailLink ? (
-        <a
+      {item.repo_info ? (
+        <Link
           className="font-display text-foreground hover:text-primary block text-lg font-semibold leading-tight transition-colors"
-          href={repoDetailLink}
+          params={{
+            owner: item.repo_info.owner,
+            name: item.repo_info.repo,
+          }}
+          to="/repo/$owner/$name"
         >
           {item.title}
-        </a>
+        </Link>
       ) : (
         <h3 className="font-display text-foreground text-lg font-semibold leading-tight">
           {item.title}
@@ -58,6 +58,32 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
       <p className="text-muted-foreground mb-4 mt-2 line-clamp-1 text-sm leading-relaxed">
         {item.description ?? ''}
       </p>
+
+      {/* Category Pills - Editorial Style */}
+      {item.categories && item.categories.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {item.categories.slice(0, 2).map(category => (
+            <Link
+              className="font-display group/category relative inline-flex items-center"
+              key={category}
+              params={{
+                cat: category,
+              }}
+              to="/browse"
+            >
+              <span className="bg-accent/20 text-primary hover:bg-accent/30 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 pr-3 text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                <span className="bg-primary/60 group-hover/category:bg-primary h-1 w-1 rounded-full" />
+                {category}
+              </span>
+            </Link>
+          ))}
+          {item.categories.length > 2 && (
+            <span className="text-muted-foreground text-xs font-medium">
+              +{item.categories.length - 2}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />

@@ -147,8 +147,8 @@ export function FilterBar({
     void navigate({ to, search: { ...newFilters } })
   }
 
-  const handleCategoryChange = (catName: string | undefined) => {
-    const newFilters = { ...filters, categoryName: catName }
+  const handleCategoryChange = (cat: string | undefined) => {
+    const newFilters = { ...filters, cat }
     onFiltersChange(newFilters)
     void navigate({ to, search: { ...newFilters } })
   }

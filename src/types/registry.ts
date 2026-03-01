@@ -12,6 +12,7 @@ export interface RegistryItem {
   // Rich card fields (Phase 2)
   best_for_tags?: string[]
   bundle_size?: number
+  categories?: string[]
   children: RegistryItem[]
   complexity?: 'high' | 'low' | 'medium'
   description: null | string
