@@ -1,21 +1,23 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { useInfiniteQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { ChevronDown, Loader2 } from 'lucide-react'
+import { Filter, Loader2 } from 'lucide-react'
 
 import type { FilterOptions } from '@/lib/db/repositories/search-repository'
 import type { RegistryItem } from '@/types/registry'
 
+import { type BreadcrumbItem, Breadcrumbs } from '@/components/Breadcrumbs'
 import {
   BrowseCard,
+  CategorySidebar,
   FilterBar,
   type FilterBarFilters,
+  MobileFilterPanel,
 } from '@/components/browse'
 import { CompareDrawer } from '@/components/CompareDrawer'
 import {
   filterOptionsQueryOptions,
-  metadataQueryOptions,
   searchInfiniteQueryOptions,
 } from '@/lib/api/server-functions'
 
@@ -27,6 +29,7 @@ interface BrowseSearch {
   q?: string
   registry?: string
   sort?: 'name' | 'quality' | 'stars' | 'updated'
+  tag?: string
 }
 
 export const Route = createFileRoute('/browse')({
@@ -40,13 +43,24 @@ export const Route = createFileRoute('/browse')({
     sort:
       (search.sort as 'name' | 'quality' | 'stars' | 'updated' | undefined) ||
       'quality',
+    tag: search.tag as string | undefined,
   }),
   loaderDeps: ({ search }) => ({
     cat: search.cat,
+    lang: search.lang,
     registry: search.registry,
+    tag: search.tag,
   }),
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(metadataQueryOptions())
+  loader: async ({ context, deps }) => {
+    // Preload filter options for initial SSR/CSR render
+    await context.queryClient.ensureQueryData(
+      filterOptionsQueryOptions({
+        categoryName: deps.cat,
+        language: deps.lang,
+        registryName: deps.registry,
+        tagName: deps.tag,
+      }),
+    )
   },
   pendingComponent: () => (
     <div className="min-h-screen bg-background">
@@ -84,23 +98,25 @@ function BrowsePage() {
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
 
-  // Fetch registry metadata and unified filter options
-  const { data: registries } = useSuspenseQuery(metadataQueryOptions())
-  const { data: filterOptions } = useSuspenseQuery(
-    filterOptionsQueryOptions({
-      categoryName: search.cat,
-      language: search.lang,
-      registryName: search.registry,
-    }),
-  )
+  // Fetch filter options with placeholder data for smoother transitions
+  const { data: filterOptions, isPlaceholderData: isPreviousFilterOptions } =
+    useQuery(
+      filterOptionsQueryOptions({
+        categoryName: search.cat,
+        language: search.lang,
+        registryName: search.registry,
+        tagName: search.tag,
+      }),
+    )
 
   // Filters
   const currentFilters = useMemo((): FilterBarFilters => {
     return {
-      categoryName: search.cat,
+      cat: search.cat,
       lang: search.lang,
       registry: search.registry,
       sort: search.sort || 'quality',
+      tag: search.tag,
     }
   }, [search])
 
@@ -108,10 +124,11 @@ function BrowsePage() {
   const handleFiltersChange = (filters: FilterBarFilters) => {
     const newSearch: BrowseSearch = {
       ...search,
-      cat: filters.categoryName,
+      cat: filters.cat,
       lang: filters.lang,
       registry: filters.registry,
       sort: filters.sort || 'quality',
+      tag: filters.tag,
     }
     void navigate({ search: newSearch })
   }
@@ -125,6 +142,7 @@ function BrowsePage() {
       q: search.q?.trim(),
       registryName: search.registry,
       sortBy: search.sort || 'quality',
+      tagName: search.tag,
     }),
     [search],
   )
@@ -142,7 +160,7 @@ function BrowsePage() {
 
   // Check if we're on the homepage (no search/filters applied)
   const isHomepage =
-    !search.q && !search.registry && !search.lang && !search.cat
+    !search.q && !search.registry && !search.lang && !search.cat && !search.tag
 
   return (
     <div className="min-h-screen bg-background">
@@ -156,7 +174,8 @@ function BrowsePage() {
           hasNextPage={hasNextPage}
           isFetchingNextPage={isFetchingNextPage}
           isHomepage={isHomepage}
-          registries={registries}
+          isTransitioning={isPreviousFilterOptions}
+          search={search}
           searchQuery={search.q}
           total={total}
         />
@@ -174,11 +193,11 @@ function BrowsePageContent({
   hasNextPage,
   isFetchingNextPage,
   isHomepage,
-  registries,
+  isTransitioning,
   searchQuery,
   total,
 }: {
-  allItems: RegistryItem[]
+  allItems: (RegistryItem & { registries?: string[]; tags?: string[] })[]
   currentFilters: FilterBarFilters
   fetchNextPage: () => Promise<unknown>
   filterOptions: FilterOptions | undefined
@@ -186,15 +205,44 @@ function BrowsePageContent({
   hasNextPage: boolean
   isFetchingNextPage: boolean
   isHomepage: boolean
-  registries: { name: string; stats: { totalRepos: number }; title: string }[]
+  isTransitioning: boolean
+  search: BrowseSearch
   searchQuery?: string
   total: number
 }) {
+  const navigate = Route.useNavigate()
+  const search = Route.useSearch()
+
+  // Mobile filter panel state
+  const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false)
+
   // Compare mode state
   const [selectedItems, setSelectedItems] = useState<Set<string>>(
     () => new Set(),
   )
   const [isCompareOpen, setIsCompareOpen] = useState(false)
+
+  // Infinite scroll observer
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasNextPage) return
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (!isFetchingNextPage && entries[0]?.isIntersecting) {
+          void fetchNextPage()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+
+    observer.observe(loadMoreRef.current)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   // Get the actual item objects for selected items
   const selectedItemObjects = useMemo(() => {
@@ -224,29 +272,88 @@ function BrowsePageContent({
     })
   }
 
-  const handleClearAll = () => {
+  const handleClearAllCompare = () => {
     setSelectedItems(new Set())
     setIsCompareOpen(false)
   }
 
-  const handleLoadMore = () => {
-    void fetchNextPage()
+  const handleClearFilters = () => {
+    void navigate({ to: '/browse' })
   }
+
+  // Build breadcrumbs
+  const breadcrumbItems = useMemo((): BreadcrumbItem[] => {
+    const items: BreadcrumbItem[] = []
+
+    if (search.registry) {
+      const registryLabel =
+        filterOptions?.registries.find(r => r.name === search.registry)
+          ?.label || search.registry
+      items.push({
+        label: registryLabel,
+        search: { registry: search.registry },
+      })
+    }
+
+    if (search.cat) {
+      items.push({
+        label: search.cat,
+        search: { ...search, cat: search.cat },
+      })
+    }
+
+    if (search.tag && !search.cat) {
+      items.push({
+        label: search.tag,
+        search: { ...search, tag: search.tag },
+      })
+    }
+
+    return items
+  }, [search, filterOptions])
 
   return (
     <div className="py-8">
+      {/* Breadcrumbs */}
+      {breadcrumbItems.length > 0 && (
+        <div className="mb-4">
+          <Breadcrumbs items={breadcrumbItems} />
+        </div>
+      )}
+
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-display mb-2 text-3xl font-bold text-foreground">
-          Discovery
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {total.toLocaleString()} tools curated for you
-        </p>
+      <div className="mb-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              {isHomepage
+                ? 'Discovery'
+                : searchQuery
+                  ? `Results for "${searchQuery}"`
+                  : 'Filtered Results'}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {total.toLocaleString()} tools curated for you
+            </p>
+          </div>
+
+          {/* Mobile filter button */}
+          <button
+            aria-label="Open filters"
+            className="flex items-center gap-2 rounded-xl border-2 border-border/30 bg-card px-4 py-3 text-sm font-medium shadow-sm transition-all hover:bg-muted/20 lg:hidden"
+            onClick={() => {
+              setIsMobilePanelOpen(true)
+            }}
+            type="button"
+          >
+            <Filter className="h-4 w-4" />
+            <span>Filters</span>
+          </button>
+        </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="mb-8">
+      {/* Search Bar - Full width on top */}
+      <div className="mb-6">
         <FilterBar
           defaultValue={searchQuery}
           enableIntentDetection={true}
@@ -254,77 +361,89 @@ function BrowsePageContent({
           filters={currentFilters}
           onFiltersChange={handleFiltersChange}
           placeholder="Search repositories..."
-          registries={registries}
           resultsCount={total}
           to="/browse"
         />
       </div>
 
-      {/* Results Header */}
-      {!isHomepage && (
-        <div className="mb-6">
-          <h2 className="font-display text-xl font-semibold">
-            {searchQuery ? `Results for "${searchQuery}"` : 'All Items'}
-          </h2>
+      {/* Two-column layout */}
+      <div className="flex gap-8">
+        {/* Sidebar - hidden on mobile */}
+        <div className="hidden shrink-0 lg:block">
+          {filterOptions && (
+            <CategorySidebar
+              filterOptions={filterOptions}
+              selectedCategory={search.cat}
+              selectedLanguage={search.lang}
+              selectedRegistry={search.registry}
+            />
+          )}
         </div>
-      )}
 
-      {/* Items Grid */}
-      {allItems.length > 0 ? (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {allItems.map((item, itemIdx) => {
-            const itemKey = `${item.title}-${item.repo_info?.owner || ''}-${item.repo_info?.repo || ''}-${itemIdx}`
-            // Use a unique key without the index for compare state consistency
-            const compareKey = `${item.title}-${item.repo_info?.owner || ''}-${item.repo_info?.repo || ''}`
-            return (
-              <BrowseCard
-                item={item}
-                key={itemKey}
-                onCompareToggle={() => {
-                  handleToggleCompare(compareKey)
-                }}
-              />
-            )
-          })}
-        </div>
-      ) : (
-        <div className="flex min-h-[400px] items-center justify-center">
-          <div className="text-center">
-            <p className="text-lg text-muted-foreground">
-              No repositories found
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Try adjusting your filters or search query
-            </p>
+        {/* Main content */}
+        <div className="relative min-w-0 flex-1">
+          {/* Loading overlay for filter transitions */}
+          {isTransitioning && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+
+          {/* Items Grid */}
+          {allItems.length > 0 ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {allItems.map((item, itemIdx) => {
+                const itemKey = `${item.title}-${item.repo_info?.owner || ''}-${item.repo_info?.repo || ''}-${itemIdx}`
+                const compareKey = `${item.title}-${item.repo_info?.owner || ''}-${item.repo_info?.repo || ''}`
+                return (
+                  <BrowseCard
+                    item={item}
+                    key={itemKey}
+                    onCompareToggle={() => {
+                      handleToggleCompare(compareKey)
+                    }}
+                  />
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex min-h-[400px] items-center justify-center">
+              <div className="text-center">
+                <p className="text-lg text-muted-foreground">
+                  No repositories found
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Try adjusting your filters or search query
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Infinite scroll trigger */}
+          <div className="flex justify-center py-8" ref={loadMoreRef}>
+            {isFetchingNextPage && (
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            )}
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Load More */}
-      {hasNextPage && (
-        <div className="mt-10 flex justify-center">
-          <button
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isFetchingNextPage}
-            onClick={handleLoadMore}
-            type="button"
-          >
-            {isFetchingNextPage ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Loading...</span>
-              </>
-            ) : (
-              <>
-                <span>Load More</span>
-                <ChevronDown className="h-4 w-4" />
-                <span className="rounded-full bg-primary-foreground/20 px-2.5 py-0.5 text-xs">
-                  {allItems.length} / {total}
-                </span>
-              </>
-            )}
-          </button>
-        </div>
+      {/* Mobile Filter Panel */}
+      {filterOptions && (
+        <MobileFilterPanel
+          filterOptions={filterOptions}
+          isOpen={isMobilePanelOpen}
+          onClearAll={() => {
+            handleClearFilters()
+            setIsMobilePanelOpen(false)
+          }}
+          onClose={() => {
+            setIsMobilePanelOpen(false)
+          }}
+          selectedCategory={search.cat}
+          selectedLanguage={search.lang}
+          selectedRegistry={search.registry}
+        />
       )}
 
       {/* Floating Compare Button */}
@@ -349,7 +468,7 @@ function BrowsePageContent({
       {/* Compare Drawer */}
       <CompareDrawer
         items={selectedItemObjects}
-        onClearAll={handleClearAll}
+        onClearAll={handleClearAllCompare}
         onClose={() => {
           setIsCompareOpen(false)
         }}

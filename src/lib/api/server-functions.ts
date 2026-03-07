@@ -215,6 +215,7 @@ export const filterOptionsQueryOptions = (params?: FetchFilterOptionsInput) =>
     queryFn: () => fetchFilterOptions({ data: params ?? {} }),
     queryKey: ['filter-options', { params }],
     staleTime: 24 * 60 * 60 * 1000,
+    placeholderData: previousData => previousData,
   })
 
 // ============================================================================

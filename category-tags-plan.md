@@ -653,9 +653,37 @@ Phase 7 depends on all prior phases.
 - Updated `src/lib/db/repositories/repository-repository.ts`:
   - Added `tags` to `getRepoDetail()` return type
 
-### 🚧 Phase 4: Browse Page — Sidebar + Breadcrumbs — IN PROGRESS
-- CategorySidebar component created
-- Breadcrumbs component in progress
+### ✅ Phase 4: Browse Page — Sidebar + Breadcrumbs — COMPLETE
+- Created `src/components/browse/SidebarFilterSection.tsx`:
+  - Reusable component for sidebar filter sections
+  - Search input for filtering within section
+  - Max height with scroll for long lists
+- Created `src/components/browse/CategorySidebar.tsx`:
+  - Categories section with search + max-h-64
+  - Registries section with search + max-h-40
+  - Languages section (moved from FilterBar)
+- Created `src/components/Breadcrumbs.tsx`:
+  - Home link + dynamic breadcrumb items
+  - Supports registry, category, and tag navigation
+- Created `src/components/browse/MobileFilterPanel.tsx`:
+  - Slide-out panel for mobile screens
+  - Reuses CategorySidebar content
+- Updated `src/components/browse/BrowseCard.tsx`:
+  - Added registry badge (top 2 registries)
+  - Added top 3 tags display with tag icon
+- Simplified `src/components/browse/FilterBar.tsx`:
+  - Removed category dropdown (moved to sidebar)
+  - Removed registry dropdown (moved to sidebar)
+  - Removed language dropdown (moved to sidebar)
+  - Retained search input + sort dropdown only
+- Deleted `src/components/browse/FilterDropdown.tsx` (unused)
+- Updated `src/routes/browse.tsx`:
+  - Search bar full-width on top (above sidebar and grid)
+  - Two-column layout (sidebar + main content)
+  - Breadcrumbs navigation
+  - Mobile filter button + panel
+  - Added `tag` search param support
+  - Replaced "Load More" button with infinite scroll (IntersectionObserver)
 
 ### ⏳ Phase 5: Registry Page — Tag Sidebar — NOT STARTED
 ### ⏳ Phase 6: Homepage Redesign — NOT STARTED

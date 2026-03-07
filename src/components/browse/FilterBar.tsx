@@ -1,22 +1,18 @@
 import { useMemo, useState } from 'react'
 
 import { useNavigate } from '@tanstack/react-router'
-import { ChevronDown, Code, Filter, Search, Tag, X } from 'lucide-react'
+import { ChevronDown, Search, X } from 'lucide-react'
 
 import type { FilterOptions } from '@/lib/db/repositories/search-repository'
 
 import { extractIntent, type IntentSignal } from '@/lib/utils/search'
 
-import type { FilterDropdownItem } from './FilterDropdown'
-
-import { FilterDropdown } from './FilterDropdown'
-
 export interface FilterBarFilters {
-  category?: string
-  categoryName?: string
+  cat?: string
   lang?: string
   registry?: string
   sort?: 'name' | 'quality' | 'stars' | 'updated'
+  tag?: string
 }
 
 interface FilterBarProps {
@@ -26,7 +22,6 @@ interface FilterBarProps {
   filters: FilterBarFilters
   onFiltersChange: (filters: FilterBarFilters) => void
   placeholder?: string
-  registries: { name: string; stats: { totalRepos: number }; title: string }[]
   resultsCount?: number
   to?: string
 }
@@ -41,11 +36,9 @@ const SORT_OPTIONS = [
 export function FilterBar({
   defaultValue = '',
   enableIntentDetection = true,
-  filterOptions,
   filters,
   onFiltersChange,
   placeholder = 'Search repositories...',
-  registries,
   resultsCount,
   to = '/browse',
 }: FilterBarProps) {
@@ -69,56 +62,6 @@ export function FilterBar({
     return intent.signals.filter(s => !removedSignalIds.has(s.id))
   }, [intent, removedSignalIds])
 
-  // Build registry dropdown items from filterOptions
-  const registryItems = useMemo((): FilterDropdownItem[] => {
-    if (filterOptions?.registries) {
-      return filterOptions.registries.map(r => ({
-        count: r.count,
-        label: r.label,
-        value: r.name,
-      }))
-    }
-    // Fallback: derive from registries metadata
-    return registries
-      .sort((a, b) => b.stats.totalRepos - a.stats.totalRepos)
-      .map(r => ({
-        count: r.stats.totalRepos,
-        label: r.title
-          .replace(/^(awesome|enhansome)\s*/i, '')
-          .replace(/\s+with stars$/i, '')
-          .trim(),
-        value: r.name,
-      }))
-  }, [filterOptions, registries])
-
-  // Build language dropdown items from filterOptions
-  const languageItems = useMemo((): FilterDropdownItem[] => {
-    if (!filterOptions?.languages) return []
-    return filterOptions.languages.map(l => ({
-      count: l.count,
-      label: l.name,
-      value: l.name,
-    }))
-  }, [filterOptions])
-
-  // Build category dropdown items from filterOptions
-  const categoryItems = useMemo((): FilterDropdownItem[] => {
-    if (!filterOptions?.categories) return []
-    return filterOptions.categories.map(c => ({
-      count: c.count,
-      label: c.name,
-      value: c.name,
-    }))
-  }, [filterOptions])
-
-  const selectedRegistry = registries.find(r => r.name === filters.registry)
-  const displayRegistryTitle = selectedRegistry
-    ? selectedRegistry.title
-        .replace(/^(awesome|enhansome)/i, '')
-        .replace(/ with stars$/i, '')
-        .trim()
-    : undefined
-
   const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     const trimmedQuery = query.trim()
@@ -130,24 +73,6 @@ export function FilterBar({
 
   const handleSortChange = (sort: FilterBarFilters['sort']) => {
     const newFilters = { ...filters, sort }
-    onFiltersChange(newFilters)
-    void navigate({ to, search: { ...newFilters } })
-  }
-
-  const handleRegistryChange = (registry: string | undefined) => {
-    const newFilters = { ...filters, registry }
-    onFiltersChange(newFilters)
-    void navigate({ to, search: { ...newFilters } })
-  }
-
-  const handleLanguageChange = (lang: string | undefined) => {
-    const newFilters = { ...filters, lang }
-    onFiltersChange(newFilters)
-    void navigate({ to, search: { ...newFilters } })
-  }
-
-  const handleCategoryChange = (cat: string | undefined) => {
-    const newFilters = { ...filters, cat }
     onFiltersChange(newFilters)
     void navigate({ to, search: { ...newFilters } })
   }
@@ -191,22 +116,19 @@ export function FilterBar({
       .join(' ')
   }
 
-  // Build active filter chips
+  // Build active filter chips (language and tag - category/registry are in sidebar)
   const activeChips: { key: string; label: string }[] = []
-  if (filters.registry && selectedRegistry) {
-    activeChips.push({
-      key: 'registry',
-      label: displayRegistryTitle ?? filters.registry,
-    })
+  if (filters.registry) {
+    activeChips.push({ key: 'registry', label: filters.registry })
+  }
+  if (filters.cat) {
+    activeChips.push({ key: 'cat', label: filters.cat })
   }
   if (filters.lang) {
     activeChips.push({ key: 'lang', label: filters.lang })
   }
-  if (filters.categoryName) {
-    activeChips.push({ key: 'categoryName', label: filters.categoryName })
-  }
-  if (filters.category) {
-    activeChips.push({ key: 'category', label: filters.category })
+  if (filters.tag) {
+    activeChips.push({ key: 'tag', label: filters.tag })
   }
 
   return (
@@ -262,37 +184,6 @@ export function FilterBar({
           </select>
           <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         </div>
-
-        {/* Registry Dropdown */}
-        <FilterDropdown
-          allLabel="All Registries"
-          icon={Filter}
-          items={registryItems}
-          onSelect={handleRegistryChange}
-          searchPlaceholder="Search registries..."
-          selectedValue={filters.registry}
-        />
-
-        {/* Language Dropdown */}
-        <FilterDropdown
-          allLabel="All Languages"
-          icon={Code}
-          items={languageItems}
-          onSelect={handleLanguageChange}
-          searchPlaceholder="Search languages..."
-          selectedValue={filters.lang}
-          widthClass="w-64"
-        />
-
-        {/* Category Dropdown */}
-        <FilterDropdown
-          allLabel="All Categories"
-          icon={Tag}
-          items={categoryItems}
-          onSelect={handleCategoryChange}
-          searchPlaceholder="Search categories..."
-          selectedValue={filters.categoryName}
-        />
       </div>
 
       {/* Detected Intent Signals */}

@@ -1,10 +1,13 @@
 import { Link } from '@tanstack/react-router'
-import { Calendar, ExternalLink, MoreVertical, Star } from 'lucide-react'
+import { Calendar, ExternalLink, MoreVertical, Star, Tag } from 'lucide-react'
 
 import type { RegistryItem } from '@/types/registry'
 
 interface BrowseCardProps {
-  item: RegistryItem
+  item: RegistryItem & {
+    registries?: string[]
+    tags?: string[]
+  }
   onCompareToggle?: () => void
 }
 
@@ -59,6 +62,27 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
         {item.description ?? ''}
       </p>
 
+      {/* Registry Badge */}
+      {item.registries && item.registries.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          {item.registries.slice(0, 2).map(registry => (
+            <Link
+              className="inline-flex items-center gap-1 rounded-full bg-muted/40 px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              key={registry}
+              search={{ registry }}
+              to="/browse"
+            >
+              {registry}
+            </Link>
+          ))}
+          {item.registries.length > 2 && (
+            <span className="text-xs text-muted-foreground">
+              +{item.registries.length - 2}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Category Pills - Editorial Style */}
       {item.categories && item.categories.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -80,6 +104,28 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
           {item.categories.length > 2 && (
             <span className="text-xs font-medium text-muted-foreground">
               +{item.categories.length - 2}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Tags - Top 3 */}
+      {item.tags && item.tags.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          {item.tags.slice(0, 3).map(tag => (
+            <Link
+              className="inline-flex items-center gap-1 rounded-full bg-secondary/30 px-2 py-0.5 text-xs text-secondary-foreground/70 transition-colors hover:bg-secondary/50 hover:text-secondary-foreground"
+              key={tag}
+              search={{ tag }}
+              to="/browse"
+            >
+              <Tag className="h-2.5 w-2.5" />
+              {tag}
+            </Link>
+          ))}
+          {item.tags.length > 3 && (
+            <span className="text-xs text-muted-foreground">
+              +{item.tags.length - 3}
             </span>
           )}
         </div>
