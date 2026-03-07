@@ -2,14 +2,44 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
 import { RegistryDetail } from '@/components/RegistryDetail'
-import { registryDetailQueryOptions } from '@/lib/api/server-functions'
+import {
+  filterOptionsQueryOptions,
+  registryDetailQueryOptions,
+} from '@/lib/api/server-functions'
+
+interface RegistrySearch {
+  cat?: string
+  q?: string
+  sort?: 'name' | 'quality' | 'stars' | 'updated'
+  tag?: string
+}
 
 export const Route = createFileRoute('/registry/$name')({
   component: RegistryDetailPage,
-  loader: ({ context, params }) => {
+  validateSearch: (search: Record<string, unknown>): RegistrySearch => ({
+    cat: search.cat as string | undefined,
+    q: search.q as string | undefined,
+    sort:
+      (search.sort as 'name' | 'quality' | 'stars' | 'updated' | undefined) ||
+      'quality',
+    tag: search.tag as string | undefined,
+  }),
+  loaderDeps: ({ search }) => ({
+    cat: search.cat,
+    tag: search.tag,
+  }),
+  loader: async ({ context, params, deps }) => {
     // Preload registry detail data
-    void context.queryClient.ensureQueryData(
+    await context.queryClient.ensureQueryData(
       registryDetailQueryOptions(params.name),
+    )
+    // Preload filter options for initial render
+    await context.queryClient.ensureQueryData(
+      filterOptionsQueryOptions({
+        categoryName: deps.cat,
+        registryName: params.name,
+        tagName: deps.tag,
+      }),
     )
   },
   pendingComponent: () => (
@@ -31,6 +61,8 @@ export const Route = createFileRoute('/registry/$name')({
 
 function RegistryDetailPage() {
   const { name } = Route.useParams()
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
 
   const { data } = useSuspenseQuery(registryDetailQueryOptions(name))
 
@@ -62,5 +94,38 @@ function RegistryDetailPage() {
     )
   }
 
-  return <RegistryDetail data={data} />
+  const handleSearchParamsChange = (
+    newParams: Omit<RegistrySearch, 'sort'> & { sort?: RegistrySearch['sort'] },
+  ) => {
+    void navigate({
+      search: (prev: Record<string, unknown>) => ({
+        ...prev,
+        cat: newParams.cat,
+        q: newParams.q,
+        sort: newParams.sort || 'quality',
+        tag: newParams.tag,
+      }),
+    })
+  }
+
+  return (
+    <RegistryDetail
+      initialData={{
+        description: data.description,
+        last_updated: data.last_updated,
+        source_repository: data.source_repository,
+        title: data.title,
+        total_items: data.total_items,
+        total_stars: data.total_stars,
+      }}
+      onSearchParamsChange={handleSearchParamsChange}
+      registryName={name}
+      searchParams={{
+        cat: search.cat,
+        q: search.q,
+        sort: search.sort || 'quality',
+        tag: search.tag,
+      }}
+    />
+  )
 }

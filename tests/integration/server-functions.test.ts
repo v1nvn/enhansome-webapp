@@ -219,6 +219,30 @@ describe('Server Function Handlers', () => {
       ).toBe(true)
     })
 
+    it('should filter by tagName parameter', async () => {
+      const db = createKysely(env.DB)
+      // Filter by tag - 'Web Frameworks' exists in test data
+      const result = await searchReposHandler(db, {
+        tagName: 'Web Frameworks',
+      })
+
+      // Gin, Echo, Django are in Web Frameworks; Flask is archived
+      expect(result.total).toBe(3)
+      expect(result.data.every(item => item.tags?.includes('Web Frameworks'))).toBe(true)
+    })
+
+    it('should return tags in search results', async () => {
+      const db = createKysely(env.DB)
+      const result = await searchReposHandler(db, { registryName: 'go' })
+
+      // Each result should have a tags array
+      expect(result.data.length).toBeGreaterThan(0)
+      result.data.forEach(item => {
+        expect(item).toHaveProperty('tags')
+        expect(Array.isArray(item.tags)).toBe(true)
+      })
+    })
+
     it('should return empty results for non-existent registry', async () => {
       const db = createKysely(env.DB)
       const result = await searchReposHandler(db, {
@@ -436,6 +460,27 @@ describe('Server Function Handlers', () => {
       expect(python).toBeDefined()
       const go = result.registries.find(r => r.name === 'go')
       expect(go).toBeUndefined()
+    })
+
+    it('should return tags in filter options', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchFilterOptionsHandler(db, {})
+
+      expect(result).toHaveProperty('tags')
+      expect(Array.isArray(result.tags)).toBe(true)
+      // Tags come from repository_facets
+      expect(result.tags.length).toBeGreaterThan(0)
+    })
+
+    it('should cross-filter tags by registryName', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchFilterOptionsHandler(db, { registryName: 'go' })
+
+      // Tags should be filtered to only those in the go registry
+      expect(result.tags.length).toBeGreaterThan(0)
+      result.tags.forEach(tag => {
+        expect(tag.count).toBeGreaterThan(0)
+      })
     })
 
     it('should return empty results when no data exists', async () => {

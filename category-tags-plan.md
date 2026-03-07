@@ -605,12 +605,19 @@ Phase 7 depends on all prior phases.
 - `src/lib/db/repositories/registry-repository.ts` — `tags` in registry detail
 - `src/lib/db/repositories/repository-repository.ts` — `tags` in repo detail
 
-### 🚧 Phase 4: Browse Page — Sidebar + Breadcrumbs — IN PROGRESS
+### ✅ Phase 4: Browse Page — Sidebar + Breadcrumbs — COMPLETE
 - `src/components/browse/CategorySidebar.tsx` — created
-- `src/components/Breadcrumbs.tsx` — in progress
-- Remaining: MobileFilterPanel, BrowseCard update, FilterBar simplification, browse.tsx layout
+- `src/components/Breadcrumbs.tsx` — created
+- `src/components/browse/MobileFilterPanel.tsx` — created
+- `src/components/browse/BrowseCard.tsx` — updated with registry badge + tags
+- `src/components/browse/FilterBar.tsx` — simplified (search + sort only)
+- `src/routes/browse.tsx` — two-column layout with sidebar
 
-### ⏳ Phase 5: Registry Page — Tag Sidebar — NOT STARTED
+### ✅ Phase 5: Registry Page — Tag Sidebar — COMPLETE
+- `src/components/registry/RegistryTagSidebar.tsx` — created
+- `src/components/RegistryDetail.tsx` — redesigned with sidebar + card grid
+- `src/routes/registry.$name.tsx` — added search params + infinite scroll
+
 ### ⏳ Phase 6: Homepage Redesign — NOT STARTED
 ### ⏳ Phase 7: Polish + Cleanup — NOT STARTED
 
@@ -685,6 +692,22 @@ Phase 7 depends on all prior phases.
   - Added `tag` search param support
   - Replaced "Load More" button with infinite scroll (IntersectionObserver)
 
-### ⏳ Phase 5: Registry Page — Tag Sidebar — NOT STARTED
+### ✅ Phase 5: Registry Page — Tag Sidebar — COMPLETE
+- Created `src/components/registry/RegistryTagSidebar.tsx`:
+  - Tags section (primary) with top 30-50 tags
+  - Categories section (secondary, collapsible)
+- Created `src/components/registry/RegistryMobileFilterPanel.tsx`:
+  - Reusable mobile filter panel following browse patterns
+- Redesigned `src/components/RegistryDetail.tsx`:
+  - Uses FilterBar component (same as browse page)
+  - Uses RegistryMobileFilterPanel (same patterns as browse)
+  - Uses RegistryTagSidebar for sidebar
+  - Infinite scroll with IntersectionObserver
+  - Mobile filter button + panel
+- Updated `src/routes/registry.$name.tsx`:
+  - Added `tag`, `cat`, `q`, `sort` search params
+  - Breadcrumbs support for registry navigation
+  - Preloads filter options for initial render
+
 ### ⏳ Phase 6: Homepage Redesign — NOT STARTED
 ### ⏳ Phase 7: Polish + Repo Detail Tags + Cleanup — NOT STARTED
