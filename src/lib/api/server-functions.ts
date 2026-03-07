@@ -16,6 +16,7 @@ import {
   fetchRegistryDetailHandler,
   fetchRepoDetailHandler,
   fetchTrendingRegistriesHandler,
+  fetchTrendingTagsHandler,
   getIndexingHistoryHandler,
   getIndexingStatusHandler,
   searchReposHandler,
@@ -64,6 +65,24 @@ export const trendingQueryOptions = () =>
   queryOptions({
     queryFn: () => fetchTrendingRegistries(),
     queryKey: ['trending-registries'],
+    staleTime: 30 * 60 * 1000,
+  })
+
+// ============================================================================
+// Trending Tags API
+// ============================================================================
+
+export const fetchTrendingTags = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const db = createKysely(env.DB)
+    return fetchTrendingTagsHandler(db)
+  },
+)
+
+export const trendingTagsQueryOptions = () =>
+  queryOptions({
+    queryFn: () => fetchTrendingTags(),
+    queryKey: ['trending-tags'],
     staleTime: 30 * 60 * 1000,
   })
 

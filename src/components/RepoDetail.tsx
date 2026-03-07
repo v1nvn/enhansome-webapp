@@ -5,6 +5,7 @@ import {
   Code,
   ExternalLink,
   FolderTree,
+  Hash,
   Star,
   TrendingUp,
 } from 'lucide-react'
@@ -156,6 +157,21 @@ export function RepoDetail({ data }: RepoDetailProps) {
                     {data.categories.map(cat => (
                       <CategoryBadge category={cat} key={cat} />
                     ))}
+                  </div>
+                )}
+
+                {/* Tags Display */}
+                {data.tags.length > 0 && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Tags:</span>
+                    {data.tags.slice(0, 10).map(tag => (
+                      <TagBadge key={tag} tag={tag} />
+                    ))}
+                    {data.tags.length > 10 && (
+                      <span className="text-sm text-muted-foreground">
+                        +{data.tags.length - 10} more
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -348,5 +364,21 @@ function RepoStat({
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Badge component for displaying tags
+ */
+function TagBadge({ tag }: { tag: string }) {
+  return (
+    <Link
+      className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors duration-200 hover:bg-primary/10 hover:text-primary"
+      search={{ tag }}
+      to="/browse"
+    >
+      <Hash className="h-3 w-3" />
+      {tag}
+    </Link>
   )
 }

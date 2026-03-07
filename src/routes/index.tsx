@@ -2,15 +2,18 @@ import { useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
+import { Search } from 'lucide-react'
 
 import {
-  EnhancedSearchBar,
-  type EnhancedSearchBarFilters,
-} from '@/components/EnhancedSearchBar'
-import { FrameworkPills, UseCaseCards } from '@/components/home'
+  CategoryBrowser,
+  RegistryExplorer,
+  TrendingTags,
+} from '@/components/home'
 import {
   filterOptionsQueryOptions,
   metadataQueryOptions,
+  trendingQueryOptions,
+  trendingTagsQueryOptions,
 } from '@/lib/api/server-functions'
 
 export const Route = createFileRoute('/')({
@@ -19,48 +22,33 @@ export const Route = createFileRoute('/')({
   loader: ({ context }) => {
     void context.queryClient.ensureQueryData(metadataQueryOptions())
     void context.queryClient.ensureQueryData(filterOptionsQueryOptions())
+    void context.queryClient.ensureQueryData(trendingQueryOptions())
+    void context.queryClient.ensureQueryData(trendingTagsQueryOptions())
   },
 })
 
 function Home() {
   const navigate = Route.useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
-  const [filters, setFilters] = useState<EnhancedSearchBarFilters>({})
 
   const { data: registries } = useSuspenseQuery(metadataQueryOptions())
   const { data: filterOptions } = useSuspenseQuery(filterOptionsQueryOptions())
-
-  const handleFiltersChange = (newFilters: EnhancedSearchBarFilters) => {
-    setFilters(newFilters)
-  }
+  const { data: trendingRegistries } = useSuspenseQuery(trendingQueryOptions())
+  const { data: trendingTags } = useSuspenseQuery(trendingTagsQueryOptions())
 
   const handleSearch = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // Navigate to /browse with current filters and query
-    const search: Record<string, string | undefined> = {}
-    if (searchQuery.trim()) search.q = searchQuery.trim()
-    if (filters.category) search.category = filters.category
-    if (filters.lang) search.lang = filters.lang
-    if (filters.registry) search.registry = filters.registry
-    if (filters.sort) search.sort = filters.sort
-    void navigate({ to: '/browse', search })
+    if (searchQuery.trim()) {
+      void navigate({ search: { q: searchQuery.trim() }, to: '/browse' })
+    }
   }
-
-  const handleCategoryClick = (categoryName: string) => {
-    void navigate({
-      to: '/browse',
-      search: { cat: categoryName },
-    })
-  }
-
-  const topCategories = filterOptions.categories.slice(0, 15)
 
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6 lg:px-8">
         <h1 className="font-display text-5xl font-bold tracking-tight text-foreground md:text-6xl">
-          Discover Developer Tools
+          Discover Awesome Tools
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
           Search {registries.length} curated registries for the best libraries,
@@ -68,27 +56,26 @@ function Home() {
         </p>
 
         <form className="mt-10 flex justify-center" onSubmit={handleSearch}>
-          <div className="w-full max-w-2xl">
-            <EnhancedSearchBar
-              enableIntentDetection={true}
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              onQueryChange={setSearchQuery}
+          <div className="relative w-full max-w-2xl">
+            <Search className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              className="h-14 w-full rounded-xl border border-border bg-card pr-4 pl-12 text-lg shadow-md transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+              onChange={e => {
+                setSearchQuery(e.target.value)
+              }}
               placeholder="Search packages, frameworks, categories..."
+              type="text"
+              value={searchQuery}
             />
           </div>
         </form>
       </section>
 
       {/* Discovery Section */}
-      <section className="mx-auto max-w-5xl px-4 pb-20 sm:px-6 lg:px-8">
-        <div className="space-y-12">
-          <UseCaseCards
-            categories={topCategories}
-            onCategoryClick={handleCategoryClick}
-          />
-          <FrameworkPills />
-        </div>
+      <section className="mx-auto max-w-5xl space-y-12 px-4 pb-20 sm:px-6 lg:px-8">
+        <RegistryExplorer registries={trendingRegistries} />
+        <CategoryBrowser categories={filterOptions.categories} limit={20} />
+        <TrendingTags limit={20} tags={trendingTags} />
       </section>
     </div>
   )

@@ -218,4 +218,13 @@ export async function seedTestData(db: Kysely<Database>) {
       // Flask is archived — excluded from facets
     ])
     .execute()
+
+  // Seed tags table (required for getGlobalTopTags to work)
+  await db
+    .insertInto('tags')
+    .values([
+      { name: 'Web Frameworks', slug: 'web-frameworks' },
+      { name: 'Testing', slug: 'testing' },
+    ])
+    .execute()
 }

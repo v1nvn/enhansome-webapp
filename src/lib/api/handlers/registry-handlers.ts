@@ -16,6 +16,7 @@ import {
   getTrendingRegistries,
 } from '../../db/repositories/registry-repository'
 import { getAllRegistryStatsBatched } from '../../db/repositories/stats-repository'
+import { getGlobalTopTags } from '../../db/repositories/tag-repository'
 
 import type { Kysely } from 'kysely'
 
@@ -89,6 +90,13 @@ export async function fetchTrendingRegistriesHandler(
   limit = 12,
 ): Promise<TrendingRegistry[]> {
   return getTrendingRegistries(db as any, limit)
+}
+
+export async function fetchTrendingTagsHandler(
+  db: Kysely<Database>,
+  limit = 50,
+) {
+  return getGlobalTopTags(db as any, limit)
 }
 
 export async function getFeaturedRegistriesHandler(db: Kysely<Database>) {

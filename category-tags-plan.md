@@ -618,8 +618,26 @@ Phase 7 depends on all prior phases.
 - `src/components/RegistryDetail.tsx` — redesigned with sidebar + card grid
 - `src/routes/registry.$name.tsx` — added search params + infinite scroll
 
-### ⏳ Phase 6: Homepage Redesign — NOT STARTED
-### ⏳ Phase 7: Polish + Cleanup — NOT STARTED
+### ✅ Phase 6: Homepage Redesign — COMPLETE
+- `src/components/home/RegistryExplorer.tsx` — created
+- `src/components/home/CategoryBrowser.tsx` — created
+- `src/components/home/TrendingTags.tsx` — created
+- `src/lib/api/server-functions.ts` — added `fetchTrendingTags()`
+- `src/routes/index.tsx` — simplified hero search, new sections
+
+### ✅ Phase 7: Polish + Repo Detail Tags + Cleanup — COMPLETE
+- Updated `src/components/RepoDetail.tsx`:
+  - Added tags display below categories
+  - Tags link to `/browse?tag=X`
+  - TagBadge component with hash icon
+- Cleanup:
+  - Removed `src/components/EnhancedSearchBar.tsx` (replaced by simple search input)
+  - Removed `src/components/home/FrameworkPills.tsx` (replaced by TrendingTags)
+  - Removed `src/components/home/UseCaseCards.tsx` (replaced by CategoryBrowser)
+  - Updated `src/components/home/index.ts` exports
+- Tests:
+  - Added `fetchTrendingTagsHandler` tests in server-functions.test.ts
+  - Updated seed-test-data.ts to seed tags table
 
 ---
 
@@ -709,5 +727,34 @@ Phase 7 depends on all prior phases.
   - Breadcrumbs support for registry navigation
   - Preloads filter options for initial render
 
-### ⏳ Phase 6: Homepage Redesign — NOT STARTED
-### ⏳ Phase 7: Polish + Repo Detail Tags + Cleanup — NOT STARTED
+### ✅ Phase 6: Homepage Redesign — COMPLETE
+- Created `src/components/home/RegistryExplorer.tsx`:
+  - Visual grid of registry cards with repo count and stars
+  - Links to `/registry/:name`
+- Created `src/components/home/CategoryBrowser.tsx`:
+  - Grid layout of categories with counts
+  - Links to `/browse?cat=X`
+- Created `src/components/home/TrendingTags.tsx`:
+  - Horizontal row of popular tags
+  - Links to `/browse?tag=X`
+- Added `fetchTrendingTagsHandler()` in registry-handlers.ts
+- Added `fetchTrendingTags()` and `trendingTagsQueryOptions()` in server-functions.ts
+- Updated `src/routes/index.tsx`:
+  - Simplified hero search (just input, navigates to `/browse?q=...`)
+  - New section order: RegistryExplorer, CategoryBrowser, TrendingTags
+  - Removed EnhancedSearchBar inline filters
+- Updated `src/components/home/index.ts` with new exports
+
+### ✅ Phase 7: Polish + Repo Detail Tags + Cleanup — COMPLETE
+- Updated `src/components/RepoDetail.tsx`:
+  - Added tags display section below categories
+  - Tags link to `/browse?tag=X`
+  - Added TagBadge component with Hash icon
+- Cleanup:
+  - Deleted `src/components/EnhancedSearchBar.tsx` (replaced by simple search input)
+  - Deleted `src/components/home/FrameworkPills.tsx` (replaced by TrendingTags)
+  - Deleted `src/components/home/UseCaseCards.tsx` (replaced by CategoryBrowser)
+  - Updated `src/components/home/index.ts` to remove deleted exports
+- Tests:
+  - Added `fetchTrendingTagsHandler` tests in `tests/integration/server-functions.test.ts`
+  - Updated `tests/helpers/seed-test-data.ts` to seed tags table for integration tests

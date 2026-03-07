@@ -12,6 +12,7 @@ import {
   fetchRegistryDetailHandler,
   fetchRepoDetailHandler,
   fetchTrendingRegistriesHandler,
+  fetchTrendingTagsHandler,
   searchReposHandler,
 } from '@/lib/api/handlers'
 import {
@@ -327,6 +328,49 @@ describe('Server Function Handlers', () => {
       await clearDatabase(db)
 
       const result = await fetchTrendingRegistriesHandler(db)
+      expect(result).toHaveLength(0)
+    })
+  })
+
+  describe('fetchTrendingTagsHandler', () => {
+    it('should return trending tags with counts', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchTrendingTagsHandler(db, 10)
+
+      expect(Array.isArray(result)).toBe(true)
+      expect(result.length).toBeGreaterThan(0)
+
+      // Each tag should have name, slug, and count
+      result.forEach(tag => {
+        expect(tag).toHaveProperty('name')
+        expect(tag).toHaveProperty('slug')
+        expect(tag).toHaveProperty('count')
+        expect(tag.count).toBeGreaterThan(0)
+      })
+    })
+
+    it('should respect limit parameter', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchTrendingTagsHandler(db, 2)
+
+      expect(result.length).toBeLessThanOrEqual(2)
+    })
+
+    it('should return tags ordered by count descending', async () => {
+      const db = createKysely(env.DB)
+      const result = await fetchTrendingTagsHandler(db, 10)
+
+      // Tags should be sorted by count descending
+      for (let i = 1; i < result.length; i++) {
+        expect(result[i - 1].count).toBeGreaterThanOrEqual(result[i].count)
+      }
+    })
+
+    it('should return empty array when no tags exist', async () => {
+      const db = createKysely(env.DB)
+      await clearDatabase(db)
+
+      const result = await fetchTrendingTagsHandler(db)
       expect(result).toHaveLength(0)
     })
   })
