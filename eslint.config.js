@@ -100,11 +100,24 @@ export default defineConfig([
         },
       ],
       'perfectionist/sort-objects': 'off',
+      'react-refresh/only-export-components': [
+        'error',
+        {
+          allowConstantExport: true,
+          allowExportNames: ['Route'],
+        },
+      ],
     },
     settings: {
       react: {
         version: 'detect',
       },
+    },
+  },
+  {
+    files: ['src/routes/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

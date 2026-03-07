@@ -12,8 +12,6 @@ import {
   searchRepos,
 } from '../../db/repositories/search-repository'
 
-export type { FilterOptions } from '../../db/repositories/search-repository'
-
 import type { Kysely } from 'kysely'
 
 export interface SearchParamsInternal {

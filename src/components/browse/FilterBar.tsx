@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { ChevronDown, Code, Filter, Search, Tag, X } from 'lucide-react'
 
-import type { FilterOptions } from '@/lib/api/server-functions'
+import type { FilterOptions } from '@/lib/db/repositories/search-repository'
 
 import { extractIntent, type IntentSignal } from '@/lib/utils/search'
 
@@ -50,7 +50,9 @@ export function FilterBar({
   to = '/browse',
 }: FilterBarProps) {
   const [query, setQuery] = useState(defaultValue)
-  const [detectedSignals, setDetectedSignals] = useState<IntentSignal[]>([])
+  const [removedSignalIds, setRemovedSignalIds] = useState<Set<string>>(
+    () => new Set(),
+  )
   const navigate = useNavigate()
 
   // Extract intent from query
@@ -61,14 +63,11 @@ export function FilterBar({
     return extractIntent(query)
   }, [query, enableIntentDetection])
 
-  // Update detected signals when intent changes
-  useMemo(() => {
-    if (intent) {
-      setDetectedSignals(intent.signals)
-    } else {
-      setDetectedSignals([])
-    }
-  }, [intent])
+  // Derive detected signals from intent, filtering out removed ones
+  const detectedSignals = useMemo(() => {
+    if (!intent) return []
+    return intent.signals.filter(s => !removedSignalIds.has(s.id))
+  }, [intent, removedSignalIds])
 
   // Build registry dropdown items from filterOptions
   const registryItems = useMemo((): FilterDropdownItem[] => {
@@ -90,7 +89,7 @@ export function FilterBar({
           .trim(),
         value: r.name,
       }))
-  }, [filterOptions?.registries, registries])
+  }, [filterOptions, registries])
 
   // Build language dropdown items from filterOptions
   const languageItems = useMemo((): FilterDropdownItem[] => {
@@ -100,7 +99,7 @@ export function FilterBar({
       label: l.name,
       value: l.name,
     }))
-  }, [filterOptions?.languages])
+  }, [filterOptions])
 
   // Build category dropdown items from filterOptions
   const categoryItems = useMemo((): FilterDropdownItem[] => {
@@ -110,7 +109,7 @@ export function FilterBar({
       label: c.name,
       value: c.name,
     }))
-  }, [filterOptions?.categories])
+  }, [filterOptions])
 
   const selectedRegistry = registries.find(r => r.name === filters.registry)
   const displayRegistryTitle = selectedRegistry
@@ -120,7 +119,7 @@ export function FilterBar({
         .trim()
     : undefined
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     const trimmedQuery = query.trim()
     void navigate({
@@ -162,7 +161,7 @@ export function FilterBar({
   const handleClearAll = () => {
     onFiltersChange({})
     setQuery('')
-    setDetectedSignals([])
+    setRemovedSignalIds(new Set())
     void navigate({ to })
   }
 
@@ -182,7 +181,7 @@ export function FilterBar({
     }
 
     setQuery(newQuery)
-    setDetectedSignals(prev => prev.filter(s => s.id !== signal.id))
+    setRemovedSignalIds(prev => new Set(prev).add(signal.id))
   }
 
   const formatLabel = (slug: string): string => {
@@ -233,7 +232,7 @@ export function FilterBar({
                   className="rounded-full p-1 text-muted-foreground transition-all hover:bg-muted/80 hover:text-foreground"
                   onClick={() => {
                     setQuery('')
-                    setDetectedSignals([])
+                    setRemovedSignalIds(new Set())
                   }}
                   type="button"
                 >

@@ -34,7 +34,7 @@ function Home() {
     setFilters(newFilters)
   }
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     // Navigate to /browse with current filters and query
     const search: Record<string, string | undefined> = {}

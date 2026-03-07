@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useNavigate } from '@tanstack/react-router'
 import { Search, Sparkles } from 'lucide-react'
@@ -56,7 +56,9 @@ export function EnhancedSearchBar({
   // onFiltersChange is used by parent for state management
   void onFiltersChange
   const [query, setQuery] = useState(defaultValue)
-  const [detectedSignals, setDetectedSignals] = useState<IntentSignal[]>([])
+  const [removedSignalIds, setRemovedSignalIds] = useState<Set<string>>(
+    () => new Set(),
+  )
   const navigate = useNavigate()
 
   // Extract intent from query
@@ -67,23 +69,27 @@ export function EnhancedSearchBar({
     return extractIntent(query)
   }, [query, enableIntentDetection])
 
-  // Notify parent of query changes
-  const handleChange = (newQuery: string) => {
-    setQuery(newQuery)
-    onQueryChange?.(newQuery)
-  }
+  // Derive detected signals from intent, filtering out removed ones
+  const detectedSignals = useMemo(() => {
+    if (!intent) return []
+    return intent.signals.filter(s => !removedSignalIds.has(s.id))
+  }, [intent, removedSignalIds])
 
-  // Update detected signals when intent changes
-  useMemo(() => {
+  // Notify parent of intent changes (external sync - OK in useEffect)
+  useEffect(() => {
     if (intent) {
-      setDetectedSignals(intent.signals)
       onIntentChange?.(intent)
-    } else {
-      setDetectedSignals([])
     }
   }, [intent, onIntentChange])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Notify parent of query changes
+  const handleChange = (newQuery: string) => {
+    setQuery(newQuery)
+    setRemovedSignalIds(new Set()) // Reset removed signals when query changes
+    onQueryChange?.(newQuery)
+  }
+
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     const trimmedQuery = query.trim()
     void navigate({
@@ -110,7 +116,7 @@ export function EnhancedSearchBar({
     }
 
     handleChange(newQuery)
-    setDetectedSignals(prev => prev.filter(s => s.id !== signal.id))
+    setRemovedSignalIds(prev => new Set(prev).add(signal.id))
   }
 
   const formatLabel = (slug: string): string => {
@@ -141,7 +147,6 @@ export function EnhancedSearchBar({
                 className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-muted/80 hover:text-foreground"
                 onClick={() => {
                   handleChange('')
-                  setDetectedSignals([])
                   void navigate({ to, search: filters })
                 }}
                 type="button"

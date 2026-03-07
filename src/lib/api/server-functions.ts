@@ -31,8 +31,6 @@ export type {
 } from './handlers/registry-handlers'
 export type { RepoDetail } from './handlers/repository-handlers'
 
-export type { FilterOptions } from './handlers/search-handlers'
-
 // ============================================================================
 // Metadata API
 // ============================================================================

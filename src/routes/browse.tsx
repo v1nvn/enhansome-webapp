@@ -4,7 +4,7 @@ import { useInfiniteQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { ChevronDown, Loader2 } from 'lucide-react'
 
-import type { FilterOptions } from '@/lib/api/server-functions'
+import type { FilterOptions } from '@/lib/db/repositories/search-repository'
 import type { RegistryItem } from '@/types/registry'
 
 import {
