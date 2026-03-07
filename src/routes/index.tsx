@@ -56,13 +56,13 @@ function Home() {
   const topCategories = filterOptions.categories.slice(0, 15)
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6 lg:px-8">
-        <h1 className="font-display text-foreground text-5xl font-bold tracking-tight md:text-6xl">
+        <h1 className="font-display text-5xl font-bold tracking-tight text-foreground md:text-6xl">
           Discover Developer Tools
         </h1>
-        <p className="text-muted-foreground mx-auto mt-6 max-w-xl text-lg leading-relaxed">
+        <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
           Search {registries.length} curated registries for the best libraries,
           frameworks, and resources
         </p>

@@ -3,12 +3,7 @@
  * Consolidates category normalization and matching
  */
 
-import {
-  generateSlug,
-  normalizeSpecialChars,
-  pluralize,
-  removeEmojis,
-} from './strings'
+import { generateSlug, normalizeSpecialChars, removeEmojis } from './strings'
 
 import type { D1Database } from '@cloudflare/workers-types'
 
@@ -918,6 +913,13 @@ export async function getAllCategories(db: D1Database): Promise<
 }
 
 /**
+ * Get the set of canonical category names from CATEGORY_LOOKUP
+ */
+export function getCanonicalCategories(): Set<string> {
+  return new Set(Object.keys(CATEGORY_LOOKUP))
+}
+
+/**
  * Get category by ID
  */
 export async function getCategoryById(
@@ -1071,16 +1073,34 @@ export function normalizeCategoryName(raw: string): NormalizedCategory | null {
     })
     .join(' ')
 
-  // Stage 9: Pluralize for consistency
-  const name = pluralize(titleCased)
-
-  // Stage 10: Generate slug
-  const slug = generateSlug(name)
+  // Stage 9: Generate slug (no pluralization - frozen categories have correct names)
+  const slug = generateSlug(titleCased)
 
   return {
-    name,
+    name: titleCased,
     slug,
   }
+}
+
+/**
+ * Seed all canonical categories into the database.
+ * Truncates existing categories and inserts the frozen set.
+ * Called at indexing time to ensure categories exist.
+ */
+export async function seedCategories(db: D1Database): Promise<void> {
+  const categories = Object.keys(CATEGORY_LOOKUP)
+
+  // Truncate and insert in a batch
+  const truncateStmt = db.prepare('DELETE FROM categories')
+  const insertStmts = categories.map(name => {
+    const slug = generateSlug(name)
+    return db
+      .prepare('INSERT INTO categories (slug, name) VALUES (?, ?)')
+      .bind(slug, name)
+  })
+
+  await db.batch([truncateStmt, ...insertStmts])
+  console.log(`Seeded ${categories.length} categories`)
 }
 
 /**

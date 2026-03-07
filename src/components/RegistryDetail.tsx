@@ -43,12 +43,12 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
   ]
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen bg-background">
       {/* Back Button - Minimal floating style */}
-      <div className="border-border/30 bg-background/80 sticky top-0 z-50 border-b backdrop-blur-md">
+      <div className="sticky top-0 z-50 border-b border-border/30 bg-background/80 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           <Link
-            className="text-muted-foreground hover:text-primary hover:bg-primary/5 -ml-2 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition-all duration-200"
+            className="-ml-2 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-primary/5 hover:text-primary"
             to="/browse"
           >
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
@@ -61,9 +61,9 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
       <div className="relative overflow-hidden">
         {/* Animated gradient background */}
         <div className="absolute inset-0">
-          <div className="from-primary/20 via-accent/10 to-primary/5 absolute inset-0 bg-gradient-to-br" />
-          <div className="bg-primary/10 absolute -right-32 -top-32 h-[500px] w-[500px] -translate-y-1/2 translate-x-1/2 animate-pulse rounded-full blur-[120px]" />
-          <div className="bg-accent/10 absolute -bottom-32 -left-32 h-[400px] w-[400px] -translate-x-1/2 translate-y-1/2 animate-pulse rounded-full blur-[100px]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-primary/5" />
+          <div className="absolute -top-32 -right-32 h-[500px] w-[500px] translate-x-1/2 -translate-y-1/2 animate-pulse rounded-full bg-primary/10 blur-[120px]" />
+          <div className="absolute -bottom-32 -left-32 h-[400px] w-[400px] -translate-x-1/2 translate-y-1/2 animate-pulse rounded-full bg-accent/10 blur-[100px]" />
           {/* Subtle grid pattern overlay */}
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.03]"
@@ -78,20 +78,20 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
           {/* Breadcrumb - Refined */}
           <nav className="mb-8 flex items-center gap-2 text-sm">
             <Link
-              className="text-muted-foreground hover:text-foreground transition-colors duration-200"
+              className="text-muted-foreground transition-colors duration-200 hover:text-foreground"
               to="/"
             >
               Home
             </Link>
             <span className="text-muted-foreground/30">/</span>
             <Link
-              className="text-muted-foreground hover:text-foreground transition-colors duration-200"
+              className="text-muted-foreground transition-colors duration-200 hover:text-foreground"
               to="/browse"
             >
               Browse
             </Link>
             <span className="text-muted-foreground/30">/</span>
-            <span className="text-foreground font-medium">{data.title}</span>
+            <span className="font-medium text-foreground">{data.title}</span>
           </nav>
 
           {/* Title Section */}
@@ -99,17 +99,17 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
             <div>
               {/* Decorative tag */}
               <div className="mb-6 inline-flex">
-                <span className="bg-primary/10 text-primary border-primary/20 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide">
-                  <span className="bg-primary h-1 w-1 animate-pulse rounded-full" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold tracking-wide text-primary uppercase">
+                  <span className="h-1 w-1 animate-pulse rounded-full bg-primary" />
                   Registry Collection
                 </span>
               </div>
 
-              <h1 className="font-display text-foreground text-4xl font-bold leading-tight md:text-5xl lg:text-7xl xl:text-8xl">
+              <h1 className="font-display text-4xl leading-tight font-bold text-foreground md:text-5xl lg:text-7xl xl:text-8xl">
                 {data.title}
               </h1>
               {data.description && (
-                <p className="text-muted-foreground/80 mt-6 max-w-2xl text-lg leading-relaxed">
+                <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground/80">
                   {data.description}
                 </p>
               )}
@@ -142,7 +142,7 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
             {/* External Link - Floating card style */}
             {data.source_repository && (
               <a
-                className="group/link border-border/60 hover:border-primary/50 hover:shadow-primary/20 bg-card/80 hover:bg-card relative -mt-4 flex shrink-0 items-center gap-4 rounded-2xl border px-6 py-5 shadow-lg transition-all duration-300 hover:-translate-y-1"
+                className="group/link relative -mt-4 flex shrink-0 items-center gap-4 rounded-2xl border border-border/60 bg-card/80 px-6 py-5 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:bg-card hover:shadow-primary/20"
                 href={data.source_repository}
                 rel="noopener noreferrer"
                 target="_blank"
@@ -161,23 +161,23 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-foreground text-sm font-semibold">
+                  <div className="text-sm font-semibold text-foreground">
                     View Source
                   </div>
-                  <div className="text-muted-foreground text-xs">on GitHub</div>
+                  <div className="text-xs text-muted-foreground">on GitHub</div>
                 </div>
-                <ExternalLink className="text-primary ml-2 h-5 w-5 transition-transform duration-300 group-hover/link:-translate-y-0.5 group-hover/link:translate-x-0.5" />
+                <ExternalLink className="ml-2 h-5 w-5 text-primary transition-transform duration-300 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5" />
               </a>
             )}
           </div>
         </div>
 
         {/* Bottom fade */}
-        <div className="from-background absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t to-transparent" />
+        <div className="absolute right-0 bottom-0 left-0 h-32 bg-gradient-to-t from-background to-transparent" />
       </div>
 
       {/* Enhanced Tabs with pill design */}
-      <div className="border-border/50 border-b">
+      <div className="border-b border-border/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex gap-2 overflow-x-auto py-4">
             {tabs.map(tab => {
@@ -187,8 +187,8 @@ export function RegistryDetail({ data }: RegistryDetailProps) {
                 <button
                   className={`relative flex items-center gap-2.5 rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300 ${
                     isActive
-                      ? 'bg-primary text-primary-foreground shadow-primary/25 shadow-lg'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                   }`}
                   key={tab.id}
                   onClick={() => {
@@ -231,8 +231,8 @@ function CategoriesTab({ categories }: { categories: string[] }) {
   if (categories.length === 0) {
     return (
       <div className="py-20 text-center">
-        <div className="bg-muted/30 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
-          <FolderTree className="text-muted-foreground h-8 w-8" />
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/30">
+          <FolderTree className="h-8 w-8 text-muted-foreground" />
         </div>
         <p className="text-muted-foreground">No categories found</p>
       </div>
@@ -243,18 +243,18 @@ function CategoriesTab({ categories }: { categories: string[] }) {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {categories.map(category => (
         <div
-          className="border-border/60 bg-card/80 hover:border-primary/50 hover:shadow-primary/10 group/category relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+          className="group/category relative overflow-hidden rounded-2xl border border-border/60 bg-card/80 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
           key={`cat-${category.replace(/\s+/g, '-')}`}
         >
           {/* Animated gradient overlay */}
-          <div className="from-primary/0 via-primary/5 to-primary/0 absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-300 group-hover/category:opacity-100" />
-          <div className="bg-primary absolute left-0 top-0 h-1 w-0 transition-all duration-300 group-hover/category:w-full" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/5 to-primary/0 opacity-0 transition-opacity duration-300 group-hover/category:opacity-100" />
+          <div className="absolute top-0 left-0 h-1 w-0 bg-primary transition-all duration-300 group-hover/category:w-full" />
           <div className="relative flex items-center gap-3">
-            <div className="from-primary/20 to-accent/20 text-primary flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover/category:rotate-3 group-hover/category:scale-110">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 text-primary transition-transform duration-300 group-hover/category:scale-110 group-hover/category:rotate-3">
               <FolderTree className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="text-foreground group-hover/category:text-primary truncate font-semibold transition-colors duration-200">
+              <h3 className="truncate font-semibold text-foreground transition-colors duration-200 group-hover/category:text-primary">
                 {category}
               </h3>
             </div>
@@ -285,10 +285,10 @@ function StatCard({
         <Icon className="h-5 w-5" />
       </div>
       <div>
-        <div className="text-foreground text-xl font-bold tabular-nums">
+        <div className="text-xl font-bold text-foreground tabular-nums">
           {value}
         </div>
-        <div className="text-muted-foreground text-xs uppercase tracking-wide">
+        <div className="text-xs tracking-wide text-muted-foreground uppercase">
           {label}
         </div>
       </div>
@@ -309,7 +309,7 @@ function StatsCard({
   value: number | string
 }) {
   return (
-    <div className="group/card border-border/60 hover:border-primary/40 bg-card/80 hover:shadow-primary/5 rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="group/card rounded-2xl border border-border/60 bg-card/80 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5">
       <div className="flex items-center gap-3">
         <div
           className={`${iconBg} flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br transition-transform duration-300 group-hover/card:scale-110`}
@@ -317,10 +317,10 @@ function StatsCard({
           <Icon className="h-6 w-6" />
         </div>
         <div>
-          <div className="text-foreground text-2xl font-bold tabular-nums">
+          <div className="text-2xl font-bold text-foreground tabular-nums">
             {value}
           </div>
-          <div className="text-muted-foreground text-sm">{label}</div>
+          <div className="text-sm text-muted-foreground">{label}</div>
         </div>
       </div>
     </div>
@@ -372,20 +372,20 @@ function StatsTab({
       {/* Languages List - Pill cloud design */}
       {languages.length > 0 && (
         <div>
-          <h3 className="font-display text-foreground mb-5 flex items-center gap-3 text-xl font-bold">
-            <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-lg">
+          <h3 className="font-display mb-5 flex items-center gap-3 text-xl font-bold text-foreground">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Code className="h-4 w-4" />
             </div>
             Languages
           </h3>
-          <div className="border-border/60 bg-card/80 rounded-2xl border p-6">
+          <div className="rounded-2xl border border-border/60 bg-card/80 p-6">
             <div className="flex flex-wrap gap-2">
               {languages.map(lang => (
                 <span
-                  className="group/lang bg-muted/50 hover:bg-primary/10 hover:border-primary/30 border-border/40 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200"
+                  className="group/lang inline-flex items-center gap-2 rounded-full border border-border/40 bg-muted/50 px-4 py-2 text-sm font-medium transition-all duration-200 hover:border-primary/30 hover:bg-primary/10"
                   key={`lang-${lang.replace(/\s+/g, '-')}`}
                 >
-                  <span className="bg-primary h-1.5 w-1.5 rounded-full transition-transform duration-200 group-hover/lang:scale-125" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary transition-transform duration-200 group-hover/lang:scale-125" />
                   {lang}
                 </span>
               ))}
@@ -397,20 +397,20 @@ function StatsTab({
       {/* Categories List - Refined list design */}
       {categories.length > 0 && (
         <div>
-          <h3 className="font-display text-foreground mb-5 flex items-center gap-3 text-xl font-bold">
-            <div className="bg-accent/30 text-foreground flex h-8 w-8 items-center justify-center rounded-lg">
+          <h3 className="font-display mb-5 flex items-center gap-3 text-xl font-bold text-foreground">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/30 text-foreground">
               <FolderTree className="h-4 w-4" />
             </div>
             All Categories
           </h3>
-          <div className="border-border/60 bg-card/80 divide-border/40 divide-y rounded-2xl border">
-            <div className="divide-border/40 grid grid-cols-1 divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-3">
+          <div className="divide-y divide-border/40 rounded-2xl border border-border/60 bg-card/80">
+            <div className="grid grid-cols-1 divide-y divide-border/40 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-3">
               {categories.map(category => (
                 <div
-                  className="group/cat text-muted-foreground hover:text-foreground hover:bg-muted/30 flex items-center gap-3 px-4 py-3 text-sm transition-all duration-200"
+                  className="group/cat flex items-center gap-3 px-4 py-3 text-sm text-muted-foreground transition-all duration-200 hover:bg-muted/30 hover:text-foreground"
                   key={`cat-list-${category.replace(/\s+/g, '-')}`}
                 >
-                  <FolderTree className="text-primary h-4 w-4 shrink-0 transition-transform duration-200 group-hover/cat:scale-110" />
+                  <FolderTree className="h-4 w-4 shrink-0 text-primary transition-transform duration-200 group-hover/cat:scale-110" />
                   <span className="truncate">{category}</span>
                 </div>
               ))}
@@ -431,8 +431,8 @@ function TopReposTab({
   if (topRepos.length === 0) {
     return (
       <div className="py-20 text-center">
-        <div className="bg-muted/30 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full">
-          <Archive className="text-muted-foreground h-8 w-8" />
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/30">
+          <Archive className="h-8 w-8 text-muted-foreground" />
         </div>
         <p className="text-muted-foreground">No repositories found</p>
       </div>
@@ -443,18 +443,18 @@ function TopReposTab({
     <div className="space-y-4">
       {topRepos.map((repo, idx) => (
         <div
-          className="border-border/60 bg-card/80 group/repo relative overflow-hidden rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+          className="group/repo relative overflow-hidden rounded-2xl border border-border/60 bg-card/80 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
           key={`repo-${repo.owner || 'unknown'}-${repo.name || 'unknown'}`}
         >
           {/* Top 3 special badges */}
           {idx < 3 && (
             <div
-              className={`absolute -right-4 -top-4 h-16 w-16 rotate-12 opacity-10 ${idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-gray-400' : 'bg-amber-700'}`}
+              className={`absolute -top-4 -right-4 h-16 w-16 rotate-12 opacity-10 ${idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-gray-400' : 'bg-amber-700'}`}
             />
           )}
 
           {/* Animated accent bar */}
-          <div className="from-primary/60 via-primary/40 to-accent/40 group-hover/repo:from-primary group-hover/repo:to-accent absolute left-0 top-0 h-0.5 w-full bg-gradient-to-r transition-all duration-300 group-hover/repo:h-1" />
+          <div className="absolute top-0 left-0 h-0.5 w-full bg-gradient-to-r from-primary/60 via-primary/40 to-accent/40 transition-all duration-300 group-hover/repo:h-1 group-hover/repo:from-primary group-hover/repo:to-accent" />
 
           <div className="relative flex items-start justify-between gap-6">
             <div className="min-w-0 flex-1">
@@ -474,13 +474,13 @@ function TopReposTab({
                   {idx + 1}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-display text-foreground group-hover/repo:text-primary text-xl font-bold leading-tight transition-colors duration-200">
+                  <h3 className="font-display text-xl leading-tight font-bold text-foreground transition-colors duration-200 group-hover/repo:text-primary">
                     {repo.name}
                   </h3>
                   <div className="mt-1.5 flex items-center gap-3 text-sm">
                     {repo.owner && (
-                      <span className="text-muted-foreground flex items-center gap-1.5">
-                        <span className="bg-muted-foreground/50 h-1 w-1 rounded-full" />
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
                         {repo.owner}
                       </span>
                     )}
@@ -490,14 +490,14 @@ function TopReposTab({
                         <div className="flex items-center gap-1">
                           {repo.categories.slice(0, 2).map(cat => (
                             <span
-                              className="bg-muted/50 text-muted-foreground border-border/40 rounded-md border px-2.5 py-1 text-xs font-medium"
+                              className="rounded-md border border-border/40 bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground"
                               key={cat}
                             >
                               {cat}
                             </span>
                           ))}
                           {repo.categories.length > 2 && (
-                            <span className="text-muted-foreground/60 text-xs">
+                            <span className="text-xs text-muted-foreground/60">
                               +{repo.categories.length - 2}
                             </span>
                           )}
@@ -509,7 +509,7 @@ function TopReposTab({
               </div>
 
               {repo.description && (
-                <p className="text-muted-foreground/80 mb-4 line-clamp-2 text-sm leading-relaxed">
+                <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-muted-foreground/80">
                   {repo.description}
                 </p>
               )}
@@ -518,7 +518,7 @@ function TopReposTab({
                 <div className="flex items-center gap-1.5 font-semibold text-amber-600 dark:text-amber-500">
                   <Star className="h-4 w-4 fill-current" />
                   <span>{repo.stars.toLocaleString()}</span>
-                  <span className="text-muted-foreground/40 font-normal">
+                  <span className="font-normal text-muted-foreground/40">
                     stars
                   </span>
                 </div>
@@ -532,7 +532,7 @@ function TopReposTab({
 
             {repo.owner && repo.name && (
               <a
-                className="bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-primary/30 shadow-primary/20 flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
+                className="flex shrink-0 items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 active:scale-95"
                 href={`https://github.com/${repo.owner}/${repo.name}`}
                 rel="noopener noreferrer"
                 target="_blank"

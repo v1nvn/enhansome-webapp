@@ -27,11 +27,17 @@ export interface SearchParamsInternal {
   q?: string
   registryName?: string
   sortBy?: 'name' | 'quality' | 'stars' | 'updated'
+  tagName?: string
 }
 
 export async function fetchFilterOptionsHandler(
   db: Kysely<Database>,
-  options?: { categoryName?: string; language?: string; registryName?: string },
+  options?: {
+    categoryName?: string
+    language?: string
+    registryName?: string
+    tagName?: string
+  },
 ) {
   return getFilterOptions(db as any, options ?? {})
 }
@@ -50,5 +56,6 @@ export async function searchReposHandler(
     q: data.q,
     registryName: data.registryName,
     sortBy: data.sortBy ?? 'quality',
+    tagName: data.tagName,
   })
 }

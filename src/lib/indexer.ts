@@ -7,7 +7,8 @@ import JSZip from 'jszip'
 
 import type { RegistryData, RegistryItem } from '@/types/registry'
 
-import { normalizeCategoryName } from './utils/categories'
+import { normalizeCategoryName, seedCategories } from './utils/categories'
+import { normalizeTagName } from './utils/tags'
 
 const REGISTRY_ARCHIVE_URL =
   'https://github.com/v1nvn/enhansome-registry/archive/refs/heads/main.zip'
@@ -25,6 +26,12 @@ interface FlattenedItem {
 interface ProgressBuffer {
   currentRegistry: null | string
   processedCount: number
+}
+
+// Statement with debug context for error tracking
+interface StatementWithContext {
+  context: string // Debug info: "repo_tags:owner/repo:category" or "registry_repository_categories:owner/repo:category"
+  statement: D1PreparedStatement
 }
 
 interface SyncLogEntry {
@@ -161,6 +168,9 @@ export async function indexAllRegistries(
     return { success: 0, failed: 0, errors: ['Indexing already in progress'] }
   }
 
+  // Seed categories from frozen set before indexing
+  await seedCategories(db)
+
   const historyId = await createHistoryEntry(db, triggerSource, createdBy)
   await updateLatestStatus(db, 'running', historyId)
 
@@ -233,7 +243,7 @@ export async function indexRegistry(
     `  Found ${items.length} items, ${totalStars.toLocaleString()} total stars`,
   )
 
-  const statements = buildRegistryStatements(
+  const statementsWithContext = buildRegistryStatements(
     db,
     registryName,
     data,
@@ -241,12 +251,28 @@ export async function indexRegistry(
     totalStars,
   )
 
+  // Extract raw statements for batch execution
+  const statements = statementsWithContext.map(s => s.statement)
+
   for (let i = 0; i < statements.length; i += SYNC_LOG_BATCH_SIZE) {
     const batch = statements.slice(i, i + SYNC_LOG_BATCH_SIZE)
-    await db.batch(batch)
-    console.log(
-      `  Executed batch ${Math.floor(i / SYNC_LOG_BATCH_SIZE) + 1}/${Math.ceil(statements.length / SYNC_LOG_BATCH_SIZE)}`,
-    )
+    const batchContexts = statementsWithContext
+      .slice(i, i + SYNC_LOG_BATCH_SIZE)
+      .map(s => s.context)
+
+    try {
+      await db.batch(batch)
+      console.log(
+        `  Executed batch ${Math.floor(i / SYNC_LOG_BATCH_SIZE) + 1}/${Math.ceil(statements.length / SYNC_LOG_BATCH_SIZE)}`,
+      )
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      // Include context from all statements in this batch for debugging
+      const contextInfo = batchContexts.join('\n    ')
+      throw new Error(`${errorMsg}\n  Batch contexts:\n    ${contextInfo}`, {
+        cause: error,
+      })
+    }
   }
 
   console.log(`  Successfully indexed ${registryName}`)
@@ -256,18 +282,18 @@ export async function indexRegistry(
 /**
  * Rebuild the repository_facets denormalized table.
  * Called once after all registries are indexed. Clears and repopulates
- * from repositories + registry_repositories + registry_repository_categories + categories.
+ * from repositories + repo_tags + tags + categories.
  */
 export async function rebuildFacets(db: D1Database): Promise<void> {
   console.log('Rebuilding repository_facets table...')
   const deleteStmt = db.prepare('DELETE FROM repository_facets')
   const insertStmt = db.prepare(
-    `INSERT INTO repository_facets (repository_id, registry_name, language, category_name)
-     SELECT r.id, rr.registry_name, r.language, c.name
+    `INSERT INTO repository_facets (repository_id, registry_name, language, category_name, tag_name)
+     SELECT r.id, rt.registry_name, r.language, c.name, t.name
      FROM repositories r
-     JOIN registry_repositories rr ON rr.repository_id = r.id
-     JOIN registry_repository_categories rrc ON rrc.repository_id = r.id AND rrc.registry_name = rr.registry_name
-     JOIN categories c ON c.id = rrc.category_id
+     JOIN repo_tags rt ON rt.repository_id = r.id
+     JOIN tags t ON t.id = rt.tag_id
+     LEFT JOIN categories c ON c.id = rt.category_id
      WHERE r.archived = 0`,
   )
   await db.batch([deleteStmt, insertStmt])
@@ -277,6 +303,7 @@ export async function rebuildFacets(db: D1Database): Promise<void> {
 /**
  * Build all D1 statements for indexing a registry
  * Uses the many-to-many model with repositories + category junction table
+ * Also creates tags from raw headings and links them via repo_tags
  */
 function buildRegistryStatements(
   db: D1Database,
@@ -284,31 +311,41 @@ function buildRegistryStatements(
   data: RegistryData,
   items: FlattenedItem[],
   totalStars: number,
-): D1PreparedStatement[] {
-  const statements: D1PreparedStatement[] = []
+): StatementWithContext[] {
+  const statements: StatementWithContext[] = []
 
   // Clear existing junction table entries for this registry
-  statements.push(
-    db
+  statements.push({
+    context: `DELETE registry_repository_categories: ${registryName}`,
+    statement: db
       .prepare(
         'DELETE FROM registry_repository_categories WHERE registry_name = ?',
       )
       .bind(registryName),
-  )
-  statements.push(
-    db
+  })
+  statements.push({
+    context: `DELETE repo_tags: ${registryName}`,
+    statement: db
+      .prepare('DELETE FROM repo_tags WHERE registry_name = ?')
+      .bind(registryName),
+  })
+  statements.push({
+    context: `DELETE registry_repositories: ${registryName}`,
+    statement: db
       .prepare('DELETE FROM registry_repositories WHERE registry_name = ?')
       .bind(registryName),
-  )
-  statements.push(
-    db
+  })
+  statements.push({
+    context: `DELETE registry_metadata: ${registryName}`,
+    statement: db
       .prepare('DELETE FROM registry_metadata WHERE registry_name = ?')
       .bind(registryName),
-  )
+  })
 
   // Insert metadata
-  statements.push(
-    db
+  statements.push({
+    context: `INSERT registry_metadata: ${registryName}`,
+    statement: db
       .prepare(
         `INSERT INTO registry_metadata
        (registry_name, title, description, last_updated, source_repository, total_items, total_stars)
@@ -323,14 +360,14 @@ function buildRegistryStatements(
         items.length,
         totalStars,
       ),
-  )
+  })
 
-  // Collect categories per repository to handle multi-category repos
-  const repoCategories = new Map<string, Set<string>>() // key: "owner/repo", value: Set of categories
+  // Collect raw headings per repository to handle multi-category repos
+  const repoHeadings = new Map<string, Set<string>>() // key: "owner/repo", value: Set of raw headings
   const repoTitles = new Map<string, string>() // key: "owner/repo", value: title (use first encountered)
   const repoDescriptions = new Map<string, null | string>() // key: "owner/repo", value: description
 
-  // First pass: collect all categories for each unique repository
+  // First pass: collect all raw headings for each unique repository
   for (const item of items) {
     const repoInfo = item.data.repo_info
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -340,18 +377,18 @@ function buildRegistryStatements(
 
     const key = `${repoInfo.owner}/${repoInfo.repo}`
 
-    if (!repoCategories.has(key)) {
-      repoCategories.set(key, new Set())
+    if (!repoHeadings.has(key)) {
+      repoHeadings.set(key, new Set())
       repoTitles.set(key, item.data.title)
       repoDescriptions.set(key, item.data.description ?? null)
     }
-    const categorySet = repoCategories.get(key)
-    if (categorySet) {
-      categorySet.add(item.category)
+    const headingSet = repoHeadings.get(key)
+    if (headingSet) {
+      headingSet.add(item.category) // item.category is the raw section heading
     }
   }
 
-  // Second pass: insert each unique repository once with all its categories
+  // Second pass: insert each unique repository once with all its headings
   for (const item of items) {
     const repoInfo = item.data.repo_info
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -362,19 +399,20 @@ function buildRegistryStatements(
     const key = `${repoInfo.owner}/${repoInfo.repo}`
 
     // Only process if we haven't already inserted this repository
-    if (!repoCategories.has(key)) {
+    if (!repoHeadings.has(key)) {
       continue
     }
 
-    // Get accumulated categories
-    const categorySet = repoCategories.get(key)
-    const categories = categorySet ? Array.from(categorySet) : []
+    // Get accumulated raw headings
+    const headingSet = repoHeadings.get(key)
+    const headings = headingSet ? Array.from(headingSet) : []
     const title = repoTitles.get(key)
     const description = repoDescriptions.get(key)
 
     // Upsert repository (INSERT OR IGNORE)
-    statements.push(
-      db
+    statements.push({
+      context: `INSERT repositories: ${key}`,
+      statement: db
         .prepare(
           `INSERT OR IGNORE INTO repositories (owner, name, description, stars, language, last_commit, archived)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -388,11 +426,12 @@ function buildRegistryStatements(
           repoInfo.last_commit,
           repoInfo.archived ? 1 : 0,
         ),
-    )
+    })
 
     // Link via junction table
-    statements.push(
-      db
+    statements.push({
+      context: `INSERT registry_repositories: ${registryName}/${key}`,
+      statement: db
         .prepare(
           `INSERT INTO registry_repositories (registry_name, repository_id, title)
            SELECT ?, id, ?
@@ -400,42 +439,102 @@ function buildRegistryStatements(
            WHERE owner = ? AND name = ?`,
         )
         .bind(registryName, title, repoInfo.owner, repoInfo.repo),
-    )
+    })
 
-    // Link each category via junction table
-    // We need to get the category ID for each category name
-    for (const categoryName of categories) {
-      const normalized = normalizeCategoryName(categoryName)
+    // First, collect unique normalized categories for this repo
+    // Multiple raw headings can normalize to the same category (e.g., "JSON", "TOML", "XML" → "Serialization")
+    const uniqueCategories = new Map<string, { name: string; slug: string }>()
 
-      // Skip categories that normalization determined are noise (meta-sections, etc.)
-      if (!normalized) continue
+    // Process each raw heading: create tag + collect categories
+    for (const rawHeading of headings) {
+      // Create tag from raw heading (light normalization)
+      const normalizedTag = normalizeTagName(rawHeading)
 
-      // Insert the category if it doesn't exist (INSERT OR IGNORE), using normalized name
-      statements.push(
-        db
+      // Skip if tag normalization determined this is noise
+      if (!normalizedTag) continue
+
+      // Insert the tag if it doesn't exist (INSERT OR IGNORE)
+      statements.push({
+        context: `INSERT tags: ${normalizedTag.slug}`,
+        statement: db
           .prepare(
-            `INSERT OR IGNORE INTO categories (slug, name)
+            `INSERT OR IGNORE INTO tags (slug, name)
              VALUES (?, ?)`,
           )
-          .bind(normalized.slug, normalized.name),
-      )
+          .bind(normalizedTag.slug, normalizedTag.name),
+      })
 
-      // Link the repository to the category using the normalized name
-      statements.push(
-        db
+      // Try to map to a frozen category (may return null if no match)
+      const normalizedCategory = normalizeCategoryName(rawHeading)
+
+      // Insert into repo_tags with tag and optional category provenance
+      // Uses a subquery to get both the repository id, tag id, and category id (if exists)
+      if (normalizedCategory) {
+        // Collect unique categories for later insert into registry_repository_categories
+        if (!uniqueCategories.has(normalizedCategory.slug)) {
+          uniqueCategories.set(normalizedCategory.slug, normalizedCategory)
+        }
+
+        // Tag maps to a frozen category - include category_id
+        statements.push({
+          context: `INSERT repo_tags: ${key} -> tag=${normalizedTag.slug} cat=${normalizedCategory.slug}`,
+          statement: db
+            .prepare(
+              `INSERT INTO repo_tags (repository_id, registry_name, tag_id, category_id)
+               SELECT r.id, ?, t.id, c.id
+               FROM repositories r
+               CROSS JOIN tags t
+               CROSS JOIN categories c
+               WHERE r.owner = ? AND r.name = ? AND t.slug = ? AND c.slug = ?`,
+            )
+            .bind(
+              registryName,
+              repoInfo.owner,
+              repoInfo.repo,
+              normalizedTag.slug,
+              normalizedCategory.slug,
+            ),
+        })
+      } else {
+        // Tag doesn't map to a frozen category - NULL category_id
+        statements.push({
+          context: `INSERT repo_tags: ${key} -> tag=${normalizedTag.slug} cat=NULL`,
+          statement: db
+            .prepare(
+              `INSERT INTO repo_tags (repository_id, registry_name, tag_id, category_id)
+               SELECT r.id, ?, t.id, NULL
+               FROM repositories r
+               CROSS JOIN tags t
+               WHERE r.owner = ? AND r.name = ? AND t.slug = ?`,
+            )
+            .bind(
+              registryName,
+              repoInfo.owner,
+              repoInfo.repo,
+              normalizedTag.slug,
+            ),
+        })
+      }
+    }
+
+    // Insert unique categories into registry_repository_categories (deduped)
+    for (const category of uniqueCategories.values()) {
+      statements.push({
+        context: `INSERT registry_repository_categories: ${registryName}/${key} -> cat=${category.slug}`,
+        statement: db
           .prepare(
             `INSERT INTO registry_repository_categories (registry_name, repository_id, category_id)
              SELECT ?, r.id, c.id
              FROM repositories r
              CROSS JOIN categories c
-             WHERE r.owner = ? AND r.name = ? AND c.name = ?`,
+             WHERE r.owner = ? AND r.name = ? AND c.slug = ?`,
           )
-          .bind(registryName, repoInfo.owner, repoInfo.repo, normalized.name),
-      )
+          .bind(registryName, repoInfo.owner, repoInfo.repo, category.slug),
+      })
     }
 
     // Remove from map so we don't insert again
-    repoCategories.delete(key)
+    repoHeadings.delete(key)
     repoTitles.delete(key)
     repoDescriptions.delete(key)
   }

@@ -211,10 +211,10 @@ export async function seedTestData(db: Kysely<Database>) {
   await db
     .insertInto('repository_facets')
     .values([
-      { repository_id: ginId, registry_name: 'go', language: 'Go', category_name: 'Web Frameworks' },
-      { repository_id: echoId, registry_name: 'go', language: 'Go', category_name: 'Web Frameworks' },
-      { repository_id: testifyId, registry_name: 'go', language: 'Go', category_name: 'Testing' },
-      { repository_id: djangoId, registry_name: 'python', language: 'Python', category_name: 'Web Frameworks' },
+      { repository_id: ginId, registry_name: 'go', language: 'Go', category_name: 'Web Frameworks', tag_name: 'Web Frameworks' },
+      { repository_id: echoId, registry_name: 'go', language: 'Go', category_name: 'Web Frameworks', tag_name: 'Web Frameworks' },
+      { repository_id: testifyId, registry_name: 'go', language: 'Go', category_name: 'Testing', tag_name: 'Testing' },
+      { repository_id: djangoId, registry_name: 'python', language: 'Python', category_name: 'Web Frameworks', tag_name: 'Web Frameworks' },
       // Flask is archived — excluded from facets
     ])
     .execute()

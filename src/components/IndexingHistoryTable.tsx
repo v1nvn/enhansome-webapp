@@ -61,28 +61,28 @@ export function IndexingHistoryTable() {
     if (source === 'manual') {
       return (
         <>
-          <User className="text-chart-1 h-4 w-4" />
-          <span className="text-foreground text-sm">Manual</span>
+          <User className="h-4 w-4 text-chart-1" />
+          <span className="text-sm text-foreground">Manual</span>
           {createdBy && (
-            <span className="text-muted-foreground text-xs">({createdBy})</span>
+            <span className="text-xs text-muted-foreground">({createdBy})</span>
           )}
         </>
       )
     }
     return (
       <>
-        <Clock className="text-chart-3 h-4 w-4" />
-        <span className="text-foreground text-sm">Scheduled</span>
+        <Clock className="h-4 w-4 text-chart-3" />
+        <span className="text-sm text-foreground">Scheduled</span>
       </>
     )
   }
 
   return (
-    <div className="border-border bg-card overflow-hidden rounded-2xl border shadow-sm">
-      <div className="border-border border-b px-6 py-4">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
-          <History className="text-primary h-5 w-5" />
-          <h2 className="font-display text-foreground text-xl font-bold">
+          <History className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-xl font-bold text-foreground">
             Indexing History
           </h2>
         </div>
@@ -90,7 +90,7 @@ export function IndexingHistoryTable() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-muted/50">
-            <tr className="text-muted-foreground text-left text-sm">
+            <tr className="text-left text-sm text-muted-foreground">
               <th className="px-6 py-3 font-medium">When</th>
               <th className="px-6 py-3 font-medium">Source</th>
               <th className="px-6 py-3 font-medium">Status</th>
@@ -98,19 +98,19 @@ export function IndexingHistoryTable() {
               <th className="px-6 py-3 text-right font-medium">Result</th>
             </tr>
           </thead>
-          <tbody className="divide-border divide-y">
+          <tbody className="divide-y divide-border">
             {history.map(entry => (
               <tr
-                className="hover:bg-muted/30 transition-colors"
+                className="transition-colors hover:bg-muted/30"
                 key={entry.id}
               >
                 <td className="px-6 py-4 text-sm">
                   <div className="flex flex-col">
-                    <span className="text-foreground font-medium">
+                    <span className="font-medium text-foreground">
                       {formatRelativeTime(entry.startedAt, currentTime)}
                     </span>
                     {entry.completedAt && (
-                      <span className="text-muted-foreground text-xs">
+                      <span className="text-xs text-muted-foreground">
                         {new Date(entry.startedAt).toLocaleString()}
                       </span>
                     )}
@@ -123,7 +123,7 @@ export function IndexingHistoryTable() {
                 </td>
                 <td className="px-6 py-4">{renderStatusBadge(entry.status)}</td>
                 <td className="px-6 py-4 text-sm">
-                  <span className="text-foreground font-medium">
+                  <span className="font-medium text-foreground">
                     {formatDuration(entry.startedAt, entry.completedAt)}
                   </span>
                 </td>
@@ -152,7 +152,7 @@ export function IndexingHistoryTable() {
             {history.length === 0 && (
               <tr>
                 <td
-                  className="text-muted-foreground px-6 py-12 text-center"
+                  className="px-6 py-12 text-center text-muted-foreground"
                   colSpan={5}
                 >
                   No indexing history yet

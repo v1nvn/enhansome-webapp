@@ -13,7 +13,7 @@ export function IndexingStatusIcon({
 }: IndexingStatusIconProps) {
   if (isRunning && current) {
     return (
-      <div className="bg-primary/20 text-primary flex h-8 w-8 items-center justify-center rounded-full">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
         <Loader2 className="h-4 w-4 animate-spin" />
       </div>
     )
@@ -33,7 +33,7 @@ export function IndexingStatusIcon({
     )
   }
   return (
-    <div className="bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-full">
+    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
       <Clock className="h-4 w-4" />
     </div>
   )

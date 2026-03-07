@@ -29,6 +29,7 @@ export async function getRepoDetail(
     stars: number
   }[]
   stars: number
+  tags: string[]
 }> {
   const result = await db
     .selectFrom('repositories')
@@ -109,6 +110,17 @@ export async function getRepoDetail(
     registryMap.get(primaryRegistryName)?.categories ?? [],
   )
 
+  // Get tags for this repo
+  const tagResults = await db
+    .selectFrom('repo_tags as rt')
+    .innerJoin('tags as t', 't.id', 'rt.tag_id')
+    .select(['t.name'])
+    .where('rt.repository_id', '=', repo.id)
+    .orderBy('t.name', 'asc')
+    .execute()
+
+  const tags = tagResults.map(r => r.name)
+
   const relatedReposResult = await db
     .selectFrom('registry_repositories')
     .innerJoin(
@@ -176,5 +188,6 @@ export async function getRepoDetail(
     stars: repo.stars,
     registries,
     relatedRepos,
+    tags,
   }
 }

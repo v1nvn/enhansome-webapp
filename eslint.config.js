@@ -77,23 +77,25 @@ export default defineConfig([
         {
           groups: [
             'react',
-            ['builtin', 'external'],
-            'internal-type',
-            'internal',
-            ['parent-type', 'sibling-type', 'index-type'],
-            ['parent', 'sibling', 'index'],
-            'type',
-            'object',
+            ['value-builtin', 'value-external'],
+            'type-internal',
+            'value-internal',
+            ['type-parent', 'type-sibling', 'type-index'],
+            ['value-parent', 'value-sibling', 'value-index'],
+            'ts-equals-import',
             'unknown',
           ],
-          customGroups: {
-            type: {
-              react: ['^react$', '^react-.+'],
+          customGroups: [
+            {
+              selector: 'type',
+              groupName: 'react',
+              elementNamePattern: ['^react$', '^react-.+'],
             },
-            value: {
-              react: ['^react$', '^react-.+'],
+            {
+              groupName: 'react',
+              elementNamePattern: ['^react$', '^react-.+'],
             },
-          },
+          ],
           environment: 'node',
         },
       ],

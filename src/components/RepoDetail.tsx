@@ -37,12 +37,12 @@ export function RepoDetail({ data }: RepoDetailProps) {
   }
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen bg-background">
       {/* Back Button */}
-      <div className="border-border/30 bg-background/80 sticky top-0 z-50 border-b backdrop-blur-md">
+      <div className="sticky top-0 z-50 border-b border-border/30 bg-background/80 backdrop-blur-md">
         <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
           <Link
-            className="text-muted-foreground hover:text-primary hover:bg-primary/5 -ml-2 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium transition-all duration-200"
+            className="-ml-2 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-primary/5 hover:text-primary"
             search={{ registry: data.registryName }}
             to="/browse"
           >
@@ -56,8 +56,8 @@ export function RepoDetail({ data }: RepoDetailProps) {
       <div className="relative overflow-hidden">
         {/* Animated gradient background */}
         <div className="absolute inset-0">
-          <div className="from-primary/15 via-accent/10 to-primary/5 absolute inset-0 bg-gradient-to-br" />
-          <div className="bg-primary/10 absolute right-0 top-0 h-[400px] w-[400px] -translate-y-1/2 rounded-full blur-[100px]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5" />
+          <div className="absolute top-0 right-0 h-[400px] w-[400px] -translate-y-1/2 rounded-full bg-primary/10 blur-[100px]" />
           {/* Subtle grid pattern */}
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.02]"
@@ -70,9 +70,9 @@ export function RepoDetail({ data }: RepoDetailProps) {
 
         <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20 lg:px-8">
           {/* Repository Header Card */}
-          <div className="border-border/60 bg-card/90 relative overflow-hidden rounded-3xl border p-8 shadow-2xl backdrop-blur-sm md:p-10">
+          <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card/90 p-8 shadow-2xl backdrop-blur-sm md:p-10">
             {/* Decorative top accent */}
-            <div className="from-primary via-accent to-primary absolute left-0 right-0 top-0 h-1 bg-gradient-to-r" />
+            <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-primary via-accent to-primary" />
 
             <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
               {/* Repo Info */}
@@ -93,10 +93,10 @@ export function RepoDetail({ data }: RepoDetailProps) {
                     </svg>
                   </div>
                   <div>
-                    <div className="text-muted-foreground text-sm font-medium">
+                    <div className="text-sm font-medium text-muted-foreground">
                       {data.owner}
                     </div>
-                    <h1 className="font-display text-foreground text-3xl font-bold leading-tight md:text-4xl lg:text-5xl">
+                    <h1 className="font-display text-3xl leading-tight font-bold text-foreground md:text-4xl lg:text-5xl">
                       {data.name}
                     </h1>
                   </div>
@@ -104,7 +104,7 @@ export function RepoDetail({ data }: RepoDetailProps) {
 
                 {/* Description */}
                 {data.description && (
-                  <p className="text-muted-foreground/90 mt-8 max-w-2xl text-lg leading-relaxed">
+                  <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground/90">
                     {data.description}
                   </p>
                 )}
@@ -148,7 +148,7 @@ export function RepoDetail({ data }: RepoDetailProps) {
                 {/* Categories Display */}
                 {data.categories.length > 0 && (
                   <div className="mt-6 flex flex-wrap items-center gap-2">
-                    <span className="text-muted-foreground text-sm">
+                    <span className="text-sm text-muted-foreground">
                       {data.categories.length === 1
                         ? 'Category:'
                         : 'Categories:'}
@@ -162,14 +162,14 @@ export function RepoDetail({ data }: RepoDetailProps) {
                 {/* Multiple Registries Display */}
                 {data.registries.length > 1 && (
                   <div className="mt-6 flex flex-wrap items-center gap-2">
-                    <span className="text-muted-foreground text-sm">
+                    <span className="text-sm text-muted-foreground">
                       Also in:
                     </span>
                     {data.registries
                       .filter(r => r.name !== data.registryName)
                       .map(r => (
                         <Link
-                          className="bg-muted/50 hover:bg-primary/10 text-muted-foreground hover:text-primary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:bg-primary/10 hover:text-primary"
                           key={`registry-${r.name}`}
                           search={{ registry: r.name }}
                           to="/browse"
@@ -216,7 +216,7 @@ export function RepoDetail({ data }: RepoDetailProps) {
                   <div className="text-sm font-medium opacity-80">View on</div>
                   <div className="text-lg">GitHub</div>
                 </div>
-                <ExternalLink className="h-5 w-5 transition-transform duration-300 group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
+                <ExternalLink className="h-5 w-5 transition-transform duration-300 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5" />
               </a>
             </div>
           </div>
@@ -227,14 +227,14 @@ export function RepoDetail({ data }: RepoDetailProps) {
       {data.relatedRepos.length > 0 && (
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="mb-8 flex items-center gap-4">
-            <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <TrendingUp className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-display text-foreground text-2xl font-bold">
+              <h2 className="font-display text-2xl font-bold text-foreground">
                 Related Repositories
               </h2>
-              <p className="text-muted-foreground mt-1 text-sm">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Related repositories you might find interesting
               </p>
             </div>
@@ -243,22 +243,22 @@ export function RepoDetail({ data }: RepoDetailProps) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.relatedRepos.map(repo => (
               <div
-                className="border-border/60 bg-card/80 group/rel relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+                className="group/rel relative overflow-hidden rounded-2xl border border-border/60 bg-card/80 p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
                 key={`related-${repo.owner || 'unknown'}-${repo.name || 'unknown'}`}
               >
                 {/* Animated accent */}
-                <div className="from-primary/60 via-primary/40 to-accent/40 absolute left-0 top-0 h-0.5 w-0 bg-gradient-to-r transition-all duration-300 group-hover/rel:w-full" />
+                <div className="absolute top-0 left-0 h-0.5 w-0 bg-gradient-to-r from-primary/60 via-primary/40 to-accent/40 transition-all duration-300 group-hover/rel:w-full" />
 
                 {/* Hover gradient overlay */}
-                <div className="from-primary/0 via-primary/5 to-primary/0 pointer-events-none absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-300 group-hover/rel:opacity-100" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/5 to-primary/0 opacity-0 transition-opacity duration-300 group-hover/rel:opacity-100" />
 
                 <div className="relative mb-4 flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-foreground group-hover/rel:text-primary truncate font-bold leading-tight transition-colors duration-200">
+                    <h3 className="truncate leading-tight font-bold text-foreground transition-colors duration-200 group-hover/rel:text-primary">
                       {repo.name}
                     </h3>
                     {repo.owner && (
-                      <p className="text-muted-foreground mt-1.5 text-sm">
+                      <p className="mt-1.5 text-sm text-muted-foreground">
                         {repo.owner}
                       </p>
                     )}
@@ -267,14 +267,14 @@ export function RepoDetail({ data }: RepoDetailProps) {
                       <div className="mt-2 flex flex-wrap gap-1">
                         {repo.categories.slice(0, 2).map(cat => (
                           <span
-                            className="bg-muted/70 text-muted-foreground rounded-full px-2 py-0.5 text-[10px]"
+                            className="rounded-full bg-muted/70 px-2 py-0.5 text-[10px] text-muted-foreground"
                             key={cat}
                           >
                             {cat}
                           </span>
                         ))}
                         {repo.categories.length > 2 && (
-                          <span className="bg-muted/70 text-muted-foreground rounded-full px-2 py-0.5 text-[10px]">
+                          <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[10px] text-muted-foreground">
                             +{repo.categories.length - 2}
                           </span>
                         )}
@@ -291,7 +291,7 @@ export function RepoDetail({ data }: RepoDetailProps) {
 
                   {repo.owner && repo.name && (
                     <a
-                      className="bg-muted text-foreground hover:bg-primary hover:text-primary-foreground hover:shadow-primary/20 rounded-lg px-4 py-2 text-xs font-semibold transition-all duration-200 hover:shadow-md"
+                      className="rounded-lg bg-muted px-4 py-2 text-xs font-semibold text-foreground transition-all duration-200 hover:bg-primary hover:text-primary-foreground hover:shadow-md hover:shadow-primary/20"
                       href={`https://github.com/${repo.owner}/${repo.name}`}
                       rel="noopener noreferrer"
                       target="_blank"
@@ -314,7 +314,7 @@ export function RepoDetail({ data }: RepoDetailProps) {
  */
 function CategoryBadge({ category }: { category: string }) {
   return (
-    <span className="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors duration-200">
+    <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors duration-200 hover:bg-primary/20">
       {category}
     </span>
   )
@@ -340,10 +340,10 @@ function RepoStat({
         <Icon className="h-5 w-5" />
       </div>
       <div className="mt-2">
-        <div className="text-foreground text-lg font-bold tabular-nums sm:text-xl">
+        <div className="text-lg font-bold text-foreground tabular-nums sm:text-xl">
           {value}
         </div>
-        <div className="text-muted-foreground text-xs uppercase tracking-wide">
+        <div className="text-xs tracking-wide text-muted-foreground uppercase">
           {label}
         </div>
       </div>

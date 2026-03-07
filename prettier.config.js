@@ -18,7 +18,7 @@ const config = {
   // Your essential Tailwind CSS plugin is retained
   plugins: ['prettier-plugin-tailwindcss'],
   tailwindFunctions: ['clsx'],
-  tailwindStylesheet: './src/index.css',
+  tailwindStylesheet: './src/styles.css',
 };
 
 export default config;

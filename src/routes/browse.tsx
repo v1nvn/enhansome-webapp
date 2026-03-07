@@ -49,18 +49,18 @@ export const Route = createFileRoute('/browse')({
     await context.queryClient.ensureQueryData(metadataQueryOptions())
   },
   pendingComponent: () => (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header Skeleton */}
         <div className="py-8">
-          <div className="bg-muted/30 h-8 w-32 animate-pulse rounded" />
+          <div className="h-8 w-32 animate-pulse rounded bg-muted/30" />
           <div className="mt-4 h-12 w-full max-w-2xl animate-pulse rounded-xl" />
         </div>
         {/* Grid Skeleton */}
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
             <div
-              className="bg-card h-72 animate-pulse rounded-2xl"
+              className="h-72 animate-pulse rounded-2xl bg-card"
               key={`skeleton-${i}`}
             />
           ))}
@@ -85,7 +85,7 @@ function BrowsePage() {
   const search = Route.useSearch()
 
   // Fetch registry metadata and unified filter options
-  const { data: registries = [] } = useSuspenseQuery(metadataQueryOptions())
+  const { data: registries } = useSuspenseQuery(metadataQueryOptions())
   const { data: filterOptions } = useSuspenseQuery(
     filterOptionsQueryOptions({
       categoryName: search.cat,
@@ -145,7 +145,7 @@ function BrowsePage() {
     !search.q && !search.registry && !search.lang && !search.cat
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <BrowsePageContent
           allItems={allItems}
@@ -237,10 +237,10 @@ function BrowsePageContent({
     <div className="py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-display text-foreground mb-2 text-3xl font-bold">
+        <h1 className="font-display mb-2 text-3xl font-bold text-foreground">
           Discovery
         </h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {total.toLocaleString()} tools curated for you
         </p>
       </div>
@@ -290,10 +290,10 @@ function BrowsePageContent({
       ) : (
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
-            <p className="text-muted-foreground text-lg">
+            <p className="text-lg text-muted-foreground">
               No repositories found
             </p>
-            <p className="text-muted-foreground mt-2 text-sm">
+            <p className="mt-2 text-sm text-muted-foreground">
               Try adjusting your filters or search query
             </p>
           </div>
@@ -304,7 +304,7 @@ function BrowsePageContent({
       {hasNextPage && (
         <div className="mt-10 flex justify-center">
           <button
-            className="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-md transition-all hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isFetchingNextPage}
             onClick={handleLoadMore}
             type="button"
@@ -318,7 +318,7 @@ function BrowsePageContent({
               <>
                 <span>Load More</span>
                 <ChevronDown className="h-4 w-4" />
-                <span className="bg-primary-foreground/20 rounded-full px-2.5 py-0.5 text-xs">
+                <span className="rounded-full bg-primary-foreground/20 px-2.5 py-0.5 text-xs">
                   {allItems.length} / {total}
                 </span>
               </>
@@ -329,17 +329,17 @@ function BrowsePageContent({
 
       {/* Floating Compare Button */}
       {selectedItems.size > 0 && (
-        <div className="fixed bottom-6 right-6 z-30">
+        <div className="fixed right-6 bottom-6 z-30">
           <button
             aria-label={`Compare ${selectedItems.size} selected items`}
-            className="duration-250 bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-3 font-semibold shadow-xl transition-all hover:scale-105 hover:shadow-2xl active:scale-95"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 font-semibold text-primary-foreground shadow-xl transition-all duration-250 hover:scale-105 hover:shadow-2xl active:scale-95"
             onClick={() => {
               setIsCompareOpen(true)
             }}
             type="button"
           >
             <span className="text-sm">Compare</span>
-            <span className="bg-primary-foreground/20 rounded-full px-2 py-0.5 text-xs font-bold">
+            <span className="rounded-full bg-primary-foreground/20 px-2 py-0.5 text-xs font-bold">
               {selectedItems.size}
             </span>
           </button>

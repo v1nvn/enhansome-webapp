@@ -60,9 +60,9 @@ export function IndexingTriggerCard() {
   const isRunning = status?.isRunning ?? false
 
   return (
-    <div className="border-border bg-card overflow-hidden rounded-2xl border shadow-sm">
-      <div className="border-border border-b px-6 py-4">
-        <h2 className="font-display text-foreground text-xl font-bold">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-6 py-4">
+        <h2 className="font-display text-xl font-bold text-foreground">
           Trigger Indexing
         </h2>
       </div>
@@ -70,15 +70,15 @@ export function IndexingTriggerCard() {
         <div className="space-y-4">
           {/* API Key Display */}
           <div>
-            <span className="text-foreground mb-2 block text-sm font-medium">
+            <span className="mb-2 block text-sm font-medium text-foreground">
               Admin API Key
             </span>
-            <div className="border-border bg-muted flex items-center justify-between rounded-lg border px-4 py-2 text-sm">
+            <div className="flex items-center justify-between rounded-lg border border-border bg-muted px-4 py-2 text-sm">
               <span className="text-muted-foreground">
                 {apiKey ? `••••••••••${apiKey.slice(-4)}` : 'No API key set'}
               </span>
               <button
-                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                 disabled={mutation.isPending || stopMutation.isPending}
                 onClick={onClearAuth}
                 type="button"
@@ -91,7 +91,7 @@ export function IndexingTriggerCard() {
           {/* Trigger/Stop Button */}
           {isRunning ? (
             <button
-              className="border-border bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-destructive px-4 py-3 font-semibold text-destructive-foreground shadow-sm transition-all hover:bg-destructive/90 focus:ring-2 focus:ring-destructive focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               disabled={stopMutation.isPending}
               onClick={() => {
                 stopMutation.mutate()
@@ -112,7 +112,7 @@ export function IndexingTriggerCard() {
             </button>
           ) : (
             <button
-              className="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary disabled:hover:bg-primary flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary"
               disabled={mutation.isPending}
               onClick={() => {
                 mutation.mutate()

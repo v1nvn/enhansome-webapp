@@ -55,16 +55,16 @@ export function FilterDropdown({
   return (
     <div className="relative">
       <button
-        className="bg-card hover:bg-muted/20 border-border/30 flex items-center gap-2 rounded-xl border-2 px-4 py-3 pr-3 text-sm font-medium shadow-sm transition-all"
+        className="flex items-center gap-2 rounded-xl border-2 border-border/30 bg-card px-4 py-3 pr-3 text-sm font-medium shadow-sm transition-all hover:bg-muted/20"
         onClick={() => {
           setIsOpen(!isOpen)
         }}
         type="button"
       >
-        <Icon className="text-muted-foreground h-4 w-4" />
+        <Icon className="h-4 w-4 text-muted-foreground" />
         <span className="max-w-[120px] truncate">{displayLabel}</span>
         <ChevronDown
-          className={`text-muted-foreground h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -79,14 +79,14 @@ export function FilterDropdown({
             type="button"
           />
           <div
-            className={`bg-card border-border/30 shadow-foreground/5 absolute right-0 top-full z-20 mt-2 ${widthClass} rounded-2xl border shadow-xl`}
+            className={`absolute top-full right-0 z-20 mt-2 border-border/30 bg-card shadow-foreground/5 ${widthClass} rounded-2xl border shadow-xl`}
           >
             {/* Search */}
-            <div className="border-border/30 border-b p-3">
+            <div className="border-b border-border/30 p-3">
               <div className="relative">
-                <Search className="text-muted-foreground/50 absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
                 <input
-                  className="bg-muted/30 focus:ring-primary/20 w-full rounded-xl border-0 py-2 pl-9 pr-3 text-sm outline-none focus:ring-2"
+                  className="w-full rounded-xl border-0 bg-muted/30 py-2 pr-3 pl-9 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                   onChange={e => {
                     setSearch(e.target.value)
                   }}
@@ -102,7 +102,7 @@ export function FilterDropdown({
               <button
                 className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
                   !selectedValue
-                    ? 'bg-primary/10 text-primary font-medium'
+                    ? 'bg-primary/10 font-medium text-primary'
                     : 'text-muted-foreground hover:bg-muted/30'
                 }`}
                 onClick={() => {
@@ -112,7 +112,7 @@ export function FilterDropdown({
               >
                 <div className="flex items-center justify-between">
                   <span>{allLabel}</span>
-                  <span className="text-muted-foreground/50 text-xs">
+                  <span className="text-xs text-muted-foreground/50">
                     {totalCount.toLocaleString()}
                   </span>
                 </div>
@@ -121,7 +121,7 @@ export function FilterDropdown({
                 <button
                   className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
                     selectedValue === item.value
-                      ? 'bg-primary/10 text-primary font-medium'
+                      ? 'bg-primary/10 font-medium text-primary'
                       : 'text-muted-foreground hover:bg-muted/30'
                   }`}
                   key={item.value}
@@ -132,7 +132,7 @@ export function FilterDropdown({
                 >
                   <div className="flex items-center justify-between">
                     <span className="truncate">{item.label}</span>
-                    <span className="text-muted-foreground/50 text-xs">
+                    <span className="text-xs text-muted-foreground/50">
                       {item.count.toLocaleString()}
                     </span>
                   </div>

@@ -54,11 +54,11 @@ function AdminIndexRegistries() {
 
   return (
     <AdminApiContext value={contextValue}>
-      <div className="bg-background min-h-screen">
+      <div className="min-h-screen bg-background">
         <AdminIndexingHeader />
 
         {/* Main Content */}
-        <section className="border-border bg-muted/30 border-b">
+        <section className="border-b border-border bg-muted/30">
           <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
               {/* Left Column: Status and Trigger */}

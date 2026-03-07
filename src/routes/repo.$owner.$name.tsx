@@ -13,10 +13,10 @@ export const Route = createFileRoute('/repo/$owner/$name')({
     )
   },
   pendingComponent: () => (
-    <div className="bg-background flex min-h-screen items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center">
-        <div className="bg-muted mx-auto h-12 w-12 animate-pulse rounded-full" />
-        <p className="text-muted-foreground mt-4">Loading repository...</p>
+        <div className="mx-auto h-12 w-12 animate-pulse rounded-full bg-muted" />
+        <p className="mt-4 text-muted-foreground">Loading repository...</p>
       </div>
     </div>
   ),
@@ -36,10 +36,10 @@ function RepoDetailPage() {
 
   if (!data) {
     return (
-      <div className="bg-background flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <svg
-            className="text-muted-foreground mx-auto mb-4 h-16 w-16"
+            className="mx-auto mb-4 h-16 w-16 text-muted-foreground"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -51,10 +51,10 @@ function RepoDetailPage() {
               strokeWidth={2}
             />
           </svg>
-          <h2 className="font-display text-foreground text-2xl font-bold">
+          <h2 className="font-display text-2xl font-bold text-foreground">
             Repository not found
           </h2>
-          <p className="text-muted-foreground mt-2">
+          <p className="mt-2 text-muted-foreground">
             The repository &quot;{owner}/{name}&quot; doesn't exist.
           </p>
         </div>

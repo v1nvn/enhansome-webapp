@@ -48,32 +48,32 @@ export function AdminAuth({ onAuthSuccess, savedApiKey }: AdminAuthProps) {
   }
 
   return (
-    <div className="bg-background min-h-screen p-8">
+    <div className="min-h-screen bg-background p-8">
       {/* Header Section */}
-      <section className="border-border relative overflow-hidden border-b">
+      <section className="relative overflow-hidden border-b border-border">
         {/* Decorative Background Elements */}
         <div className="absolute inset-0 opacity-30">
-          <div className="bg-accent absolute right-0 top-0 h-[400px] w-[400px] -translate-y-1/4 translate-x-1/4 rounded-full blur-3xl" />
-          <div className="bg-primary/20 absolute bottom-0 left-0 h-[300px] w-[300px] -translate-x-1/4 translate-y-1/4 rounded-full blur-3xl" />
+          <div className="absolute top-0 right-0 h-[400px] w-[400px] translate-x-1/4 -translate-y-1/4 rounded-full bg-accent blur-3xl" />
+          <div className="absolute bottom-0 left-0 h-[300px] w-[300px] -translate-x-1/4 translate-y-1/4 rounded-full bg-primary/20 blur-3xl" />
         </div>
 
         <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16 lg:px-8">
           <div className="mx-auto max-w-4xl">
             {/* Badge */}
-            <div className="border-border bg-card text-muted-foreground mb-6 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-sm">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground shadow-sm">
               <Shield className="h-4 w-4" />
               <span>Admin Tools</span>
             </div>
 
             {/* Main Headline */}
-            <h1 className="font-display text-foreground mb-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl">
+            <h1 className="font-display mb-4 text-4xl leading-tight font-bold tracking-tight text-foreground md:text-5xl lg:text-6xl">
               {mutation.error
                 ? 'Authentication Failed'
                 : 'Authentication Required'}
             </h1>
 
             {/* Subtitle */}
-            <p className="font-body text-muted-foreground text-lg leading-relaxed">
+            <p className="font-body text-lg leading-relaxed text-muted-foreground">
               {mutation.error
                 ? 'The API key you provided is invalid. Please check and try again.'
                 : 'Please enter your admin API key to access the registry indexing tools.'}
@@ -83,12 +83,12 @@ export function AdminAuth({ onAuthSuccess, savedApiKey }: AdminAuthProps) {
       </section>
 
       {/* API Key Input Section */}
-      <section className="border-border bg-muted/30 border-b">
+      <section className="border-b border-border bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl">
-            <div className="border-border bg-card overflow-hidden rounded-2xl border shadow-sm">
-              <div className="border-border border-b px-6 py-4">
-                <h2 className="font-display text-foreground text-xl font-bold">
+            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border px-6 py-4">
+                <h2 className="font-display text-xl font-bold text-foreground">
                   Enter API Key
                 </h2>
               </div>
@@ -97,14 +97,14 @@ export function AdminAuth({ onAuthSuccess, savedApiKey }: AdminAuthProps) {
                   {/* API Key Input */}
                   <div>
                     <label
-                      className="text-foreground mb-2 block text-sm font-medium"
+                      className="mb-2 block text-sm font-medium text-foreground"
                       htmlFor="authApiKeyInput"
                     >
                       Admin API Key
                     </label>
                     <div className="relative">
                       <input
-                        className="border-border bg-background text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border px-4 py-2 pr-20 text-sm focus:outline-none focus:ring-2"
+                        className="w-full rounded-lg border border-border bg-background px-4 py-2 pr-20 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none"
                         disabled={mutation.isPending}
                         id="authApiKeyInput"
                         onChange={e => {
@@ -121,7 +121,7 @@ export function AdminAuth({ onAuthSuccess, savedApiKey }: AdminAuthProps) {
                       />
                       {apiKey && !mutation.isPending && (
                         <button
-                          className="text-muted-foreground hover:text-foreground absolute right-2 top-1/2 -translate-y-1/2 p-1 text-sm transition-colors"
+                          className="absolute top-1/2 right-2 -translate-y-1/2 p-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
                           onClick={handleClear}
                           type="button"
                         >
@@ -133,7 +133,7 @@ export function AdminAuth({ onAuthSuccess, savedApiKey }: AdminAuthProps) {
 
                   {/* Submit Button */}
                   <button
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary disabled:hover:bg-primary flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold shadow-sm transition-all focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary"
                     disabled={!apiKey.trim() || mutation.isPending}
                     onClick={handleSubmit}
                     type="button"

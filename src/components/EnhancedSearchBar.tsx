@@ -125,10 +125,10 @@ export function EnhancedSearchBar({
       {/* Search Input */}
       <form className="w-full" onSubmit={handleSubmit}>
         <div className="group relative">
-          <div className="bg-card/80 focus-within:ring-primary/30 group-hover:bg-card focus-within:shadow-primary/10 flex w-full items-center gap-3 rounded-2xl px-5 py-4 shadow-lg backdrop-blur-xl transition-all focus-within:ring-2">
-            <Search className="text-muted-foreground/60 group-focus-within:text-primary h-5 w-5 shrink-0 transition-colors" />
+          <div className="flex w-full items-center gap-3 rounded-2xl bg-card/80 px-5 py-4 shadow-lg backdrop-blur-xl transition-all group-hover:bg-card focus-within:ring-2 focus-within:shadow-primary/10 focus-within:ring-primary/30">
+            <Search className="h-5 w-5 shrink-0 text-muted-foreground/60 transition-colors group-focus-within:text-primary" />
             <input
-              className="text-foreground placeholder:text-muted-foreground/50 min-w-[200px] flex-1 bg-transparent font-medium outline-none"
+              className="min-w-[200px] flex-1 bg-transparent font-medium text-foreground outline-none placeholder:text-muted-foreground/50"
               onChange={e => {
                 handleChange(e.target.value)
               }}
@@ -138,7 +138,7 @@ export function EnhancedSearchBar({
             />
             {query && (
               <button
-                className="text-muted-foreground hover:bg-muted/80 hover:text-foreground rounded-full p-1.5 transition-all"
+                className="rounded-full p-1.5 text-muted-foreground transition-all hover:bg-muted/80 hover:text-foreground"
                 onClick={() => {
                   handleChange('')
                   setDetectedSignals([])
@@ -157,15 +157,15 @@ export function EnhancedSearchBar({
       {enableIntentDetection && detectedSignals.length > 0 && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <Sparkles className="text-primary h-4 w-4" />
-            <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               Detected
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
             {detectedSignals.map(signal => (
               <button
-                className="bg-primary/10 text-primary hover:bg-primary/15 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium shadow-sm transition-all hover:shadow"
+                className="flex items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary shadow-sm transition-all hover:bg-primary/15 hover:shadow"
                 key={`${signal.type}-${signal.id}`}
                 onClick={() => {
                   handleRemoveSignal(signal)
@@ -173,7 +173,7 @@ export function EnhancedSearchBar({
                 type="button"
               >
                 {signal.label}
-                <span className="hover:bg-primary/20 rounded-full p-0.5 transition-colors">
+                <span className="rounded-full p-0.5 transition-colors hover:bg-primary/20">
                   ×
                 </span>
               </button>
@@ -182,7 +182,7 @@ export function EnhancedSearchBar({
 
           {/* Results count */}
           {resultsCount !== undefined && (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               Found {resultsCount.toLocaleString()}
               {intent?.category && ` ${formatLabel(intent.category)}`}
               {intent?.framework && ` for ${formatLabel(intent.framework)}`}

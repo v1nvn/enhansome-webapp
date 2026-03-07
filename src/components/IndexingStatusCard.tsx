@@ -38,9 +38,9 @@ export function IndexingStatusCard() {
   }
 
   return (
-    <div className="border-border bg-card overflow-hidden rounded-2xl border shadow-sm">
-      <div className="border-border border-b px-6 py-4">
-        <h2 className="font-display text-foreground text-xl font-bold">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-6 py-4">
+        <h2 className="font-display text-xl font-bold text-foreground">
           Current Status
         </h2>
       </div>
@@ -49,8 +49,8 @@ export function IndexingStatusCard() {
         <div className="mb-4 flex items-center gap-2">
           <IndexingStatusIcon current={current} isRunning={isRunning} />
           <div>
-            <p className="text-foreground font-semibold">{getStatusTitle()}</p>
-            <p className="text-muted-foreground text-sm">
+            <p className="font-semibold text-foreground">{getStatusTitle()}</p>
+            <p className="text-sm text-muted-foreground">
               {getStatusSubtitle()}
             </p>
           </div>
@@ -61,15 +61,15 @@ export function IndexingStatusCard() {
           current?.totalRegistries != null &&
           current.processedRegistries != null && (
             <>
-              <div className="bg-muted mb-2 h-2 w-full overflow-hidden rounded-full">
+              <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="bg-primary h-full transition-all duration-300"
+                  className="h-full bg-primary transition-all duration-300"
                   style={{
                     width: `${(current.processedRegistries / current.totalRegistries) * 100}%`,
                   }}
                 />
               </div>
-              <div className="text-muted-foreground flex justify-between text-sm">
+              <div className="flex justify-between text-sm text-muted-foreground">
                 <span>
                   {current.processedRegistries} / {current.totalRegistries}{' '}
                   registries
@@ -86,7 +86,7 @@ export function IndexingStatusCard() {
           )}
 
         {isRunning && current?.currentRegistry && (
-          <div className="bg-muted/50 text-muted-foreground mt-4 rounded-lg px-3 py-2 text-sm">
+          <div className="mt-4 rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
             <span className="font-medium">Current:</span>{' '}
             {current.currentRegistry}
           </div>
@@ -96,7 +96,7 @@ export function IndexingStatusCard() {
         {current?.status === 'completed' &&
           current.successCount !== undefined &&
           current.failedCount !== undefined && (
-            <div className="text-muted-foreground flex gap-4 text-sm">
+            <div className="flex gap-4 text-sm text-muted-foreground">
               <span>
                 <span className="font-semibold text-green-600">
                   {current.successCount}

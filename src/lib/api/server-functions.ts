@@ -141,6 +141,7 @@ export interface SearchParams {
   q?: string
   registryName?: string
   sortBy?: 'name' | 'quality' | 'stars' | 'updated'
+  tagName?: string
 }
 
 export function validateSearchParams(input: SearchParams): SearchParams {
@@ -177,6 +178,7 @@ export const searchInfiniteQueryOptions = (
       baseParams.dateFrom,
       baseParams.limit,
       baseParams.categoryName,
+      baseParams.tagName,
     ] as const,
     queryFn: ({ pageParam }: { pageParam: number | undefined }) =>
       searchReposFn({ data: { ...baseParams, cursor: pageParam } }),
@@ -194,6 +196,7 @@ export interface FetchFilterOptionsInput {
   categoryName?: string
   language?: string
   registryName?: string
+  tagName?: string
 }
 
 export function validateFetchFilterOptionsInput(

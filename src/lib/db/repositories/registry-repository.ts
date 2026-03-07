@@ -3,6 +3,8 @@
  * Handles registry data queries
  */
 
+import { sql } from 'kysely'
+
 import type { Database } from '@/types/database'
 import type { RegistryData, RegistryItem } from '@/types/registry'
 
@@ -154,6 +156,7 @@ export async function getRegistryDetail(
   languages: string[]
   last_updated: string
   source_repository: string
+  tags: { count: number; name: string }[]
   title: string
   topRepos: {
     categories: string[]
@@ -252,6 +255,24 @@ export async function getRegistryDetail(
     languageResults.map(r => r.language).filter((l): l is string => l !== null),
   )
 
+  // Get top tags for this registry
+  const tagResults = await db
+    .selectFrom('repository_facets as f')
+    .select([
+      'f.tag_name as name',
+      sql<number>`COUNT(DISTINCT f.repository_id)`.as('count'),
+    ])
+    .where('f.registry_name', '=', name)
+    .groupBy('f.tag_name')
+    .orderBy(sql`count`, 'desc')
+    .limit(50)
+    .execute()
+
+  const tags = tagResults.map(r => ({
+    count: r.count,
+    name: r.name,
+  }))
+
   const repoMap = new Map<
     string,
     {
@@ -298,6 +319,7 @@ export async function getRegistryDetail(
     last_updated: metadata.last_updated,
     languages: Array.from(uniqueLanguages).sort(),
     source_repository: metadata.source_repository,
+    tags,
     title: metadata.title,
     topRepos,
     total_items: metadata.total_items,

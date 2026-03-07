@@ -26,9 +26,11 @@ export interface Database {
   registry_metadata: RegistryMetadataTable
   registry_repositories: RegistryRepositoriesTable
   registry_repository_categories: RegistryRepositoryCategoriesTable
+  repo_tags: RepoTagsTable
   repositories: RepositoriesTable
   repository_facets: RepositoryFacetsTable
   sync_log: SyncLogTable
+  tags: TagsTable
 }
 
 /**
@@ -127,10 +129,22 @@ export interface RepositoriesTable {
  * Repository facets denormalized table schema (rebuilt at ingestion time)
  */
 export interface RepositoryFacetsTable {
-  category_name: string
+  category_name: null | string
   language: null | string
   registry_name: string
   repository_id: number
+  tag_name: string
+}
+
+/**
+ * Repo tags junction table schema (per registry context)
+ * category_id captures which frozen category the originating heading mapped to
+ */
+export interface RepoTagsTable {
+  category_id: null | number
+  registry_name: string
+  repository_id: number
+  tag_id: number
 }
 
 /**
@@ -143,4 +157,14 @@ export interface SyncLogTable {
   items_synced: null | number
   registry_name: string
   status: 'error' | 'success'
+}
+
+/**
+ * Tags table schema (canonical tag entries)
+ */
+export interface TagsTable {
+  created_at: Generated<string>
+  id: Generated<number>
+  name: string
+  slug: string
 }

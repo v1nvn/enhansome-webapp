@@ -6,6 +6,7 @@ import validRegistry from '../fixtures/valid-registry.json'
 import minimalRegistry from '../fixtures/minimal-registry.json'
 import emptyRegistry from '../fixtures/empty-registry.json'
 import type { RegistryData } from '@/types/registry'
+import { seedCategories } from '@/lib/utils/categories'
 
 describe('Full Indexing Pipeline with D1', () => {
   beforeAll(async () => {
@@ -413,6 +414,11 @@ describe('Full Indexing Pipeline with D1', () => {
   })
 
   describe('Repository Deduplication', () => {
+    beforeEach(async () => {
+      // Seed frozen categories needed for these tests
+      await seedCategories(env.DB)
+    })
+
     it('should not create duplicate repositories for same owner/name', async () => {
       const data = validRegistry as RegistryData
 
@@ -637,6 +643,11 @@ describe('Full Indexing Pipeline with D1', () => {
   })
 
   describe('rebuildFacets', () => {
+    beforeEach(async () => {
+      // Seed frozen categories needed for these tests
+      await seedCategories(env.DB)
+    })
+
     it('should populate repository_facets from current data', async () => {
       const data = validRegistry as RegistryData
       await indexRegistry(env.DB, 'valid-registry', data)
@@ -716,6 +727,11 @@ describe('Full Indexing Pipeline with D1', () => {
   })
 
   describe('Category Normalization at Index Time', () => {
+    beforeEach(async () => {
+      // Seed frozen categories needed for these tests
+      await seedCategories(env.DB)
+    })
+
     it('should store normalized category names (not raw names)', async () => {
       const data: RegistryData = {
         metadata: {
@@ -831,6 +847,94 @@ describe('Full Indexing Pipeline with D1', () => {
       ).bind('dedup-registry').all()
 
       expect(junctionEntries.results).toHaveLength(2)
+    })
+
+    it('should deduplicate registry_repository_categories when same repo appears under multiple headings that normalize to same category', async () => {
+      // Real-world case: fosskers/parcom appears under "JSON", "TOML", "XML" sections
+      // All three normalize to "Serialization" category
+      // Should only create ONE entry in registry_repository_categories, not three
+      const data: RegistryData = {
+        metadata: {
+          last_updated: '2025-10-12T00:00:00Z',
+          source_repository: 'test/serialization-dedup',
+          source_repository_description: 'Serialization dedup test',
+          title: 'Serialization Dedup Test',
+        },
+        items: [
+          {
+            description: 'JSON parsers',
+            items: [
+              {
+                title: 'Parcom JSON',
+                description: 'A parser combinator library',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'Common Lisp',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'fosskers',
+                  repo: 'parcom',
+                  stars: 100,
+                },
+              },
+            ],
+            title: 'JSON',
+          },
+          {
+            description: 'TOML parsers',
+            items: [
+              {
+                title: 'Parcom TOML',
+                description: 'A parser combinator library',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'Common Lisp',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'fosskers',
+                  repo: 'parcom',
+                  stars: 100,
+                },
+              },
+            ],
+            title: 'TOML',
+          },
+          {
+            description: 'XML parsers',
+            items: [
+              {
+                title: 'Parcom XML',
+                description: 'A parser combinator library',
+                children: [],
+                repo_info: {
+                  archived: false,
+                  language: 'Common Lisp',
+                  last_commit: '2025-10-10T00:00:00Z',
+                  owner: 'fosskers',
+                  repo: 'parcom',
+                  stars: 100,
+                },
+              },
+            ],
+            title: 'XML',
+          },
+        ],
+      }
+
+      await indexRegistry(env.DB, 'serialization-dedup-registry', data)
+
+      // Should have exactly ONE entry in registry_repository_categories for this repo
+      // (JSON, TOML, XML all normalize to "Serialization")
+      const junctionEntries = await env.DB.prepare(
+        `SELECT rrc.registry_name, r.owner, r.name, c.name as category_name
+         FROM registry_repository_categories rrc
+         JOIN repositories r ON r.id = rrc.repository_id
+         JOIN categories c ON c.id = rrc.category_id
+         WHERE rrc.registry_name = ? AND r.owner = ? AND r.name = ?`,
+      ).bind('serialization-dedup-registry', 'fosskers', 'parcom').all()
+
+      expect(junctionEntries.results).toHaveLength(1)
+      expect(junctionEntries.results[0].category_name).toBe('Serialization')
     })
 
     it('should normalize emoji-prefixed MCP category names', async () => {

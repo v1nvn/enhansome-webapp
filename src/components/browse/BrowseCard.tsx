@@ -23,12 +23,12 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
   }
 
   return (
-    <div className="bg-card duration-250 group relative rounded-2xl p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
+    <div className="group relative rounded-2xl bg-card p-5 shadow-sm transition-all duration-250 hover:-translate-y-1 hover:shadow-xl">
       {/* Three-dot menu for compare */}
-      <div className="absolute right-4 top-4 z-10">
+      <div className="absolute top-4 right-4 z-10">
         <button
           aria-label="Add to compare"
-          className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg p-1.5 opacity-0 transition-all group-hover:opacity-100"
+          className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-muted hover:text-foreground"
           onClick={onCompareToggle}
           type="button"
         >
@@ -39,7 +39,7 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
       {/* Title as main link */}
       {item.repo_info ? (
         <Link
-          className="font-display text-foreground hover:text-primary block text-lg font-semibold leading-tight transition-colors"
+          className="font-display block text-lg leading-tight font-semibold text-foreground transition-colors hover:text-primary"
           params={{
             owner: item.repo_info.owner,
             name: item.repo_info.repo,
@@ -49,13 +49,13 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
           {item.title}
         </Link>
       ) : (
-        <h3 className="font-display text-foreground text-lg font-semibold leading-tight">
+        <h3 className="font-display text-lg leading-tight font-semibold text-foreground">
           {item.title}
         </h3>
       )}
 
       {/* Description - 1 line only */}
-      <p className="text-muted-foreground mb-4 mt-2 line-clamp-1 text-sm leading-relaxed">
+      <p className="mt-2 mb-4 line-clamp-1 text-sm leading-relaxed text-muted-foreground">
         {item.description ?? ''}
       </p>
 
@@ -71,14 +71,14 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
               }}
               to="/browse"
             >
-              <span className="bg-accent/20 text-primary hover:bg-accent/30 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 pr-3 text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-                <span className="bg-primary/60 group-hover/category:bg-primary h-1 w-1 rounded-full" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/20 px-2.5 py-1 pr-3 text-xs font-medium text-primary transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent/30 hover:shadow-md">
+                <span className="h-1 w-1 rounded-full bg-primary/60 group-hover/category:bg-primary" />
                 {category}
               </span>
             </Link>
           ))}
           {item.categories.length > 2 && (
-            <span className="text-muted-foreground text-xs font-medium">
+            <span className="text-xs font-medium text-muted-foreground">
               +{item.categories.length - 2}
             </span>
           )}
@@ -91,7 +91,7 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
       {/* Metadata Row with language at bottom */}
       <div className="flex items-center gap-3 text-xs">
         {item.repo_info?.language && (
-          <span className="bg-muted/40 text-muted-foreground rounded-lg px-2 py-1 font-medium">
+          <span className="rounded-lg bg-muted/40 px-2 py-1 font-medium text-muted-foreground">
             {item.repo_info.language}
           </span>
         )}
@@ -104,7 +104,7 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
           </div>
         )}
         {item.repo_info?.last_commit && (
-          <div className="text-muted-foreground flex items-center gap-1">
+          <div className="flex items-center gap-1 text-muted-foreground">
             <Calendar className="h-3 w-3" />
             <span>{formatDate(item.repo_info.last_commit)}</span>
           </div>
@@ -115,7 +115,7 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
       {item.repo_info?.owner && item.repo_info.repo && (
         <div className="mt-4">
           <a
-            className="bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-muted/60 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
             href={`https://github.com/${item.repo_info.owner}/${item.repo_info.repo}`}
             rel="noopener noreferrer"
             target="_blank"

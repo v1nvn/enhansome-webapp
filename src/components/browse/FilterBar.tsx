@@ -217,10 +217,10 @@ export function FilterBar({
         {/* Search Input */}
         <form className="flex-1" onSubmit={handleSubmit}>
           <div className="group relative">
-            <div className="bg-card/80 focus-within:ring-primary/30 group-hover:bg-card focus-within:shadow-primary/10 flex w-full items-center gap-3 rounded-2xl px-5 py-3 shadow-sm backdrop-blur-xl transition-all focus-within:ring-2">
-              <Search className="text-muted-foreground/60 group-focus-within:text-primary h-4 w-4 shrink-0 transition-colors" />
+            <div className="flex w-full items-center gap-3 rounded-2xl bg-card/80 px-5 py-3 shadow-sm backdrop-blur-xl transition-all group-hover:bg-card focus-within:ring-2 focus-within:shadow-primary/10 focus-within:ring-primary/30">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-colors group-focus-within:text-primary" />
               <input
-                className="text-foreground placeholder:text-muted-foreground/50 min-w-[200px] flex-1 bg-transparent text-sm outline-none"
+                className="min-w-[200px] flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
                 onChange={e => {
                   setQuery(e.target.value)
                 }}
@@ -230,7 +230,7 @@ export function FilterBar({
               />
               {query && (
                 <button
-                  className="text-muted-foreground hover:bg-muted/80 hover:text-foreground rounded-full p-1 transition-all"
+                  className="rounded-full p-1 text-muted-foreground transition-all hover:bg-muted/80 hover:text-foreground"
                   onClick={() => {
                     setQuery('')
                     setDetectedSignals([])
@@ -247,7 +247,7 @@ export function FilterBar({
         {/* Sort Dropdown */}
         <div className="relative">
           <select
-            className="bg-card hover:bg-muted/20 border-border/30 focus:ring-primary/20 appearance-none rounded-xl border-2 px-4 py-3 pr-10 text-sm font-medium shadow-sm transition-all focus:ring-2 focus:ring-offset-0"
+            className="appearance-none rounded-xl border-2 border-border/30 bg-card px-4 py-3 pr-10 text-sm font-medium shadow-sm transition-all hover:bg-muted/20 focus:ring-2 focus:ring-primary/20 focus:ring-offset-0"
             onChange={e => {
               handleSortChange(
                 e.target.value as FilterBarFilters['sort'] | undefined,
@@ -261,7 +261,7 @@ export function FilterBar({
               </option>
             ))}
           </select>
-          <ChevronDown className="text-muted-foreground pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+          <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         </div>
 
         {/* Registry Dropdown */}
@@ -299,12 +299,12 @@ export function FilterBar({
       {/* Detected Intent Signals */}
       {enableIntentDetection && detectedSignals.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+          <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
             Detected
           </span>
           {detectedSignals.map(signal => (
             <button
-              className="bg-primary/10 text-primary hover:bg-primary/15 flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-all"
+              className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary transition-all hover:bg-primary/15"
               key={`${signal.type}-${signal.id}`}
               onClick={() => {
                 handleRemoveSignal(signal)
@@ -312,13 +312,13 @@ export function FilterBar({
               type="button"
             >
               {signal.label}
-              <span className="hover:bg-primary/20 rounded-full p-0.5 transition-colors">
+              <span className="rounded-full p-0.5 transition-colors hover:bg-primary/20">
                 ×
               </span>
             </button>
           ))}
           {resultsCount !== undefined && (
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-muted-foreground">
               Found {resultsCount.toLocaleString()} results
               {intent?.category && ` for ${formatLabel(intent.category)}`}
               {intent?.framework && ` for ${formatLabel(intent.framework)}`}
@@ -332,7 +332,7 @@ export function FilterBar({
         <div className="flex flex-wrap items-center gap-2">
           {activeChips.map(chip => (
             <button
-              className="bg-primary/10 text-primary hover:bg-primary/15 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-all hover:bg-primary/15"
               key={chip.key}
               onClick={() => {
                 handleRemoveFilter(chip.key)
@@ -345,7 +345,7 @@ export function FilterBar({
           ))}
           {activeChips.length > 1 && (
             <button
-              className="bg-muted/60 hover:bg-muted/80 hover:text-foreground text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all"
+              className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-1.5 text-sm font-medium text-muted-foreground transition-all hover:bg-muted/80 hover:text-foreground"
               onClick={handleClearAll}
               type="button"
             >

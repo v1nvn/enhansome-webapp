@@ -16,12 +16,14 @@ export interface FilterOptions {
   categories: { count: number; name: string }[]
   languages: { count: number; name: string }[]
   registries: { count: number; label: string; name: string }[]
+  tags: { count: number; name: string }[]
 }
 
 export interface GetFilterOptionsParams {
   categoryName?: string
   language?: string
   registryName?: string
+  tagName?: string
 }
 
 export interface SearchRepositoryParams {
@@ -34,11 +36,12 @@ export interface SearchRepositoryParams {
   q?: string
   registryName?: string
   sortBy?: 'name' | 'quality' | 'stars' | 'updated'
+  tagName?: string
 }
 
 export interface SearchRepositoryRow {
   archived: number
-  category_name: string
+  category_name: null | string
   description: null | string
   id: number
   language: null | string
@@ -47,6 +50,7 @@ export interface SearchRepositoryRow {
   owner: string
   registry_name: string
   stars: number
+  tag_name: null | string
   title: string
 }
 
@@ -56,6 +60,7 @@ export interface SearchResult {
     id: number
     qualityScore?: number
     registries: string[]
+    tags: string[]
   })[]
   hasMore: boolean
   nextCursor?: number
@@ -66,7 +71,7 @@ export async function getFilterOptions(
   db: Kysely<Database>,
   params: GetFilterOptionsParams = {},
 ): Promise<FilterOptions> {
-  const { categoryName, language, registryName } = params
+  const { categoryName, language, registryName, tagName } = params
 
   interface FacetRow {
     count: number
@@ -76,7 +81,7 @@ export async function getFilterOptions(
     value: string
   }
 
-  // Registry counts: cross-filtered by language + category, NOT by registry
+  // Registry counts: cross-filtered by language + category + tag, NOT by registry
   let registryQuery = db
     .selectFrom('repository_facets as f')
     .innerJoin('registry_metadata as rm', 'rm.registry_name', 'f.registry_name')
@@ -95,8 +100,11 @@ export async function getFilterOptions(
   if (categoryName) {
     registryQuery = registryQuery.where('f.category_name', '=', categoryName)
   }
+  if (tagName) {
+    registryQuery = registryQuery.where('f.tag_name', '=', tagName)
+  }
 
-  // Language counts: cross-filtered by registry + category, NOT by language
+  // Language counts: cross-filtered by registry + category + tag, NOT by language
   let languageQuery = db
     .selectFrom('repository_facets as f')
     .select([
@@ -115,8 +123,11 @@ export async function getFilterOptions(
   if (categoryName) {
     languageQuery = languageQuery.where('f.category_name', '=', categoryName)
   }
+  if (tagName) {
+    languageQuery = languageQuery.where('f.tag_name', '=', tagName)
+  }
 
-  // Category counts: cross-filtered by registry + language, NOT by category
+  // Category counts: cross-filtered by registry + language + tag, NOT by category
   let categoryQuery = db
     .selectFrom('repository_facets as f')
     .select([
@@ -134,12 +145,40 @@ export async function getFilterOptions(
   if (language) {
     categoryQuery = categoryQuery.where('f.language', '=', language)
   }
+  if (tagName) {
+    categoryQuery = categoryQuery.where('f.tag_name', '=', tagName)
+  }
 
-  const [registryRows, languageRows, categoryRows] = await Promise.all([
-    registryQuery.execute(),
-    languageQuery.execute(),
-    categoryQuery.execute(),
-  ])
+  // Tag counts: cross-filtered by registry + language + category, NOT by tag
+  let tagQuery = db
+    .selectFrom('repository_facets as f')
+    .select([
+      sql<string>`'tag'`.as('type'),
+      'f.tag_name as value',
+      'f.tag_name as label',
+      sql<string>`''`.as('slug'),
+      sql<number>`COUNT(DISTINCT f.repository_id)`.as('count'),
+    ])
+    .groupBy('f.tag_name')
+
+  if (registryName) {
+    tagQuery = tagQuery.where('f.registry_name', '=', registryName)
+  }
+  if (language) {
+    tagQuery = tagQuery.where('f.language', '=', language)
+  }
+  if (categoryName) {
+    tagQuery = tagQuery.where('f.category_name', '=', categoryName)
+  }
+
+  const [registryRows, languageRows, categoryRows, tagRows] = await Promise.all(
+    [
+      registryQuery.execute(),
+      languageQuery.execute(),
+      categoryQuery.execute(),
+      tagQuery.execute(),
+    ],
+  )
 
   const registries = (registryRows as FacetRow[])
     .map(r => ({
@@ -166,7 +205,15 @@ export async function getFilterOptions(
     .filter(c => c.count > 0)
     .sort((a, b) => b.count - a.count)
 
-  return { categories, languages, registries }
+  const tags = (tagRows as FacetRow[])
+    .map(r => ({
+      count: r.count,
+      name: r.value,
+    }))
+    .filter(t => t.count > 0)
+    .sort((a, b) => b.count - a.count)
+
+  return { categories, languages, registries, tags }
 }
 
 export async function searchRepos(
@@ -183,6 +230,7 @@ export async function searchRepos(
     q,
     registryName,
     sortBy = 'quality',
+    tagName,
   } = params
 
   // Get total count
@@ -205,6 +253,17 @@ export async function searchRepos(
           .select(sql`1`.as('one'))
           .whereRef('f.repository_id', '=', 'r.id')
           .where('f.category_name', '=', categoryName),
+      ),
+    )
+  }
+  if (tagName) {
+    countQuery = countQuery.where(eb =>
+      eb.exists(
+        eb
+          .selectFrom('repository_facets as f')
+          .select(sql`1`.as('one'))
+          .whereRef('f.repository_id', '=', 'r.id')
+          .where('f.tag_name', '=', tagName),
       ),
     )
   }
@@ -253,6 +312,7 @@ export async function searchRepos(
       'rr.title',
       'rr.registry_name',
       'f.category_name as category_name',
+      'f.tag_name as tag_name',
     ])
 
   if (registryName) {
@@ -263,6 +323,9 @@ export async function searchRepos(
   }
   if (categoryName) {
     mainQuery = mainQuery.where('f.category_name', '=', categoryName)
+  }
+  if (tagName) {
+    mainQuery = mainQuery.where('f.tag_name', '=', tagName)
   }
   if (archived) {
     mainQuery = mainQuery.where('r.archived', '=', 1)
@@ -299,6 +362,7 @@ export async function searchRepos(
       owner: string
       registries: Set<string>
       stars: number
+      tags: Set<string>
       title: string
     }
   >()
@@ -308,6 +372,7 @@ export async function searchRepos(
     if (existing) {
       existing.registries.add(row.registry_name)
       if (row.category_name) existing.categories.add(row.category_name)
+      if (row.tag_name) existing.tags.add(row.tag_name)
     } else {
       repoMap.set(row.id, {
         archived: row.archived,
@@ -322,6 +387,7 @@ export async function searchRepos(
         owner: row.owner,
         registries: new Set([row.registry_name]),
         stars: row.stars,
+        tags: row.tag_name ? new Set([row.tag_name]) : new Set(),
         title: row.title,
       })
     }
@@ -375,18 +441,21 @@ export async function searchRepos(
   const data = rows.map(r => {
     const categories = Array.from(r.categories).sort()
     const registries = Array.from(r.registries).sort()
+    const tags = Array.from(r.tags).sort()
 
     const item: RegistryItem & {
       categories: string[]
       id: number
       qualityScore?: number
       registries: string[]
+      tags: string[]
     } = {
       categories,
       children: [],
       description: r.description,
       id: r.id,
       registries,
+      tags,
       title: r.title,
       qualityScore: calculateQualityScore({
         last_commit: r.last_commit,
