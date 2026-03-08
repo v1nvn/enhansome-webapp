@@ -140,8 +140,7 @@ export function IndexingHistoryTable() {
                     </div>
                   ) : entry.status === 'running' ? (
                     <span className="text-muted-foreground">
-                      {entry.processedRegistries} /{' '}
-                      {entry.totalRegistries || '?'}
+                      {entry.progress ?? 0}%
                     </span>
                   ) : (
                     <span className="text-muted-foreground">-</span>

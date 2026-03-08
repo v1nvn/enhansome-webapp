@@ -13,25 +13,12 @@ import { normalizeTagName } from './utils/tags'
 const REGISTRY_ARCHIVE_URL =
   'https://github.com/v1nvn/enhansome-registry/archive/refs/heads/main.zip'
 
-// Batch processing configuration
-const PROGRESS_UPDATE_BATCH_SIZE = 10 // Update progress every N registries
-const SYNC_LOG_BATCH_SIZE = 100 // D1 batch API limit
+// D1 batch API limit
+const D1_MAX_BATCH_STATEMENTS = 100
 
 interface FlattenedItem {
   category: string
   data: RegistryItem
-}
-
-// In-memory tracking structures
-interface ProgressBuffer {
-  currentRegistry: null | string
-  processedCount: number
-}
-
-// Statement with debug context for error tracking
-interface StatementWithContext {
-  context: string // Debug info: "repo_tags:owner/repo:category" or "registry_repository_categories:owner/repo:category"
-  statement: D1PreparedStatement
 }
 
 interface SyncLogEntry {
@@ -174,9 +161,6 @@ export async function indexAllRegistries(
   const historyId = await createHistoryEntry(db, triggerSource, createdBy)
   await updateLatestStatus(db, 'running', historyId)
 
-  const progressBuffer = createProgressBuffer()
-  const syncLogBuffer: SyncLogEntry[] = []
-
   try {
     const files = await fetchRegistryFiles(archiveUrl)
     console.log(`Found ${files.size} registry files to index`)
@@ -187,11 +171,6 @@ export async function indexAllRegistries(
       .run()
 
     const result = await processRegistries(db, files, historyId)
-
-    // Final flush
-    if (progressBuffer.processedCount > 0 || syncLogBuffer.length > 0) {
-      await flushProgressBatch(db, historyId, progressBuffer, syncLogBuffer)
-    }
 
     await rebuildFacets(db)
 
@@ -210,15 +189,6 @@ export async function indexAllRegistries(
     )
     return result
   } catch (error) {
-    // Flush pending progress before marking as failed
-    if (progressBuffer.processedCount > 0 || syncLogBuffer.length > 0) {
-      try {
-        await flushProgressBatch(db, historyId, progressBuffer, syncLogBuffer)
-      } catch (flushError) {
-        console.error('Failed to flush progress on error:', flushError)
-      }
-    }
-
     const errorMsg = error instanceof Error ? error.message : String(error)
     await completeHistoryEntry(db, historyId, 'failed', 0, 0, [], errorMsg)
     await updateLatestStatus(db, 'failed')
@@ -229,7 +199,7 @@ export async function indexAllRegistries(
 }
 
 /**
- * Index a single registry into D1 using batch operations
+ * Index a single registry into D1 using bulk operations
  */
 export async function indexRegistry(
   db: D1Database,
@@ -238,45 +208,18 @@ export async function indexRegistry(
 ): Promise<number> {
   console.log(`Indexing registry: ${registryName}`)
 
-  const { items, totalStars } = flattenItems(data)
+  const collected = createCollectedData()
+  const { itemCount } = collectRegistryData(registryName, data, collected)
+
   console.log(
-    `  Found ${items.length} items, ${totalStars.toLocaleString()} total stars`,
+    `  Found ${itemCount} items, ${collected.repos.size} unique repos`,
   )
 
-  const statementsWithContext = buildRegistryStatements(
-    db,
-    registryName,
-    data,
-    items,
-    totalStars,
-  )
-
-  // Extract raw statements for batch execution
-  const statements = statementsWithContext.map(s => s.statement)
-
-  for (let i = 0; i < statements.length; i += SYNC_LOG_BATCH_SIZE) {
-    const batch = statements.slice(i, i + SYNC_LOG_BATCH_SIZE)
-    const batchContexts = statementsWithContext
-      .slice(i, i + SYNC_LOG_BATCH_SIZE)
-      .map(s => s.context)
-
-    try {
-      await db.batch(batch)
-      console.log(
-        `  Executed batch ${Math.floor(i / SYNC_LOG_BATCH_SIZE) + 1}/${Math.ceil(statements.length / SYNC_LOG_BATCH_SIZE)}`,
-      )
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error)
-      // Include context from all statements in this batch for debugging
-      const contextInfo = batchContexts.join('\n    ')
-      throw new Error(`${errorMsg}\n  Batch contexts:\n    ${contextInfo}`, {
-        cause: error,
-      })
-    }
-  }
+  const noopReporter: ProgressReporter = () => Promise.resolve()
+  await bulkWriteCollectedData(db, collected, noopReporter)
 
   console.log(`  Successfully indexed ${registryName}`)
-  return items.length
+  return itemCount
 }
 
 /**
@@ -298,248 +241,6 @@ export async function rebuildFacets(db: D1Database): Promise<void> {
   )
   await db.batch([deleteStmt, insertStmt])
   console.log('repository_facets rebuilt successfully')
-}
-
-/**
- * Build all D1 statements for indexing a registry
- * Uses the many-to-many model with repositories + category junction table
- * Also creates tags from raw headings and links them via repo_tags
- */
-function buildRegistryStatements(
-  db: D1Database,
-  registryName: string,
-  data: RegistryData,
-  items: FlattenedItem[],
-  totalStars: number,
-): StatementWithContext[] {
-  const statements: StatementWithContext[] = []
-
-  // Clear existing junction table entries for this registry
-  statements.push({
-    context: `DELETE registry_repository_categories: ${registryName}`,
-    statement: db
-      .prepare(
-        'DELETE FROM registry_repository_categories WHERE registry_name = ?',
-      )
-      .bind(registryName),
-  })
-  statements.push({
-    context: `DELETE repo_tags: ${registryName}`,
-    statement: db
-      .prepare('DELETE FROM repo_tags WHERE registry_name = ?')
-      .bind(registryName),
-  })
-  statements.push({
-    context: `DELETE registry_repositories: ${registryName}`,
-    statement: db
-      .prepare('DELETE FROM registry_repositories WHERE registry_name = ?')
-      .bind(registryName),
-  })
-  statements.push({
-    context: `DELETE registry_metadata: ${registryName}`,
-    statement: db
-      .prepare('DELETE FROM registry_metadata WHERE registry_name = ?')
-      .bind(registryName),
-  })
-
-  // Insert metadata
-  statements.push({
-    context: `INSERT registry_metadata: ${registryName}`,
-    statement: db
-      .prepare(
-        `INSERT INTO registry_metadata
-       (registry_name, title, description, last_updated, source_repository, total_items, total_stars)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        registryName,
-        data.metadata.title,
-        data.metadata.source_repository_description || '',
-        data.metadata.last_updated,
-        data.metadata.source_repository,
-        items.length,
-        totalStars,
-      ),
-  })
-
-  // Collect raw headings per repository to handle multi-category repos
-  const repoHeadings = new Map<string, Set<string>>() // key: "owner/repo", value: Set of raw headings
-  const repoTitles = new Map<string, string>() // key: "owner/repo", value: title (use first encountered)
-  const repoDescriptions = new Map<string, null | string>() // key: "owner/repo", value: description
-
-  // First pass: collect all raw headings for each unique repository
-  for (const item of items) {
-    const repoInfo = item.data.repo_info
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!repoInfo?.owner || !repoInfo?.repo) {
-      continue
-    }
-
-    const key = `${repoInfo.owner}/${repoInfo.repo}`
-
-    if (!repoHeadings.has(key)) {
-      repoHeadings.set(key, new Set())
-      repoTitles.set(key, item.data.title)
-      repoDescriptions.set(key, item.data.description ?? null)
-    }
-    const headingSet = repoHeadings.get(key)
-    if (headingSet) {
-      headingSet.add(item.category) // item.category is the raw section heading
-    }
-  }
-
-  // Second pass: insert each unique repository once with all its headings
-  for (const item of items) {
-    const repoInfo = item.data.repo_info
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!repoInfo?.owner || !repoInfo?.repo) {
-      continue
-    }
-
-    const key = `${repoInfo.owner}/${repoInfo.repo}`
-
-    // Only process if we haven't already inserted this repository
-    if (!repoHeadings.has(key)) {
-      continue
-    }
-
-    // Get accumulated raw headings
-    const headingSet = repoHeadings.get(key)
-    const headings = headingSet ? Array.from(headingSet) : []
-    const title = repoTitles.get(key)
-    const description = repoDescriptions.get(key)
-
-    // Upsert repository (INSERT OR IGNORE)
-    statements.push({
-      context: `INSERT repositories: ${key}`,
-      statement: db
-        .prepare(
-          `INSERT OR IGNORE INTO repositories (owner, name, description, stars, language, last_commit, archived)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .bind(
-          repoInfo.owner,
-          repoInfo.repo,
-          description,
-          repoInfo.stars,
-          repoInfo.language,
-          repoInfo.last_commit,
-          repoInfo.archived ? 1 : 0,
-        ),
-    })
-
-    // Link via junction table
-    statements.push({
-      context: `INSERT registry_repositories: ${registryName}/${key}`,
-      statement: db
-        .prepare(
-          `INSERT INTO registry_repositories (registry_name, repository_id, title)
-           SELECT ?, id, ?
-           FROM repositories
-           WHERE owner = ? AND name = ?`,
-        )
-        .bind(registryName, title, repoInfo.owner, repoInfo.repo),
-    })
-
-    // First, collect unique normalized categories for this repo
-    // Multiple raw headings can normalize to the same category (e.g., "JSON", "TOML", "XML" → "Serialization")
-    const uniqueCategories = new Map<string, { name: string; slug: string }>()
-
-    // Process each raw heading: create tag + collect categories
-    for (const rawHeading of headings) {
-      // Create tag from raw heading (light normalization)
-      const normalizedTag = normalizeTagName(rawHeading)
-
-      // Skip if tag normalization determined this is noise
-      if (!normalizedTag) continue
-
-      // Insert the tag if it doesn't exist (INSERT OR IGNORE)
-      statements.push({
-        context: `INSERT tags: ${normalizedTag.slug}`,
-        statement: db
-          .prepare(
-            `INSERT OR IGNORE INTO tags (slug, name)
-             VALUES (?, ?)`,
-          )
-          .bind(normalizedTag.slug, normalizedTag.name),
-      })
-
-      // Try to map to a frozen category (may return null if no match)
-      const normalizedCategory = normalizeCategoryName(rawHeading)
-
-      // Insert into repo_tags with tag and optional category provenance
-      // Uses a subquery to get both the repository id, tag id, and category id (if exists)
-      if (normalizedCategory) {
-        // Collect unique categories for later insert into registry_repository_categories
-        if (!uniqueCategories.has(normalizedCategory.slug)) {
-          uniqueCategories.set(normalizedCategory.slug, normalizedCategory)
-        }
-
-        // Tag maps to a frozen category - include category_id
-        statements.push({
-          context: `INSERT repo_tags: ${key} -> tag=${normalizedTag.slug} cat=${normalizedCategory.slug}`,
-          statement: db
-            .prepare(
-              `INSERT INTO repo_tags (repository_id, registry_name, tag_id, category_id)
-               SELECT r.id, ?, t.id, c.id
-               FROM repositories r
-               CROSS JOIN tags t
-               CROSS JOIN categories c
-               WHERE r.owner = ? AND r.name = ? AND t.slug = ? AND c.slug = ?`,
-            )
-            .bind(
-              registryName,
-              repoInfo.owner,
-              repoInfo.repo,
-              normalizedTag.slug,
-              normalizedCategory.slug,
-            ),
-        })
-      } else {
-        // Tag doesn't map to a frozen category - NULL category_id
-        statements.push({
-          context: `INSERT repo_tags: ${key} -> tag=${normalizedTag.slug} cat=NULL`,
-          statement: db
-            .prepare(
-              `INSERT INTO repo_tags (repository_id, registry_name, tag_id, category_id)
-               SELECT r.id, ?, t.id, NULL
-               FROM repositories r
-               CROSS JOIN tags t
-               WHERE r.owner = ? AND r.name = ? AND t.slug = ?`,
-            )
-            .bind(
-              registryName,
-              repoInfo.owner,
-              repoInfo.repo,
-              normalizedTag.slug,
-            ),
-        })
-      }
-    }
-
-    // Insert unique categories into registry_repository_categories (deduped)
-    for (const category of uniqueCategories.values()) {
-      statements.push({
-        context: `INSERT registry_repository_categories: ${registryName}/${key} -> cat=${category.slug}`,
-        statement: db
-          .prepare(
-            `INSERT INTO registry_repository_categories (registry_name, repository_id, category_id)
-             SELECT ?, r.id, c.id
-             FROM repositories r
-             CROSS JOIN categories c
-             WHERE r.owner = ? AND r.name = ? AND c.slug = ?`,
-          )
-          .bind(registryName, repoInfo.owner, repoInfo.repo, category.slug),
-      })
-    }
-
-    // Remove from map so we don't insert again
-    repoHeadings.delete(key)
-    repoTitles.delete(key)
-    repoDescriptions.delete(key)
-  }
-
-  return statements
 }
 
 /**
@@ -565,7 +266,7 @@ async function completeHistoryEntry(
              success_count = ?,
              failed_count = ?,
              errors = ?,
-             current_registry = NULL
+             current_step = NULL
          WHERE id = ?`,
       )
       .bind(completedAt, success, failed, JSON.stringify(errors), historyId)
@@ -577,7 +278,7 @@ async function completeHistoryEntry(
          SET status = 'failed',
              completed_at = ?,
              error_message = ?,
-             current_registry = NULL
+             current_step = NULL
          WHERE id = ?`,
       )
       .bind(completedAt, errorMessage, historyId)
@@ -600,16 +301,6 @@ async function createHistoryEntry(
     .bind(triggerSource, 'running', new Date().toISOString(), createdBy || null)
     .run()
   return result.meta.last_row_id
-}
-
-/**
- * Create a new progress buffer
- */
-function createProgressBuffer(): ProgressBuffer {
-  return {
-    currentRegistry: null,
-    processedCount: 0,
-  }
 }
 
 /**
@@ -642,36 +333,20 @@ function findRepoPrefix(files: Record<string, JSZip.JSZipObject>): string {
 }
 
 /**
- * Flush buffered progress updates and sync_log entries to database in a single batch
+ * Flush sync log entries and finalize indexing status
  */
-async function flushProgressBatch(
+async function flushSyncLog(
   db: D1Database,
   historyId: number,
-  progress: ProgressBuffer,
-  syncLogEntries: SyncLogEntry[],
+  entries: SyncLogEntry[],
 ): Promise<void> {
-  if (progress.processedCount === 0 && syncLogEntries.length === 0) {
+  if (entries.length === 0) {
     return
   }
 
   const statements: D1PreparedStatement[] = []
 
-  // Update indexing_history progress
-  if (progress.processedCount > 0) {
-    statements.push(
-      db
-        .prepare(
-          `UPDATE indexing_history
-           SET current_registry = ?,
-               processed_registries = processed_registries + ?
-           WHERE id = ?`,
-        )
-        .bind(progress.currentRegistry, progress.processedCount, historyId),
-    )
-  }
-
-  // Insert sync_log entries
-  for (const entry of syncLogEntries) {
+  for (const entry of entries) {
     if (entry.status === 'error') {
       statements.push(
         db
@@ -691,22 +366,21 @@ async function flushProgressBatch(
     }
   }
 
-  // Update indexing_latest timestamp
+  // Update progress to 100% complete
+  statements.push(
+    db
+      .prepare(
+        'UPDATE indexing_history SET progress = 100, current_step = NULL WHERE id = ?',
+      )
+      .bind(historyId),
+  )
   statements.push(
     db
       .prepare('UPDATE indexing_latest SET updated_at = ? WHERE id = 1')
       .bind(new Date().toISOString()),
   )
 
-  // Execute in batches (D1 has a 100 statement limit per batch)
-  for (let i = 0; i < statements.length; i += SYNC_LOG_BATCH_SIZE) {
-    const batch = statements.slice(i, i + SYNC_LOG_BATCH_SIZE)
-    await db.batch(batch)
-  }
-
-  console.log(
-    `Flushed batch: ${progress.processedCount} registries, ${syncLogEntries.length} log entries`,
-  )
+  await executeBatched(db, statements)
 }
 
 /**
@@ -734,7 +408,7 @@ function isValidRegistryData(data: unknown): data is RegistryData {
 }
 
 /**
- * Process all registries with batched progress tracking
+ * Process all registries with bulk collection and single write
  */
 async function processRegistries(
   db: D1Database,
@@ -744,21 +418,24 @@ async function processRegistries(
   const errors: string[] = []
   let failed = 0
   let success = 0
-  let registryCount = 0
-  let progressBuffer = createProgressBuffer()
-  let syncLogBuffer: SyncLogEntry[] = []
+
+  // Phase 1: Collect all data in memory (pure CPU — no progress updates needed)
+  const collected = createCollectedData()
+  const syncLogBuffer: SyncLogEntry[] = []
 
   for (const [registryName, data] of files.entries()) {
     try {
-      const itemsSynced = await indexRegistry(db, registryName, data)
-      progressBuffer.currentRegistry = registryName
-      progressBuffer.processedCount++
-      syncLogBuffer.push({ registryName, status: 'success', itemsSynced })
+      const { itemCount } = collectRegistryData(registryName, data, collected)
+      syncLogBuffer.push({
+        registryName,
+        status: 'success',
+        itemsSynced: itemCount,
+      })
       success++
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       errors.push(`${registryName}: ${errorMsg}`)
-      console.error(`Error indexing ${registryName}:`, error)
+      console.error(`Error collecting ${registryName}:`, error)
       syncLogBuffer.push({
         registryName,
         status: 'error',
@@ -766,15 +443,57 @@ async function processRegistries(
       })
       failed++
     }
+  }
 
-    registryCount++
+  console.log(
+    `Collected: ${collected.repos.size} repos, ${collected.tags.size} tags, ` +
+      `${collected.repoTags.length} repo-tag links, ${collected.repoCategories.length} category links`,
+  )
 
-    // Flush batch every N registries
-    if (registryCount % PROGRESS_UPDATE_BATCH_SIZE === 0) {
-      await flushProgressBatch(db, historyId, progressBuffer, syncLogBuffer)
-      progressBuffer = createProgressBuffer()
-      syncLogBuffer = []
+  // Build cumulative weight map for O(1) lookup (order matches execution order)
+  // Each value is the cumulative % progress (0-100) after that step completes.
+  const cumulativeWeights = new Map<BulkWriteStep, number>()
+  let cumulative = 0
+  for (const key of BULK_WRITE_STEP_ORDER) {
+    cumulative += BULK_WRITE_STEPS[key].weight
+    cumulativeWeights.set(key, cumulative)
+  }
+
+  const report: ProgressReporter = async (step: BulkWriteStep) => {
+    const progress = cumulativeWeights.get(step) ?? 0
+    const message = BULK_WRITE_STEPS[step].message
+    console.log(`Progress: ${progress}% - ${message}`)
+    await db
+      .prepare(
+        'UPDATE indexing_history SET progress = ?, current_step = ? WHERE id = ?',
+      )
+      .bind(progress, message, historyId)
+      .run()
+  }
+
+  // Phase 2: Bulk write all collected data
+  let bulkWriteError: Error | undefined
+  try {
+    await bulkWriteCollectedData(db, collected, report)
+  } catch (error) {
+    bulkWriteError = error as Error
+  }
+
+  // Phase 3: Flush sync log even if bulk write failed so collected progress is preserved
+  try {
+    await flushSyncLog(db, historyId, syncLogBuffer)
+  } catch (flushError) {
+    if (!bulkWriteError) {
+      throw flushError
     }
+    console.error(
+      'Failed to flush sync log after bulk write failure:',
+      flushError,
+    )
+  }
+
+  if (bulkWriteError) {
+    throw bulkWriteError
   }
 
   return { success, failed, errors }
@@ -802,5 +521,699 @@ async function updateLatestStatus(
       )
       .bind(status, new Date().toISOString())
       .run()
+  }
+}
+
+// ============================================================
+// Bulk SQL helpers
+// ============================================================
+
+const D1_MAX_BIND_PARAMS = 100
+
+const BULK_WRITE_STEPS = {
+  clearOldData: { weight: 15, message: 'clearing old data' },
+  linkRepositories: { weight: 10, message: 'linking repositories' },
+  resolveRepoIds: { weight: 5, message: 'resolving repository IDs' },
+  resolveTagCategoryIds: { weight: 2, message: 'resolving tag & category IDs' },
+  snapshotExistingData: { weight: 5, message: 'snapshotting existing data' },
+  writeCategoryAssociations: {
+    message: 'writing category associations',
+    weight: 8,
+  },
+  writeMetadata: { weight: 2, message: 'writing metadata' },
+  writeRepositories: { weight: 20, message: 'writing repositories' },
+  writeTagAssociations: { weight: 30, message: 'writing tag associations' },
+  writeTags: { weight: 3, message: 'writing tags' },
+} as const
+
+// Execution order for cumulative weight calculation
+const BULK_WRITE_STEP_ORDER = [
+  'snapshotExistingData',
+  'clearOldData',
+  'writeRepositories',
+  'resolveRepoIds',
+  'writeTags',
+  'resolveTagCategoryIds',
+  'writeMetadata',
+  'linkRepositories',
+  'writeTagAssociations',
+  'writeCategoryAssociations',
+] as const
+
+type BulkWriteStep = keyof typeof BULK_WRITE_STEPS
+interface CollectedData {
+  metadata: CollectedMetadata[]
+  registryRepos: CollectedRegistryRepo[]
+  repoCategories: CollectedRepoCategory[]
+  repos: Map<string, CollectedRepo>
+  repoTags: CollectedRepoTag[]
+  tags: Map<string, { name: string; slug: string }>
+}
+
+interface CollectedMetadata {
+  description: string
+  lastUpdated: string
+  registryName: string
+  sourceRepository: string
+  title: string
+  totalItems: number
+  totalStars: number
+}
+
+interface CollectedRegistryRepo {
+  registryName: string
+  repoKey: string
+  title: string
+}
+
+// ============================================================
+// In-memory data collection types
+// ============================================================
+
+interface CollectedRepo {
+  archived: number
+  description: null | string
+  language: null | string
+  lastCommit: string
+  name: string
+  owner: string
+  stars: number
+}
+
+interface CollectedRepoCategory {
+  categorySlug: string
+  registryName: string
+  repoKey: string
+}
+
+interface CollectedRepoTag {
+  categorySlug: null | string
+  registryName: string
+  repoKey: string
+  tagSlug: string
+}
+
+interface ExistingRegistrySnapshot {
+  metadataRows: unknown[][]
+  registryNames: string[]
+  registryRepoRows: unknown[][]
+  repoCategoryRows: unknown[][]
+  repoTagRows: unknown[][]
+}
+
+type ProgressReporter = (step: BulkWriteStep) => Promise<void>
+
+/**
+ * Build multi-row INSERT statements respecting D1 bind parameter limits.
+ * Returns array of { sql, binds } chunks.
+ */
+function buildMultiRowInserts(
+  sql: string, // e.g. "INSERT OR IGNORE INTO repositories (owner, name, ...) VALUES"
+  columnsCount: number,
+  rows: unknown[][],
+): { binds: unknown[]; sql: string }[] {
+  const rowsPerStatement = Math.floor(D1_MAX_BIND_PARAMS / columnsCount)
+  const results: { binds: unknown[]; sql: string }[] = []
+
+  for (let i = 0; i < rows.length; i += rowsPerStatement) {
+    const chunk = rows.slice(i, i + rowsPerStatement)
+    const placeholders = chunk
+      .map(() => `(${Array(columnsCount).fill('?').join(', ')})`)
+      .join(', ')
+    results.push({
+      sql: `${sql} ${placeholders}`,
+      binds: chunk.flat(),
+    })
+  }
+
+  return results
+}
+
+/**
+ * Write all collected data to D1 in bulk.
+ * Uses multi-row INSERTs with resolved integer IDs.
+ */
+async function bulkWriteCollectedData(
+  db: D1Database,
+  collected: CollectedData,
+  report: ProgressReporter,
+): Promise<void> {
+  const registryNames = [
+    ...new Set(collected.metadata.map(m => m.registryName)),
+  ]
+  const snapshot = await snapshotExistingRegistryData(db, registryNames)
+  await report('snapshotExistingData')
+
+  try {
+    // 1. Delete old data for all registries being indexed
+    const deleteStatements: D1PreparedStatement[] = []
+    for (const name of registryNames) {
+      deleteStatements.push(
+        db.prepare('DELETE FROM repo_tags WHERE registry_name = ?').bind(name),
+        db
+          .prepare(
+            'DELETE FROM registry_repository_categories WHERE registry_name = ?',
+          )
+          .bind(name),
+        db
+          .prepare('DELETE FROM registry_repositories WHERE registry_name = ?')
+          .bind(name),
+        db
+          .prepare('DELETE FROM registry_metadata WHERE registry_name = ?')
+          .bind(name),
+      )
+    }
+    await executeBatched(db, deleteStatements)
+    await report('clearOldData')
+
+    // 2. Bulk upsert repositories
+    const repoRows = Array.from(collected.repos.values()).map(r => [
+      r.owner,
+      r.name,
+      r.description,
+      r.stars,
+      r.language,
+      r.lastCommit,
+      r.archived,
+    ])
+    if (repoRows.length > 0) {
+      const repoInserts = buildMultiRowInserts(
+        'INSERT OR IGNORE INTO repositories (owner, name, description, stars, language, last_commit, archived) VALUES',
+        7,
+        repoRows,
+      )
+      await executeBatched(
+        db,
+        repoInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+      )
+    }
+    await report('writeRepositories')
+
+    // 3. Resolve IDs for only the rows we need
+    const repoIdMap = await fetchRepoIds(db, Array.from(collected.repos.keys()))
+    await report('resolveRepoIds')
+
+    // 4. Bulk upsert tags
+    const tagRows = Array.from(collected.tags.values()).map(t => [
+      t.slug,
+      t.name,
+    ])
+    if (tagRows.length > 0) {
+      const tagInserts = buildMultiRowInserts(
+        'INSERT OR IGNORE INTO tags (slug, name) VALUES',
+        2,
+        tagRows,
+      )
+      await executeBatched(
+        db,
+        tagInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+      )
+    }
+    await report('writeTags')
+
+    // 5. Resolve IDs for only the slugs we need
+    const tagIdMap = await fetchSlugIds(db, 'tags', [...collected.tags.keys()])
+    const neededCategorySlugs = new Set<string>()
+    for (const repoCategory of collected.repoCategories) {
+      neededCategorySlugs.add(repoCategory.categorySlug)
+    }
+    for (const repoTag of collected.repoTags) {
+      if (repoTag.categorySlug) {
+        neededCategorySlugs.add(repoTag.categorySlug)
+      }
+    }
+    const categoryIdMap = await fetchSlugIds(db, 'categories', [
+      ...neededCategorySlugs,
+    ])
+    await report('resolveTagCategoryIds')
+
+    // 6. Bulk insert registry_metadata
+    const metadataRows = collected.metadata.map(m => [
+      m.registryName,
+      m.title,
+      m.description,
+      m.lastUpdated,
+      m.sourceRepository,
+      m.totalItems,
+      m.totalStars,
+    ])
+    if (metadataRows.length > 0) {
+      const metaInserts = buildMultiRowInserts(
+        'INSERT INTO registry_metadata (registry_name, title, description, last_updated, source_repository, total_items, total_stars) VALUES',
+        7,
+        metadataRows,
+      )
+      await executeBatched(
+        db,
+        metaInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+      )
+    }
+    await report('writeMetadata')
+
+    // 7. Bulk insert registry_repositories with resolved IDs
+    const regRepoRows = collected.registryRepos
+      .map(rr => {
+        const repoId = repoIdMap.get(rr.repoKey)
+        if (repoId === undefined) {
+          console.warn(
+            '[indexer] Missing repository ID for registry_repositories row',
+            {
+              registryName: rr.registryName,
+              repoKey: rr.repoKey,
+            },
+          )
+          return null
+        }
+        return [rr.registryName, repoId, rr.title] as (number | string)[]
+      })
+      .filter((r): r is (number | string)[] => r !== null)
+    if (regRepoRows.length > 0) {
+      const rrInserts = buildMultiRowInserts(
+        'INSERT INTO registry_repositories (registry_name, repository_id, title) VALUES',
+        3,
+        regRepoRows,
+      )
+      await executeBatched(
+        db,
+        rrInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+      )
+    }
+    await report('linkRepositories')
+
+    // 8. Bulk insert repo_tags with resolved IDs
+    const repoTagRows = collected.repoTags
+      .map(rt => {
+        const repoId = repoIdMap.get(rt.repoKey)
+        const tagId = tagIdMap.get(rt.tagSlug)
+        if (repoId === undefined) {
+          console.warn('[indexer] Missing repository ID for repo_tags row', {
+            registryName: rt.registryName,
+            repoKey: rt.repoKey,
+            tagSlug: rt.tagSlug,
+          })
+          return null
+        }
+        if (tagId === undefined) {
+          console.warn('[indexer] Missing tag ID for repo_tags row', {
+            registryName: rt.registryName,
+            repoKey: rt.repoKey,
+            tagSlug: rt.tagSlug,
+          })
+          return null
+        }
+        if (rt.categorySlug) {
+          const categoryId = categoryIdMap.get(rt.categorySlug)
+          if (!categoryId) return null
+          return [repoId, rt.registryName, tagId, categoryId] as (
+            | null
+            | number
+            | string
+          )[]
+        }
+        return [repoId, rt.registryName, tagId, null] as (
+          | null
+          | number
+          | string
+        )[]
+      })
+      .filter((r): r is (null | number | string)[] => r !== null)
+    if (repoTagRows.length > 0) {
+      const rtInserts = buildMultiRowInserts(
+        'INSERT INTO repo_tags (repository_id, registry_name, tag_id, category_id) VALUES',
+        4,
+        repoTagRows,
+      )
+      await executeBatched(
+        db,
+        rtInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+      )
+    }
+    await report('writeTagAssociations')
+
+    // 9. Bulk insert registry_repository_categories with resolved IDs
+    const repoCatRows = collected.repoCategories
+      .map(rc => {
+        const repoId = repoIdMap.get(rc.repoKey)
+        const categoryId = categoryIdMap.get(rc.categorySlug)
+        if (repoId === undefined) {
+          console.warn(
+            '[indexer] Missing repository ID for registry_repository_categories row',
+            {
+              registryName: rc.registryName,
+              repoKey: rc.repoKey,
+              categorySlug: rc.categorySlug,
+            },
+          )
+          return null
+        }
+        if (!categoryId) return null
+        return [rc.registryName, repoId, categoryId] as (number | string)[]
+      })
+      .filter((r): r is (number | string)[] => r !== null)
+    if (repoCatRows.length > 0) {
+      const rcInserts = buildMultiRowInserts(
+        'INSERT INTO registry_repository_categories (registry_name, repository_id, category_id) VALUES',
+        3,
+        repoCatRows,
+      )
+      await executeBatched(
+        db,
+        rcInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+      )
+    }
+    await report('writeCategoryAssociations')
+  } catch (error) {
+    await restoreExistingRegistryData(db, snapshot)
+    throw error
+  }
+}
+
+/**
+ * Collect all indexable data from a registry into in-memory structures.
+ * Pure computation — no DB calls.
+ */
+function collectRegistryData(
+  registryName: string,
+  data: RegistryData,
+  collected: CollectedData,
+): { itemCount: number } {
+  const { items, totalStars } = flattenItems(data)
+
+  collected.metadata.push({
+    registryName,
+    title: data.metadata.title,
+    description: data.metadata.source_repository_description || '',
+    lastUpdated: data.metadata.last_updated,
+    sourceRepository: data.metadata.source_repository,
+    totalItems: items.length,
+    totalStars,
+  })
+
+  // Collect headings per repo (same logic as buildRegistryStatements first pass)
+  const repoHeadings = new Map<string, Set<string>>()
+  const repoTitles = new Map<string, string>()
+
+  for (const item of items) {
+    const repoInfo = item.data.repo_info
+    if (!repoInfo?.owner || !repoInfo.repo) continue
+    const key = `${repoInfo.owner}/${repoInfo.repo}`
+
+    if (!repoHeadings.has(key)) {
+      repoHeadings.set(key, new Set())
+      repoTitles.set(key, item.data.title)
+
+      // Collect unique repo
+      if (!collected.repos.has(key)) {
+        collected.repos.set(key, {
+          owner: repoInfo.owner,
+          name: repoInfo.repo,
+          description: item.data.description ?? null,
+          stars: repoInfo.stars,
+          language: repoInfo.language,
+          lastCommit: repoInfo.last_commit,
+          archived: repoInfo.archived ? 1 : 0,
+        })
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    repoHeadings.get(key)!.add(item.category)
+  }
+
+  // Collect junction rows
+  for (const [repoKey, headingSet] of repoHeadings) {
+    collected.registryRepos.push({
+      registryName,
+      repoKey,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      title: repoTitles.get(repoKey)!,
+    })
+
+    const uniqueCategories = new Map<string, string>()
+
+    for (const rawHeading of headingSet) {
+      const normalizedTag = normalizeTagName(rawHeading)
+      if (!normalizedTag) continue
+
+      // Collect unique tag
+      if (!collected.tags.has(normalizedTag.slug)) {
+        collected.tags.set(normalizedTag.slug, normalizedTag)
+      }
+
+      const normalizedCategory = normalizeCategoryName(rawHeading)
+
+      collected.repoTags.push({
+        repoKey,
+        registryName,
+        tagSlug: normalizedTag.slug,
+        categorySlug: normalizedCategory?.slug ?? null,
+      })
+
+      if (
+        normalizedCategory &&
+        !uniqueCategories.has(normalizedCategory.slug)
+      ) {
+        uniqueCategories.set(normalizedCategory.slug, normalizedCategory.slug)
+        collected.repoCategories.push({
+          registryName,
+          repoKey,
+          categorySlug: normalizedCategory.slug,
+        })
+      }
+    }
+  }
+
+  return { itemCount: items.length }
+}
+
+function createCollectedData(): CollectedData {
+  return {
+    repos: new Map(),
+    tags: new Map(),
+    metadata: [],
+    registryRepos: [],
+    repoTags: [],
+    repoCategories: [],
+  }
+}
+
+/**
+ * Execute an array of prepared statements in D1 batches of 100.
+ */
+async function executeBatched(
+  db: D1Database,
+  statements: D1PreparedStatement[],
+): Promise<void> {
+  for (let i = 0; i < statements.length; i += D1_MAX_BATCH_STATEMENTS) {
+    const batch = statements.slice(i, i + D1_MAX_BATCH_STATEMENTS)
+    await db.batch(batch)
+  }
+}
+
+async function executeMultiRowInsert(
+  db: D1Database,
+  sqlPrefix: string,
+  columnsCount: number,
+  rows: unknown[][],
+): Promise<void> {
+  if (rows.length === 0) {
+    return
+  }
+
+  const inserts = buildMultiRowInserts(sqlPrefix, columnsCount, rows)
+  await executeBatched(
+    db,
+    inserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+  )
+}
+
+async function fetchRepoIds(
+  db: D1Database,
+  repoKeys: string[],
+): Promise<Map<string, number>> {
+  const repoIdMap = new Map<string, number>()
+
+  if (repoKeys.length === 0) {
+    return repoIdMap
+  }
+
+  const repoPairs = repoKeys.map(key => {
+    const [owner, ...nameParts] = key.split('/')
+    return [owner, nameParts.join('/')]
+  })
+  const pairsPerChunk = Math.floor(D1_MAX_BIND_PARAMS / 2)
+
+  for (let i = 0; i < repoPairs.length; i += pairsPerChunk) {
+    const chunk = repoPairs.slice(i, i + pairsPerChunk)
+    const whereClause = chunk.map(() => '(owner = ? AND name = ?)').join(' OR ')
+    const binds = chunk.flat()
+    const result = await db
+      .prepare(`SELECT id, owner, name FROM repositories WHERE ${whereClause}`)
+      .bind(...binds)
+      .all<{ id: number; name: string; owner: string }>()
+    for (const repo of result.results) {
+      repoIdMap.set(`${repo.owner}/${repo.name}`, repo.id)
+    }
+  }
+
+  return repoIdMap
+}
+
+async function fetchRowsByRegistryNames(
+  db: D1Database,
+  sqlTemplate: string,
+  registryNames: string[],
+  mapRow: (row: Record<string, unknown>) => unknown[],
+): Promise<unknown[][]> {
+  const rows: unknown[][] = []
+  const uniqueNames = [...new Set(registryNames)]
+
+  for (let i = 0; i < uniqueNames.length; i += D1_MAX_BIND_PARAMS) {
+    const chunk = uniqueNames.slice(i, i + D1_MAX_BIND_PARAMS)
+    const placeholders = chunk.map(() => '?').join(', ')
+    const sql = sqlTemplate.replace('{placeholders}', placeholders)
+    const result = await db
+      .prepare(sql)
+      .bind(...chunk)
+      .all()
+    for (const row of result.results) {
+      rows.push(mapRow(row))
+    }
+  }
+
+  return rows
+}
+
+async function fetchSlugIds(
+  db: D1Database,
+  table: 'categories' | 'tags',
+  slugs: string[],
+): Promise<Map<string, number>> {
+  const idMap = new Map<string, number>()
+
+  if (slugs.length === 0) {
+    return idMap
+  }
+
+  const uniqueSlugs = [...new Set(slugs)]
+
+  for (let i = 0; i < uniqueSlugs.length; i += D1_MAX_BIND_PARAMS) {
+    const chunk = uniqueSlugs.slice(i, i + D1_MAX_BIND_PARAMS)
+    const placeholders = chunk.map(() => '?').join(', ')
+    const result = await db
+      .prepare(`SELECT id, slug FROM ${table} WHERE slug IN (${placeholders})`)
+      .bind(...chunk)
+      .all<{ id: number; slug: string }>()
+    for (const row of result.results) {
+      idMap.set(row.slug, row.id)
+    }
+  }
+
+  return idMap
+}
+
+async function restoreExistingRegistryData(
+  db: D1Database,
+  snapshot: ExistingRegistrySnapshot,
+): Promise<void> {
+  const deleteStatements: D1PreparedStatement[] = []
+  for (const registryName of snapshot.registryNames) {
+    deleteStatements.push(
+      db
+        .prepare('DELETE FROM repo_tags WHERE registry_name = ?')
+        .bind(registryName),
+      db
+        .prepare(
+          'DELETE FROM registry_repository_categories WHERE registry_name = ?',
+        )
+        .bind(registryName),
+      db
+        .prepare('DELETE FROM registry_repositories WHERE registry_name = ?')
+        .bind(registryName),
+      db
+        .prepare('DELETE FROM registry_metadata WHERE registry_name = ?')
+        .bind(registryName),
+    )
+  }
+  await executeBatched(db, deleteStatements)
+
+  await executeMultiRowInsert(
+    db,
+    'INSERT OR REPLACE INTO registry_metadata (registry_name, title, description, last_updated, source_repository, total_items, total_stars) VALUES',
+    7,
+    snapshot.metadataRows,
+  )
+  await executeMultiRowInsert(
+    db,
+    'INSERT OR REPLACE INTO registry_repositories (registry_name, repository_id, title) VALUES',
+    3,
+    snapshot.registryRepoRows,
+  )
+  await executeMultiRowInsert(
+    db,
+    'INSERT OR REPLACE INTO repo_tags (repository_id, registry_name, tag_id, category_id) VALUES',
+    4,
+    snapshot.repoTagRows,
+  )
+  await executeMultiRowInsert(
+    db,
+    'INSERT OR REPLACE INTO registry_repository_categories (registry_name, repository_id, category_id) VALUES',
+    3,
+    snapshot.repoCategoryRows,
+  )
+}
+
+async function snapshotExistingRegistryData(
+  db: D1Database,
+  registryNames: string[],
+): Promise<ExistingRegistrySnapshot> {
+  if (registryNames.length === 0) {
+    return {
+      registryNames: [],
+      metadataRows: [],
+      registryRepoRows: [],
+      repoTagRows: [],
+      repoCategoryRows: [],
+    }
+  }
+
+  const metadataRows = await fetchRowsByRegistryNames(
+    db,
+    'SELECT registry_name, title, description, last_updated, source_repository, total_items, total_stars FROM registry_metadata WHERE registry_name IN ({placeholders})',
+    registryNames,
+    row => [
+      row.registry_name,
+      row.title,
+      row.description,
+      row.last_updated,
+      row.source_repository,
+      row.total_items,
+      row.total_stars,
+    ],
+  )
+  const registryRepoRows = await fetchRowsByRegistryNames(
+    db,
+    'SELECT registry_name, repository_id, title FROM registry_repositories WHERE registry_name IN ({placeholders})',
+    registryNames,
+    row => [row.registry_name, row.repository_id, row.title],
+  )
+  const repoTagRows = await fetchRowsByRegistryNames(
+    db,
+    'SELECT repository_id, registry_name, tag_id, category_id FROM repo_tags WHERE registry_name IN ({placeholders})',
+    registryNames,
+    row => [row.repository_id, row.registry_name, row.tag_id, row.category_id],
+  )
+  const repoCategoryRows = await fetchRowsByRegistryNames(
+    db,
+    'SELECT registry_name, repository_id, category_id FROM registry_repository_categories WHERE registry_name IN ({placeholders})',
+    registryNames,
+    row => [row.registry_name, row.repository_id, row.category_id],
+  )
+
+  return {
+    registryNames,
+    metadataRows,
+    registryRepoRows,
+    repoTagRows,
+    repoCategoryRows,
   }
 }

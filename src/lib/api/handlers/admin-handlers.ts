@@ -16,12 +16,12 @@ import type { Kysely } from 'kysely'
 export interface IndexingHistoryEntry {
   completedAt?: string
   createdBy?: string
-  currentRegistry?: string
+  currentStep?: string
   errorMessage?: string
   errors?: string[]
   failedCount?: number
   id: number
-  processedRegistries?: number
+  progress?: number
   startedAt: string
   status: 'completed' | 'failed' | 'running'
   successCount?: number
@@ -37,12 +37,12 @@ export interface IndexingStatus {
 interface HistoryRow {
   completed_at: null | string
   created_by: null | string
-  current_registry: null | string
+  current_step: null | string
   error_message: null | string
   errors: null | string
   failed_count: number
   id: number
-  processed_registries: number
+  progress: number
   started_at: string
   status: 'completed' | 'failed' | 'running'
   success_count: number
@@ -80,8 +80,8 @@ export async function getIndexingStatusHandler(
       'indexing_history.started_at',
       'indexing_history.completed_at',
       'indexing_history.total_registries',
-      'indexing_history.processed_registries',
-      'indexing_history.current_registry',
+      'indexing_history.progress',
+      'indexing_history.current_step',
       'indexing_history.success_count',
       'indexing_history.failed_count',
       'indexing_history.errors',
@@ -132,7 +132,7 @@ export async function stopIndexingHandler(db: Kysely<Database>): Promise<{
     .updateTable('indexing_history')
     .set({
       completed_at: completedAt,
-      current_registry: null,
+      current_step: null,
       error_message: 'Indexing was manually stopped',
       status: 'failed',
     })
@@ -163,8 +163,8 @@ function historyRowToEntry(row: HistoryRow): IndexingHistoryEntry {
     startedAt: row.started_at,
     completedAt: row.completed_at ?? undefined,
     totalRegistries: row.total_registries ?? undefined,
-    processedRegistries: row.processed_registries,
-    currentRegistry: row.current_registry ?? undefined,
+    progress: row.progress,
+    currentStep: row.current_step ?? undefined,
     successCount: row.success_count,
     failedCount: row.failed_count,
     errors: row.errors ? (JSON.parse(row.errors) as string[]) : undefined,

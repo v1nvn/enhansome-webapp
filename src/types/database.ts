@@ -39,12 +39,12 @@ export interface Database {
 export interface IndexingHistoryTable {
   completed_at: null | string
   created_by: null | string
-  current_registry: null | string
+  current_step: null | string
   error_message: null | string
   errors: null | string
   failed_count: number
   id: Generated<number>
-  processed_registries: number
+  progress: number
   started_at: string
   status: 'completed' | 'failed' | 'running'
   success_count: number

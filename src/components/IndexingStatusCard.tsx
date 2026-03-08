@@ -57,38 +57,23 @@ export function IndexingStatusCard() {
         </div>
 
         {/* Running State Details */}
-        {isRunning &&
-          current?.totalRegistries != null &&
-          current.processedRegistries != null && (
-            <>
-              <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{
-                    width: `${(current.processedRegistries / current.totalRegistries) * 100}%`,
-                  }}
-                />
-              </div>
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>
-                  {current.processedRegistries} / {current.totalRegistries}{' '}
-                  registries
-                </span>
-                <span>
-                  {Math.round(
-                    (current.processedRegistries / current.totalRegistries) *
-                      100,
-                  )}
-                  %
-                </span>
-              </div>
-            </>
-          )}
+        {isRunning && current?.progress != null && (
+          <>
+            <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${current.progress}%` }}
+              />
+            </div>
+            <div className="flex justify-end text-sm text-muted-foreground">
+              <span>{current.progress}%</span>
+            </div>
+          </>
+        )}
 
-        {isRunning && current?.currentRegistry && (
+        {isRunning && current?.currentStep && (
           <div className="mt-4 rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-            <span className="font-medium">Current:</span>{' '}
-            {current.currentRegistry}
+            <span className="font-medium">Step:</span> {current.currentStep}
           </div>
         )}
 

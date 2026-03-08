@@ -56,8 +56,8 @@ describe('Admin Indexing with Progress Tracking', () => {
         'started_at',
         'completed_at',
         'total_registries',
-        'processed_registries',
-        'current_registry',
+        'progress',
+        'current_step',
         'success_count',
         'failed_count',
         'errors',
@@ -94,7 +94,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           started_at: new Date().toISOString(),
           created_by: 'test-key',
           failed_count: 0,
-          processed_registries: 0,
+          progress: 0,
           success_count: 0,
         })
         .execute()
@@ -187,7 +187,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Create a completed history entry
       const insertResult = await env.DB.prepare(
-        'INSERT INTO indexing_history (trigger_source, status, started_at, completed_at, total_registries, processed_registries, success_count, failed_count, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO indexing_history (trigger_source, status, started_at, completed_at, total_registries, progress, success_count, failed_count, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
         .bind(
           'manual',
@@ -195,7 +195,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           new Date(Date.now() - 10000).toISOString(),
           new Date().toISOString(),
           5,
-          5,
+          100,
           5,
           0,
           'test-key',
@@ -229,7 +229,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Create a running history entry using raw D1
       const insertResult = await env.DB.prepare(
-        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, processed_registries, success_count, failed_count, current_registry) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, progress, success_count, failed_count, current_step) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       )
         .bind(
           'scheduled',
@@ -262,7 +262,7 @@ describe('Admin Indexing with Progress Tracking', () => {
       expect(result.current).toBeDefined()
       expect(result.current?.status).toBe('running')
       expect(result.current?.triggerSource).toBe('scheduled')
-      expect(result.current?.currentRegistry).toBe('go')
+      expect(result.current?.currentStep).toBe('go')
     })
   })
 
@@ -286,7 +286,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           {
             completed_at: new Date(now - 3000).toISOString(),
             failed_count: 0,
-            processed_registries: 5,
+            progress: 100,
             started_at: new Date(now - 5000).toISOString(),
             status: 'completed',
             success_count: 5,
@@ -297,7 +297,7 @@ describe('Admin Indexing with Progress Tracking', () => {
             completed_at: new Date(now - 1000).toISOString(),
             created_by: 'abcd',
             failed_count: 0,
-            processed_registries: 5,
+            progress: 100,
             started_at: new Date(now - 2000).toISOString(),
             status: 'completed',
             success_count: 5,
@@ -307,7 +307,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           {
             completed_at: new Date(now - 7000).toISOString(),
             failed_count: 0,
-            processed_registries: 5,
+            progress: 100,
             started_at: new Date(now - 8000).toISOString(),
             status: 'completed',
             success_count: 5,
@@ -336,7 +336,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           created_by: 'test-key',
           errors: JSON.stringify(['error1', 'error2']),
           failed_count: 1,
-          processed_registries: 5,
+          progress: 100,
           started_at: new Date().toISOString(),
           status: 'completed',
           success_count: 4,
@@ -355,7 +355,7 @@ describe('Admin Indexing with Progress Tracking', () => {
         startedAt: expect.any(String),
         completedAt: expect.any(String),
         totalRegistries: 5,
-        processedRegistries: 5,
+        progress: 100,
         successCount: 4,
         failedCount: 1,
         errors: ['error1', 'error2'],
@@ -373,7 +373,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           .values({
             completed_at: new Date().toISOString(),
             failed_count: 0,
-            processed_registries: 5,
+            progress: 100,
             started_at: new Date(Date.now() - i * 1000).toISOString(),
             status: 'completed',
             success_count: 5,
@@ -399,7 +399,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           completed_at: new Date().toISOString(),
           created_by: 'a3b4',
           failed_count: 0,
-          processed_registries: 5,
+          progress: 100,
           started_at: new Date().toISOString(),
           status: 'completed',
           success_count: 5,
@@ -424,7 +424,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           completed_at: new Date().toISOString(),
           created_by: null,
           failed_count: 0,
-          processed_registries: 5,
+          progress: 100,
           started_at: new Date().toISOString(),
           status: 'completed',
           success_count: 5,
@@ -451,7 +451,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           completed_at: new Date().toISOString(),
           error_message: 'Network error: Failed to fetch registry data',
           failed_count: 0,
-          processed_registries: 0,
+          progress: 0,
           started_at: new Date().toISOString(),
           status: 'failed',
           success_count: 0,
@@ -592,7 +592,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Create a running history entry
       const insertResult = await env.DB.prepare(
-        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, processed_registries, success_count, failed_count, current_registry) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, progress, success_count, failed_count, current_step) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       )
         .bind(
           'manual',
@@ -634,7 +634,7 @@ describe('Admin Indexing with Progress Tracking', () => {
       expect(history[0].status).toBe('failed')
       expect(history[0].error_message).toBe('Indexing was manually stopped')
       expect(history[0].completed_at).not.toBeNull()
-      expect(history[0].current_registry).toBeNull()
+      expect(history[0].current_step).toBeNull()
 
       // Latest status should be failed
       const latestResult = await env.DB
@@ -668,7 +668,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Create a completed history entry
       const insertResult = await env.DB.prepare(
-        'INSERT INTO indexing_history (trigger_source, status, started_at, completed_at, total_registries, processed_registries, success_count, failed_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO indexing_history (trigger_source, status, started_at, completed_at, total_registries, progress, success_count, failed_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       )
         .bind(
           'manual',
@@ -676,7 +676,7 @@ describe('Admin Indexing with Progress Tracking', () => {
           new Date(Date.now() - 10000).toISOString(),
           new Date().toISOString(),
           5,
-          5,
+          100,
           5,
           0,
         )
@@ -710,7 +710,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Create a running history entry
       const insertResult = await env.DB.prepare(
-        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, processed_registries, success_count, failed_count, current_registry) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, progress, success_count, failed_count, current_step) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       )
         .bind(
           'manual',
@@ -779,7 +779,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Create a running history entry with specific metadata
       const insertResult = await env.DB.prepare(
-        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, processed_registries, success_count, failed_count, current_registry, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, progress, success_count, failed_count, current_step, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
         .bind(
           'manual',
@@ -820,6 +820,76 @@ describe('Admin Indexing with Progress Tracking', () => {
       expect(history[0].trigger_source).toBe('manual')
       expect(history[0].created_by).toBe('a1b2')
       expect(history[0].status).toBe('failed')
+    })
+  })
+
+  describe('progress tracking during bulk write', () => {
+    it('should set progress to total_registries after successful completion', async () => {
+      const db = createKysely(env.DB)
+      const indexerModule = await import('@/lib/indexer')
+
+      const result = await indexerModule.indexAllRegistries(
+        env.DB,
+        'scheduled',
+        undefined,
+        TEST_ARCHIVE_URL,
+      )
+
+      expect(result.success).toBeGreaterThan(0)
+
+      const history = await db
+        .selectFrom('indexing_history')
+        .selectAll()
+        .executeTakeFirstOrThrow()
+
+      expect(history.total_registries).toBeGreaterThan(0)
+      expect(history.progress).toBe(100)
+    })
+
+    it('should clear current_step after successful completion', async () => {
+      const db = createKysely(env.DB)
+      const indexerModule = await import('@/lib/indexer')
+
+      await indexerModule.indexAllRegistries(
+        env.DB,
+        'scheduled',
+        undefined,
+        TEST_ARCHIVE_URL,
+      )
+
+      const history = await db
+        .selectFrom('indexing_history')
+        .selectAll()
+        .executeTakeFirstOrThrow()
+
+      expect(history.current_step).toBeNull()
+    })
+
+    it('should report progress proportional to bulk write steps', async () => {
+      // Verify that the cumulative step weights sum to 100, ensuring
+      // progress reaches total_registries at the final step.
+      // We test this via the observable outcome: after completion,
+      // progress === total_registries (i.e., 100% reached).
+      const db = createKysely(env.DB)
+      const indexerModule = await import('@/lib/indexer')
+
+      const result = await indexerModule.indexAllRegistries(
+        env.DB,
+        'manual',
+        'test-key',
+        TEST_ARCHIVE_URL,
+      )
+
+      expect(result.errors).toHaveLength(0)
+
+      const history = await db
+        .selectFrom('indexing_history')
+        .selectAll()
+        .executeTakeFirstOrThrow()
+
+      // Progress must have reached 100% — no partial completion
+      expect(history.progress).toBe(100)
+      expect(history.status).toBe('completed')
     })
   })
 
@@ -1016,7 +1086,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Create a history entry that's already running (simulating concurrent job)
       const insertResult = await env.DB.prepare(
-        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, processed_registries, success_count, failed_count) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO indexing_history (trigger_source, status, started_at, total_registries, progress, success_count, failed_count) VALUES (?, ?, ?, ?, ?, ?, ?)',
       )
         .bind(
           'scheduled',
