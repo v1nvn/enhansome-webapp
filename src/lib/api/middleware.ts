@@ -5,7 +5,6 @@
 
 import { createMiddleware } from '@tanstack/react-start'
 import { getRequestHeader } from '@tanstack/react-start/server'
-// eslint-disable-next-line import-x/no-unresolved
 import { env } from 'cloudflare:workers'
 
 /**

@@ -1,6 +1,8 @@
 /**
  * Registry data indexer for Cloudflare D1
  * Fetches JSON files from enhansome-registry repo and indexes them into D1
+ *
+ * Supports both direct execution and Cloudflare Workflows step-by-step execution.
  */
 
 import JSZip from 'jszip'
@@ -16,16 +18,26 @@ const REGISTRY_ARCHIVE_URL =
 // D1 batch API limit
 const D1_MAX_BATCH_STATEMENTS = 100
 
+// Workflow step progress values (direct, not cumulative)
+export const WORKFLOW_STEPS = {
+  'fetch-and-collect': {
+    progress: 10,
+    message: 'fetching and collecting data',
+  },
+  'write-repositories': { progress: 25, message: 'writing repositories' },
+  'write-tags-metadata': { progress: 40, message: 'writing tags and metadata' },
+  'write-associations': { progress: 60, message: 'writing associations' },
+  'write-categories': { progress: 70, message: 'writing categories' },
+  'rebuild-facets': { progress: 85, message: 'rebuilding facets' },
+  'rebuild-fts': { progress: 95, message: 'rebuilding search index' },
+  finalize: { progress: 100, message: 'finalizing' },
+} as const
+
+export type WorkflowStepName = keyof typeof WORKFLOW_STEPS
+
 interface FlattenedItem {
   category: string
   data: RegistryItem
-}
-
-interface SyncLogEntry {
-  errorMessage?: string
-  itemsSynced?: number
-  registryName: string
-  status: 'error' | 'success'
 }
 
 /**
@@ -132,73 +144,6 @@ export function flattenItems(data: RegistryData): {
 }
 
 /**
- * Index all registries with progress tracking and history
- */
-export async function indexAllRegistries(
-  db: D1Database,
-  triggerSource: 'manual' | 'scheduled' = 'scheduled',
-  createdBy?: string,
-  archiveUrl?: string,
-): Promise<{
-  errors: string[]
-  failed: number
-  success: number
-}> {
-  console.log(
-    `Starting D1 indexing process... (source: ${triggerSource}${
-      createdBy ? ` by ${createdBy}` : ''
-    })`,
-  )
-
-  if (await isIndexingRunning(db)) {
-    console.log('Indexing already in progress, skipping...')
-    return { success: 0, failed: 0, errors: ['Indexing already in progress'] }
-  }
-
-  // Seed categories from frozen set before indexing
-  await seedCategories(db)
-
-  const historyId = await createHistoryEntry(db, triggerSource, createdBy)
-  await updateLatestStatus(db, 'running', historyId)
-
-  try {
-    const files = await fetchRegistryFiles(archiveUrl)
-    console.log(`Found ${files.size} registry files to index`)
-
-    await db
-      .prepare('UPDATE indexing_history SET total_registries = ? WHERE id = ?')
-      .bind(files.size, historyId)
-      .run()
-
-    const result = await processRegistries(db, files, historyId)
-
-    await rebuildFacets(db)
-
-    await completeHistoryEntry(
-      db,
-      historyId,
-      'completed',
-      result.success,
-      result.failed,
-      result.errors,
-    )
-    await updateLatestStatus(db, 'completed')
-
-    console.log(
-      `\nIndexing complete: ${result.success} succeeded, ${result.failed} failed`,
-    )
-    return result
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    await completeHistoryEntry(db, historyId, 'failed', 0, 0, [], errorMsg)
-    await updateLatestStatus(db, 'failed')
-
-    console.error('Indexing failed:', error)
-    throw error
-  }
-}
-
-/**
  * Index a single registry into D1 using bulk operations
  */
 export async function indexRegistry(
@@ -241,6 +186,32 @@ export async function rebuildFacets(db: D1Database): Promise<void> {
   )
   await db.batch([deleteStmt, insertStmt])
   console.log('repository_facets rebuilt successfully')
+}
+
+/**
+ * Rebuild the FTS5 search index.
+ * Called after rebuildFacets to populate the full-text search virtual table.
+ */
+export async function rebuildFtsIndex(db: D1Database): Promise<void> {
+  console.log('Rebuilding FTS5 search index...')
+  const deleteStmt = db.prepare('DELETE FROM repositories_fts')
+  const insertStmt = db.prepare(
+    `INSERT INTO repositories_fts(rowid, owner, name, description, language, registry_names, category_names, tag_names)
+     SELECT
+       r.id,
+       r.owner,
+       r.name,
+       r.description,
+       r.language,
+       GROUP_CONCAT(DISTINCT f.registry_name),
+       GROUP_CONCAT(DISTINCT f.category_name),
+       GROUP_CONCAT(DISTINCT f.tag_name)
+     FROM repositories r
+     LEFT JOIN repository_facets f ON r.id = f.repository_id
+     GROUP BY r.id`,
+  )
+  await db.batch([deleteStmt, insertStmt])
+  console.log('FTS5 search index rebuilt successfully')
 }
 
 /**
@@ -333,69 +304,6 @@ function findRepoPrefix(files: Record<string, JSZip.JSZipObject>): string {
 }
 
 /**
- * Flush sync log entries and finalize indexing status
- */
-async function flushSyncLog(
-  db: D1Database,
-  historyId: number,
-  entries: SyncLogEntry[],
-): Promise<void> {
-  if (entries.length === 0) {
-    return
-  }
-
-  const statements: D1PreparedStatement[] = []
-
-  for (const entry of entries) {
-    if (entry.status === 'error') {
-      statements.push(
-        db
-          .prepare(
-            'INSERT INTO sync_log (registry_name, status, error_message) VALUES (?, ?, ?)',
-          )
-          .bind(entry.registryName, 'error', entry.errorMessage),
-      )
-    } else {
-      statements.push(
-        db
-          .prepare(
-            'INSERT INTO sync_log (registry_name, status, items_synced) VALUES (?, ?, ?)',
-          )
-          .bind(entry.registryName, 'success', entry.itemsSynced),
-      )
-    }
-  }
-
-  // Update progress to 100% complete
-  statements.push(
-    db
-      .prepare(
-        'UPDATE indexing_history SET progress = 100, current_step = NULL WHERE id = ?',
-      )
-      .bind(historyId),
-  )
-  statements.push(
-    db
-      .prepare('UPDATE indexing_latest SET updated_at = ? WHERE id = 1')
-      .bind(new Date().toISOString()),
-  )
-
-  await executeBatched(db, statements)
-}
-
-/**
- * Check if indexing is currently running
- */
-async function isIndexingRunning(db: D1Database): Promise<boolean> {
-  const latestResult = await db
-    .prepare(
-      'SELECT status FROM indexing_latest ORDER BY updated_at DESC LIMIT 1',
-    )
-    .first<{ status: string }>()
-  return latestResult?.status === 'running'
-}
-
-/**
  * Validate that JSON data has required RegistryData structure
  */
 function isValidRegistryData(data: unknown): data is RegistryData {
@@ -405,98 +313,6 @@ function isValidRegistryData(data: unknown): data is RegistryData {
     'items' in data &&
     'metadata' in data
   )
-}
-
-/**
- * Process all registries with bulk collection and single write
- */
-async function processRegistries(
-  db: D1Database,
-  files: Map<string, RegistryData>,
-  historyId: number,
-): Promise<{ errors: string[]; failed: number; success: number }> {
-  const errors: string[] = []
-  let failed = 0
-  let success = 0
-
-  // Phase 1: Collect all data in memory (pure CPU — no progress updates needed)
-  const collected = createCollectedData()
-  const syncLogBuffer: SyncLogEntry[] = []
-
-  for (const [registryName, data] of files.entries()) {
-    try {
-      const { itemCount } = collectRegistryData(registryName, data, collected)
-      syncLogBuffer.push({
-        registryName,
-        status: 'success',
-        itemsSynced: itemCount,
-      })
-      success++
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error)
-      errors.push(`${registryName}: ${errorMsg}`)
-      console.error(`Error collecting ${registryName}:`, error)
-      syncLogBuffer.push({
-        registryName,
-        status: 'error',
-        errorMessage: errorMsg,
-      })
-      failed++
-    }
-  }
-
-  console.log(
-    `Collected: ${collected.repos.size} repos, ${collected.tags.size} tags, ` +
-      `${collected.repoTags.length} repo-tag links, ${collected.repoCategories.length} category links`,
-  )
-
-  // Build cumulative weight map for O(1) lookup (order matches execution order)
-  // Each value is the cumulative % progress (0-100) after that step completes.
-  const cumulativeWeights = new Map<BulkWriteStep, number>()
-  let cumulative = 0
-  for (const key of BULK_WRITE_STEP_ORDER) {
-    cumulative += BULK_WRITE_STEPS[key].weight
-    cumulativeWeights.set(key, cumulative)
-  }
-
-  const report: ProgressReporter = async (step: BulkWriteStep) => {
-    const progress = cumulativeWeights.get(step) ?? 0
-    const message = BULK_WRITE_STEPS[step].message
-    console.log(`Progress: ${progress}% - ${message}`)
-    await db
-      .prepare(
-        'UPDATE indexing_history SET progress = ?, current_step = ? WHERE id = ?',
-      )
-      .bind(progress, message, historyId)
-      .run()
-  }
-
-  // Phase 2: Bulk write all collected data
-  let bulkWriteError: Error | undefined
-  try {
-    await bulkWriteCollectedData(db, collected, report)
-  } catch (error) {
-    bulkWriteError = error as Error
-  }
-
-  // Phase 3: Flush sync log even if bulk write failed so collected progress is preserved
-  try {
-    await flushSyncLog(db, historyId, syncLogBuffer)
-  } catch (flushError) {
-    if (!bulkWriteError) {
-      throw flushError
-    }
-    console.error(
-      'Failed to flush sync log after bulk write failure:',
-      flushError,
-    )
-  }
-
-  if (bulkWriteError) {
-    throw bulkWriteError
-  }
-
-  return { success, failed, errors }
 }
 
 /**
@@ -530,38 +346,11 @@ async function updateLatestStatus(
 
 const D1_MAX_BIND_PARAMS = 100
 
-const BULK_WRITE_STEPS = {
-  clearOldData: { weight: 15, message: 'clearing old data' },
-  linkRepositories: { weight: 10, message: 'linking repositories' },
-  resolveRepoIds: { weight: 5, message: 'resolving repository IDs' },
-  resolveTagCategoryIds: { weight: 2, message: 'resolving tag & category IDs' },
-  snapshotExistingData: { weight: 5, message: 'snapshotting existing data' },
-  writeCategoryAssociations: {
-    message: 'writing category associations',
-    weight: 8,
-  },
-  writeMetadata: { weight: 2, message: 'writing metadata' },
-  writeRepositories: { weight: 20, message: 'writing repositories' },
-  writeTagAssociations: { weight: 30, message: 'writing tag associations' },
-  writeTags: { weight: 3, message: 'writing tags' },
-} as const
+// ============================================================
+// In-memory data collection types (exported for workflow)
+// ============================================================
 
-// Execution order for cumulative weight calculation
-const BULK_WRITE_STEP_ORDER = [
-  'snapshotExistingData',
-  'clearOldData',
-  'writeRepositories',
-  'resolveRepoIds',
-  'writeTags',
-  'resolveTagCategoryIds',
-  'writeMetadata',
-  'linkRepositories',
-  'writeTagAssociations',
-  'writeCategoryAssociations',
-] as const
-
-type BulkWriteStep = keyof typeof BULK_WRITE_STEPS
-interface CollectedData {
+export interface CollectedData {
   metadata: CollectedMetadata[]
   registryRepos: CollectedRegistryRepo[]
   repoCategories: CollectedRepoCategory[]
@@ -570,7 +359,7 @@ interface CollectedData {
   tags: Map<string, { name: string; slug: string }>
 }
 
-interface CollectedMetadata {
+export interface CollectedMetadata {
   description: string
   lastUpdated: string
   registryName: string
@@ -580,37 +369,50 @@ interface CollectedMetadata {
   totalStars: number
 }
 
-interface CollectedRegistryRepo {
+export interface CollectedRegistryRepo {
   registryName: string
   repoKey: string
   title: string
 }
 
-// ============================================================
-// In-memory data collection types
-// ============================================================
-
-interface CollectedRepo {
+export interface CollectedRepo {
   archived: number
   description: null | string
   language: null | string
-  lastCommit: string
+  lastCommit: null | string
   name: string
   owner: string
   stars: number
 }
 
-interface CollectedRepoCategory {
+export interface CollectedRepoCategory {
   categorySlug: string
   registryName: string
   repoKey: string
 }
 
-interface CollectedRepoTag {
+export interface CollectedRepoTag {
   categorySlug: null | string
   registryName: string
   repoKey: string
   tagSlug: string
+}
+
+// JSON-serializable version for workflow state (Maps converted to arrays)
+export interface SerializableCollectedData {
+  metadata: CollectedMetadata[]
+  registryRepos: CollectedRegistryRepo[]
+  repoCategories: CollectedRepoCategory[]
+  repos: [string, CollectedRepo][]
+  repoTags: CollectedRepoTag[]
+  tags: [string, { name: string; slug: string }][]
+}
+
+export interface WorkflowContext {
+  archiveUrl?: string
+  createdBy?: string
+  historyId: number
+  triggerSource: 'manual' | 'scheduled'
 }
 
 interface ExistingRegistrySnapshot {
@@ -621,7 +423,442 @@ interface ExistingRegistrySnapshot {
   repoTagRows: unknown[][]
 }
 
-type ProgressReporter = (step: BulkWriteStep) => Promise<void>
+type ProgressReporter = (step: string) => Promise<void>
+
+/**
+ * Check if indexing is currently running
+ */
+export async function checkIsIndexingRunning(db: D1Database): Promise<boolean> {
+  const latestResult = await db
+    .prepare(
+      'SELECT status FROM indexing_latest ORDER BY updated_at DESC LIMIT 1',
+    )
+    .first<{ status: string }>()
+  return latestResult?.status === 'running'
+}
+
+export function collectedDataFromSerializable(
+  data: SerializableCollectedData,
+): CollectedData {
+  return {
+    metadata: data.metadata,
+    registryRepos: data.registryRepos,
+    repoCategories: data.repoCategories,
+    repos: new Map(data.repos),
+    repoTags: data.repoTags,
+    tags: new Map(data.tags),
+  }
+}
+
+export function collectedDataToSerializable(
+  data: CollectedData,
+): SerializableCollectedData {
+  return {
+    metadata: data.metadata,
+    registryRepos: data.registryRepos,
+    repoCategories: data.repoCategories,
+    repos: Array.from(data.repos.entries()),
+    repoTags: data.repoTags,
+    tags: Array.from(data.tags.entries()),
+  }
+}
+
+/**
+ * Create indexing history entry for workflow
+ */
+export async function createWorkflowHistoryEntry(
+  db: D1Database,
+  triggerSource: 'manual' | 'scheduled',
+  createdBy?: string,
+): Promise<number> {
+  return createHistoryEntry(db, triggerSource, createdBy)
+}
+
+/**
+ * Step 1: Fetch and collect all registry data
+ * Returns serializable collected data for workflow state
+ */
+export async function fetchAndCollectStep(
+  db: D1Database,
+  context: WorkflowContext,
+): Promise<{
+  collected: SerializableCollectedData
+  errors: string[]
+  failed: number
+  success: number
+  totalRegistries: number
+}> {
+  await updateWorkflowProgress(db, context.historyId, 'fetch-and-collect')
+
+  // Seed categories from frozen set before indexing
+  await seedCategories(db)
+
+  const files = await fetchRegistryFiles(context.archiveUrl)
+  const totalRegistries = files.size
+
+  await db
+    .prepare('UPDATE indexing_history SET total_registries = ? WHERE id = ?')
+    .bind(totalRegistries, context.historyId)
+    .run()
+
+  const collected = createCollectedData()
+  const errors: string[] = []
+  let failed = 0
+  let success = 0
+
+  for (const [registryName, data] of files.entries()) {
+    try {
+      collectRegistryData(registryName, data, collected)
+      success++
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      errors.push(`${registryName}: ${errorMsg}`)
+      console.error(`Error collecting ${registryName}:`, error)
+      failed++
+    }
+  }
+
+  console.log(
+    `Collected: ${collected.repos.size} repos, ${collected.tags.size} tags, ` +
+      `${collected.repoTags.length} repo-tag links, ${collected.repoCategories.length} category links`,
+  )
+
+  return {
+    collected: collectedDataToSerializable(collected),
+    errors,
+    failed,
+    success,
+    totalRegistries,
+  }
+}
+
+/**
+ * Step 8: Finalize indexing
+ */
+export async function finalizeStep(
+  db: D1Database,
+  historyId: number,
+  result: { errors: string[]; failed: number; success: number },
+): Promise<void> {
+  await updateWorkflowProgress(db, historyId, 'finalize')
+
+  await completeHistoryEntry(
+    db,
+    historyId,
+    'completed',
+    result.success,
+    result.failed,
+    result.errors,
+  )
+  await updateLatestStatus(db, 'completed')
+
+  console.log(
+    `\nIndexing complete: ${result.success} succeeded, ${result.failed} failed`,
+  )
+}
+
+/**
+ * Mark indexing as failed
+ */
+export async function markIndexingFailed(
+  db: D1Database,
+  historyId: number,
+  errorMessage: string,
+): Promise<void> {
+  await completeHistoryEntry(db, historyId, 'failed', 0, 0, [], errorMessage)
+  await updateLatestStatus(db, 'failed')
+}
+
+/**
+ * Step 6: Rebuild facets
+ */
+export async function rebuildFacetsStep(
+  db: D1Database,
+  historyId: number,
+): Promise<void> {
+  await updateWorkflowProgress(db, historyId, 'rebuild-facets')
+  await rebuildFacets(db)
+}
+
+/**
+ * Step 7: Rebuild FTS index
+ */
+export async function rebuildFtsStep(
+  db: D1Database,
+  historyId: number,
+): Promise<void> {
+  await updateWorkflowProgress(db, historyId, 'rebuild-fts')
+  await rebuildFtsIndex(db)
+}
+
+/**
+ * Set indexing as running
+ */
+export async function setIndexingRunning(
+  db: D1Database,
+  historyId: number,
+): Promise<void> {
+  await updateLatestStatus(db, 'running', historyId)
+}
+
+/**
+ * Update progress for a workflow step
+ */
+export async function updateWorkflowProgress(
+  db: D1Database,
+  historyId: number,
+  stepName: WorkflowStepName,
+): Promise<void> {
+  const { progress, message } = WORKFLOW_STEPS[stepName]
+  console.log(`Progress: ${progress}% - ${message}`)
+  await db
+    .prepare(
+      'UPDATE indexing_history SET progress = ?, current_step = ? WHERE id = ?',
+    )
+    .bind(progress, message, historyId)
+    .run()
+}
+
+/**
+ * Step 4: Write associations (registry_repositories and repo_tags)
+ */
+export async function writeAssociationsStep(
+  db: D1Database,
+  historyId: number,
+  collectedData: SerializableCollectedData,
+): Promise<void> {
+  await updateWorkflowProgress(db, historyId, 'write-associations')
+
+  const collected = collectedDataFromSerializable(collectedData)
+
+  // Resolve IDs
+  const repoIdMap = await fetchRepoIds(db, Array.from(collected.repos.keys()))
+  const tagIdMap = await fetchSlugIds(db, 'tags', [...collected.tags.keys()])
+
+  // Build category slug set
+  const neededCategorySlugs = new Set<string>()
+  for (const rc of collected.repoCategories) {
+    neededCategorySlugs.add(rc.categorySlug)
+  }
+  for (const rt of collected.repoTags) {
+    if (rt.categorySlug) neededCategorySlugs.add(rt.categorySlug)
+  }
+  const categoryIdMap = await fetchSlugIds(db, 'categories', [
+    ...neededCategorySlugs,
+  ])
+
+  // Bulk insert registry_repositories
+  const regRepoRows = collected.registryRepos
+    .map(rr => {
+      const repoId = repoIdMap.get(rr.repoKey)
+      if (repoId === undefined) return null
+      return [rr.registryName, repoId, rr.title] as (number | string)[]
+    })
+    .filter((r): r is (number | string)[] => r !== null)
+
+  if (regRepoRows.length > 0) {
+    const rrInserts = buildMultiRowInserts(
+      'INSERT INTO registry_repositories (registry_name, repository_id, title) VALUES',
+      3,
+      regRepoRows,
+    )
+    await executeBatched(
+      db,
+      rrInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+    )
+  }
+
+  // Bulk insert repo_tags
+  const repoTagRows = collected.repoTags
+    .map(rt => {
+      const repoId = repoIdMap.get(rt.repoKey)
+      const tagId = tagIdMap.get(rt.tagSlug)
+      if (repoId === undefined || tagId === undefined) return null
+
+      if (rt.categorySlug) {
+        const categoryId = categoryIdMap.get(rt.categorySlug)
+        if (!categoryId) return null
+        return [repoId, rt.registryName, tagId, categoryId] as (
+          | null
+          | number
+          | string
+        )[]
+      }
+      return [repoId, rt.registryName, tagId, null] as (
+        | null
+        | number
+        | string
+      )[]
+    })
+    .filter((r): r is (null | number | string)[] => r !== null)
+
+  if (repoTagRows.length > 0) {
+    const rtInserts = buildMultiRowInserts(
+      'INSERT INTO repo_tags (repository_id, registry_name, tag_id, category_id) VALUES',
+      4,
+      repoTagRows,
+    )
+    await executeBatched(
+      db,
+      rtInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+    )
+  }
+}
+
+// ============================================================
+// Workflow Step Functions
+// ============================================================
+
+/**
+ * Step 5: Write category associations
+ */
+export async function writeCategoriesStep(
+  db: D1Database,
+  historyId: number,
+  collectedData: SerializableCollectedData,
+): Promise<void> {
+  await updateWorkflowProgress(db, historyId, 'write-categories')
+
+  const collected = collectedDataFromSerializable(collectedData)
+
+  // Resolve IDs
+  const repoIdMap = await fetchRepoIds(db, Array.from(collected.repos.keys()))
+  const neededCategorySlugs = new Set(
+    collected.repoCategories.map(rc => rc.categorySlug),
+  )
+  const categoryIdMap = await fetchSlugIds(db, 'categories', [
+    ...neededCategorySlugs,
+  ])
+
+  // Bulk insert registry_repository_categories
+  const repoCatRows = collected.repoCategories
+    .map(rc => {
+      const repoId = repoIdMap.get(rc.repoKey)
+      const categoryId = categoryIdMap.get(rc.categorySlug)
+      if (repoId === undefined || !categoryId) return null
+      return [rc.registryName, repoId, categoryId] as (number | string)[]
+    })
+    .filter((r): r is (number | string)[] => r !== null)
+
+  if (repoCatRows.length > 0) {
+    const rcInserts = buildMultiRowInserts(
+      'INSERT INTO registry_repository_categories (registry_name, repository_id, category_id) VALUES',
+      3,
+      repoCatRows,
+    )
+    await executeBatched(
+      db,
+      rcInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+    )
+  }
+}
+
+/**
+ * Step 2: Write repositories to D1
+ */
+export async function writeRepositoriesStep(
+  db: D1Database,
+  historyId: number,
+  collectedData: SerializableCollectedData,
+): Promise<void> {
+  await updateWorkflowProgress(db, historyId, 'write-repositories')
+
+  const collected = collectedDataFromSerializable(collectedData)
+  const registryNames = [
+    ...new Set(collected.metadata.map(m => m.registryName)),
+  ]
+
+  // Delete old data for all registries
+  const deleteStatements: D1PreparedStatement[] = []
+  for (const name of registryNames) {
+    deleteStatements.push(
+      db.prepare('DELETE FROM repo_tags WHERE registry_name = ?').bind(name),
+      db
+        .prepare(
+          'DELETE FROM registry_repository_categories WHERE registry_name = ?',
+        )
+        .bind(name),
+      db
+        .prepare('DELETE FROM registry_repositories WHERE registry_name = ?')
+        .bind(name),
+      db
+        .prepare('DELETE FROM registry_metadata WHERE registry_name = ?')
+        .bind(name),
+    )
+  }
+  await executeBatched(db, deleteStatements)
+
+  // Bulk upsert repositories
+  const repoRows = Array.from(collected.repos.values()).map(r => [
+    r.owner,
+    r.name,
+    r.description,
+    r.stars,
+    r.language,
+    r.lastCommit,
+    r.archived,
+  ])
+  if (repoRows.length > 0) {
+    const repoInserts = buildMultiRowInserts(
+      'INSERT OR IGNORE INTO repositories (owner, name, description, stars, language, last_commit, archived) VALUES',
+      7,
+      repoRows,
+    )
+    await executeBatched(
+      db,
+      repoInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+    )
+  }
+}
+
+/**
+ * Step 3: Write tags and metadata
+ */
+export async function writeTagsAndMetadataStep(
+  db: D1Database,
+  historyId: number,
+  collectedData: SerializableCollectedData,
+): Promise<void> {
+  await updateWorkflowProgress(db, historyId, 'write-tags-metadata')
+
+  const collected = collectedDataFromSerializable(collectedData)
+
+  // Bulk upsert tags
+  const tagRows = Array.from(collected.tags.values()).map(t => [t.slug, t.name])
+  if (tagRows.length > 0) {
+    const tagInserts = buildMultiRowInserts(
+      'INSERT OR IGNORE INTO tags (slug, name) VALUES',
+      2,
+      tagRows,
+    )
+    await executeBatched(
+      db,
+      tagInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+    )
+  }
+
+  // Bulk insert registry_metadata
+  const metadataRows = collected.metadata.map(m => [
+    m.registryName,
+    m.title,
+    m.description,
+    m.lastUpdated,
+    m.sourceRepository,
+    m.totalItems,
+    m.totalStars,
+  ])
+  if (metadataRows.length > 0) {
+    const metaInserts = buildMultiRowInserts(
+      'INSERT INTO registry_metadata (registry_name, title, description, last_updated, source_repository, total_items, total_stars) VALUES',
+      7,
+      metadataRows,
+    )
+    await executeBatched(
+      db,
+      metaInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
+    )
+  }
+}
 
 /**
  * Build multi-row INSERT statements respecting D1 bind parameter limits.
@@ -662,7 +899,7 @@ async function bulkWriteCollectedData(
     ...new Set(collected.metadata.map(m => m.registryName)),
   ]
   const snapshot = await snapshotExistingRegistryData(db, registryNames)
-  await report('snapshotExistingData')
+  await report('snapshotting existing data')
 
   try {
     // 1. Delete old data for all registries being indexed
@@ -684,7 +921,7 @@ async function bulkWriteCollectedData(
       )
     }
     await executeBatched(db, deleteStatements)
-    await report('clearOldData')
+    await report('clearing old data')
 
     // 2. Bulk upsert repositories
     const repoRows = Array.from(collected.repos.values()).map(r => [
@@ -707,11 +944,11 @@ async function bulkWriteCollectedData(
         repoInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
       )
     }
-    await report('writeRepositories')
+    await report('writing repositories')
 
     // 3. Resolve IDs for only the rows we need
     const repoIdMap = await fetchRepoIds(db, Array.from(collected.repos.keys()))
-    await report('resolveRepoIds')
+    await report('resolving repository IDs')
 
     // 4. Bulk upsert tags
     const tagRows = Array.from(collected.tags.values()).map(t => [
@@ -729,7 +966,7 @@ async function bulkWriteCollectedData(
         tagInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
       )
     }
-    await report('writeTags')
+    await report('writing tags')
 
     // 5. Resolve IDs for only the slugs we need
     const tagIdMap = await fetchSlugIds(db, 'tags', [...collected.tags.keys()])
@@ -745,7 +982,7 @@ async function bulkWriteCollectedData(
     const categoryIdMap = await fetchSlugIds(db, 'categories', [
       ...neededCategorySlugs,
     ])
-    await report('resolveTagCategoryIds')
+    await report('resolving tag & category IDs')
 
     // 6. Bulk insert registry_metadata
     const metadataRows = collected.metadata.map(m => [
@@ -768,7 +1005,7 @@ async function bulkWriteCollectedData(
         metaInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
       )
     }
-    await report('writeMetadata')
+    await report('writing metadata')
 
     // 7. Bulk insert registry_repositories with resolved IDs
     const regRepoRows = collected.registryRepos
@@ -798,7 +1035,7 @@ async function bulkWriteCollectedData(
         rrInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
       )
     }
-    await report('linkRepositories')
+    await report('linking repositories')
 
     // 8. Bulk insert repo_tags with resolved IDs
     const repoTagRows = collected.repoTags
@@ -848,7 +1085,7 @@ async function bulkWriteCollectedData(
         rtInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
       )
     }
-    await report('writeTagAssociations')
+    await report('writing tag associations')
 
     // 9. Bulk insert registry_repository_categories with resolved IDs
     const repoCatRows = collected.repoCategories
@@ -881,7 +1118,7 @@ async function bulkWriteCollectedData(
         rcInserts.map(({ sql, binds }) => db.prepare(sql).bind(...binds)),
       )
     }
-    await report('writeCategoryAssociations')
+    await report('writing category associations')
   } catch (error) {
     await restoreExistingRegistryData(db, snapshot)
     throw error

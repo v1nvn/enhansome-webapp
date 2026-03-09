@@ -66,18 +66,72 @@ export function d1InitPlugin() {
         if (isEmpty) {
           console.log('  📭 Database is empty, seeding data...')
 
-          // Import indexer dynamically to avoid circular dependencies
-          const { indexAllRegistries } = await import('../src/lib/indexer')
+          // Import workflow step functions dynamically
+          const {
+            checkIsIndexingRunning,
+            createWorkflowHistoryEntry,
+            fetchAndCollectStep,
+            finalizeStep,
+            rebuildFacetsStep,
+            rebuildFtsStep,
+            setIndexingRunning,
+            writeAssociationsStep,
+            writeCategoriesStep,
+            writeRepositoriesStep,
+            writeTagsAndMetadataStep,
+          } = await import('../src/lib/indexer')
 
-          const indexResult = await indexAllRegistries(db)
+          // Check if already running
+          if (await checkIsIndexingRunning(db)) {
+            console.log('  ⚠️  Indexing already in progress, skipping...')
+          } else {
+            // Create history entry
+            const historyId = await createWorkflowHistoryEntry(
+              db,
+              'manual',
+              'vite-plugin',
+            )
+            await setIndexingRunning(db, historyId)
 
-          console.log(
-            `  ✓ Indexed ${indexResult.success} registries (${indexResult.failed} failed)`,
-          )
+            try {
+              // Step 1: Fetch and collect
+              const fetchResult = await fetchAndCollectStep(db, {
+                historyId,
+                triggerSource: 'manual',
+                createdBy: 'vite-plugin',
+              })
 
-          if (indexResult.errors.length > 0) {
-            console.error('  ⚠️  Indexing errors:')
-            indexResult.errors.forEach(error => console.error(`    - ${error}`))
+              // Step 2-5: Write data
+              await writeRepositoriesStep(db, historyId, fetchResult.collected)
+              await writeTagsAndMetadataStep(db, historyId, fetchResult.collected)
+              await writeAssociationsStep(db, historyId, fetchResult.collected)
+              await writeCategoriesStep(db, historyId, fetchResult.collected)
+
+              // Step 6-7: Rebuild indexes
+              await rebuildFacetsStep(db, historyId)
+              await rebuildFtsStep(db, historyId)
+
+              // Step 8: Finalize
+              await finalizeStep(db, historyId, {
+                errors: fetchResult.errors,
+                failed: fetchResult.failed,
+                success: fetchResult.success,
+              })
+
+              console.log(
+                `  ✓ Indexed ${fetchResult.success} registries (${fetchResult.failed} failed)`,
+              )
+
+              if (fetchResult.errors.length > 0) {
+                console.error('  ⚠️  Indexing errors:')
+                fetchResult.errors.forEach(error =>
+                  console.error(`    - ${error}`),
+                )
+              }
+            } catch (error) {
+              console.error('  ❌ Indexing failed:', error)
+              throw error
+            }
           }
         } else {
           console.log(`  ✓ Database already has data (${result.count} registries)`)

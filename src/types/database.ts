@@ -28,6 +28,7 @@ export interface Database {
   registry_repository_categories: RegistryRepositoryCategoriesTable
   repo_tags: RepoTagsTable
   repositories: RepositoriesTable
+  repositories_fts: RepositoriesFtsTable
   repository_facets: RepositoryFacetsTable
   sync_log: SyncLogTable
   tags: TagsTable
@@ -107,6 +108,23 @@ export interface RegistryRepositoryCategoriesTable {
   category_id: number
   registry_name: string
   repository_id: number
+}
+
+/**
+ * FTS5 virtual table for full-text search
+ * Note: FTS5 tables don't have rowid in the traditional sense - they use docid
+ */
+export interface RepositoriesFtsTable {
+  archived: number
+  category_names: string
+  description: string
+  language: string
+  last_commit: string
+  name: string
+  owner: string
+  registry_names: string
+  stars: number
+  tag_names: string
 }
 
 /**

@@ -72,6 +72,7 @@ export default defineConfig([
       'import-x/order': 'off',
       'import-x/no-dynamic-require': 'warn',
       'import-x/no-nodejs-modules': 'warn',
+      'import-x/no-unresolved': ['error', { ignore: ['^cloudflare:.*'] }],
       'perfectionist/sort-imports': [
         'error',
         {

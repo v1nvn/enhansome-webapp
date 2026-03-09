@@ -13,6 +13,78 @@ import {
 } from '@/lib/api/handlers/admin-handlers'
 import { TEST_ARCHIVE_URL } from './test_utils'
 
+/**
+ * Helper function to run full indexing using workflow steps
+ * This replaces the old indexAllRegistries function for testing
+ */
+async function runIndexing(
+  db: D1Database,
+  triggerSource: 'manual' | 'scheduled' = 'scheduled',
+  createdBy?: string,
+  archiveUrl?: string,
+): Promise<{ errors: string[]; failed: number; success: number }> {
+  const {
+    checkIsIndexingRunning,
+    createWorkflowHistoryEntry,
+    fetchAndCollectStep,
+    finalizeStep,
+    markIndexingFailed,
+    rebuildFacetsStep,
+    rebuildFtsStep,
+    setIndexingRunning,
+    writeAssociationsStep,
+    writeCategoriesStep,
+    writeRepositoriesStep,
+    writeTagsAndMetadataStep,
+  } = await import('@/lib/indexer')
+
+  // Check if already running
+  if (await checkIsIndexingRunning(db)) {
+    return { success: 0, failed: 0, errors: ['Indexing already in progress'] }
+  }
+
+  // Create history entry
+  const historyId = await createWorkflowHistoryEntry(db, triggerSource, createdBy)
+  await setIndexingRunning(db, historyId)
+
+  try {
+    // Step 1: Fetch and collect
+    const fetchResult = await fetchAndCollectStep(db, {
+      historyId,
+      triggerSource,
+      archiveUrl,
+      createdBy,
+    })
+
+    // Steps 2-5: Write data
+    await writeRepositoriesStep(db, historyId, fetchResult.collected)
+    await writeTagsAndMetadataStep(db, historyId, fetchResult.collected)
+    await writeAssociationsStep(db, historyId, fetchResult.collected)
+    await writeCategoriesStep(db, historyId, fetchResult.collected)
+
+    // Steps 6-7: Rebuild indexes
+    await rebuildFacetsStep(db, historyId)
+    await rebuildFtsStep(db, historyId)
+
+    // Step 8: Finalize
+    await finalizeStep(db, historyId, {
+      errors: fetchResult.errors,
+      failed: fetchResult.failed,
+      success: fetchResult.success,
+    })
+
+    return {
+      errors: fetchResult.errors,
+      failed: fetchResult.failed,
+      success: fetchResult.success,
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    await markIndexingFailed(db, historyId, errorMsg)
+    throw error
+  }
+}
+
 describe('Admin Indexing with Progress Tracking', () => {
   beforeAll(async () => {
     // Apply migrations
@@ -83,7 +155,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       expect(beforeHistory).toHaveLength(0)
 
-      // Note: We can't easily test the full indexAllRegistries flow in tests
+      // Note: We can't easily test the full indexing flow in tests
       // as it requires fetching from external GitHub URLs
       // Instead, we verify the table structure and that entries can be created
       await db
@@ -474,9 +546,6 @@ describe('Admin Indexing with Progress Tracking', () => {
     it('should skip indexing if already running', async () => {
       const db = createKysely(env.DB)
 
-      // Import the indexer module
-      const indexerModule = await import('@/lib/indexer')
-
       // Set status to 'running'
       await db
         .updateTable('indexing_latest')
@@ -489,7 +558,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Try to start indexing - this will attempt real network calls
       // but should return early before making them
-      const result = await indexerModule.indexAllRegistries(
+      const result = await runIndexing(
         env.DB,
         'manual',
         'test-key',
@@ -512,9 +581,6 @@ describe('Admin Indexing with Progress Tracking', () => {
     it('should create history entry when starting indexing', async () => {
       const db = createKysely(env.DB)
 
-      // Import the indexer module
-      const indexerModule = await import('@/lib/indexer')
-
       // Ensure status is 'idle'
       await db
         .updateTable('indexing_latest')
@@ -527,7 +593,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Start indexing (this will make real network calls)
       // We just want to verify it creates a history entry
-      const result = await indexerModule.indexAllRegistries(
+      const result = await runIndexing(
         env.DB,
         'scheduled',
         undefined,
@@ -550,9 +616,6 @@ describe('Admin Indexing with Progress Tracking', () => {
     it('should update status to running when indexing starts', async () => {
       const db = createKysely(env.DB)
 
-      // Import the indexer module
-      const indexerModule = await import('@/lib/indexer')
-
       // Ensure status is 'idle'
       await db
         .updateTable('indexing_latest')
@@ -564,7 +627,7 @@ describe('Admin Indexing with Progress Tracking', () => {
         .execute()
 
       // Start indexing - we'll check the status during indexing
-      const indexingPromise = indexerModule.indexAllRegistries(
+      const indexingPromise = runIndexing(
         env.DB,
         'manual',
         'test-key',
@@ -703,7 +766,6 @@ describe('Admin Indexing with Progress Tracking', () => {
 
     it('should allow new indexing after stopping', async () => {
       const db = createKysely(env.DB)
-      const indexerModule = await import('@/lib/indexer')
 
       // Clear any existing history
       await db.deleteFrom('indexing_history').execute()
@@ -747,7 +809,7 @@ describe('Admin Indexing with Progress Tracking', () => {
 
       // Now try to start a new indexing job
       // This should succeed because the previous job was stopped
-      const result = await indexerModule.indexAllRegistries(
+      const result = await runIndexing(
         env.DB,
         'scheduled',
         undefined,
@@ -826,9 +888,8 @@ describe('Admin Indexing with Progress Tracking', () => {
   describe('progress tracking during bulk write', () => {
     it('should set progress to total_registries after successful completion', async () => {
       const db = createKysely(env.DB)
-      const indexerModule = await import('@/lib/indexer')
 
-      const result = await indexerModule.indexAllRegistries(
+      const result = await runIndexing(
         env.DB,
         'scheduled',
         undefined,
@@ -848,9 +909,8 @@ describe('Admin Indexing with Progress Tracking', () => {
 
     it('should clear current_step after successful completion', async () => {
       const db = createKysely(env.DB)
-      const indexerModule = await import('@/lib/indexer')
 
-      await indexerModule.indexAllRegistries(
+      await runIndexing(
         env.DB,
         'scheduled',
         undefined,
@@ -871,9 +931,8 @@ describe('Admin Indexing with Progress Tracking', () => {
       // We test this via the observable outcome: after completion,
       // progress === total_registries (i.e., 100% reached).
       const db = createKysely(env.DB)
-      const indexerModule = await import('@/lib/indexer')
 
-      const result = await indexerModule.indexAllRegistries(
+      const result = await runIndexing(
         env.DB,
         'manual',
         'test-key',
@@ -893,30 +952,14 @@ describe('Admin Indexing with Progress Tracking', () => {
     })
   })
 
-  describe('Queue-based indexing', () => {
-    it('should process queue message for manual indexing', async () => {
+  describe('Workflow-based indexing', () => {
+    it('should process indexing for manual trigger', async () => {
       const db = createKysely(env.DB)
-      const indexerModule = await import('@/lib/indexer')
-      const { TEST_ARCHIVE_URL } = await import('./test_utils')
 
-      // Create a mock queue message
-      const message = {
-        id: 'test-msg-1',
-        timestamp: new Date(),
-        body: {
-          jobId: crypto.randomUUID(),
-          triggerSource: 'manual' as const,
-          createdBy: 'test-key',
-          timestamp: new Date().toISOString(),
-        },
-        attempts: 1,
-      }
-
-      // Simulate queue consumer processing
-      const result = await indexerModule.indexAllRegistries(
+      const result = await runIndexing(
         env.DB,
-        message.body.triggerSource,
-        message.body.createdBy,
+        'manual',
+        'test-key',
         TEST_ARCHIVE_URL,
       )
 
@@ -936,28 +979,13 @@ describe('Admin Indexing with Progress Tracking', () => {
       expect(['completed', 'failed']).toContain(history[0].status)
     })
 
-    it('should process queue message for scheduled indexing', async () => {
+    it('should process indexing for scheduled trigger', async () => {
       const db = createKysely(env.DB)
-      const indexerModule = await import('@/lib/indexer')
-      const { TEST_ARCHIVE_URL } = await import('./test_utils')
 
-      // Create a mock queue message for scheduled trigger
-      const message = {
-        id: 'test-msg-2',
-        timestamp: new Date(),
-        body: {
-          jobId: crypto.randomUUID(),
-          triggerSource: 'scheduled' as const,
-          timestamp: new Date().toISOString(),
-        },
-        attempts: 1,
-      }
-
-      // Simulate queue consumer processing
-      const result = await indexerModule.indexAllRegistries(
+      const result = await runIndexing(
         env.DB,
-        message.body.triggerSource,
-        undefined, // createdBy is undefined for scheduled
+        'scheduled',
+        undefined,
         TEST_ARCHIVE_URL,
       )
 
@@ -976,32 +1004,19 @@ describe('Admin Indexing with Progress Tracking', () => {
       expect(history[0].created_by).toBeNull()
     })
 
-    it('should handle queue message with archiveUrl override', async () => {
+    it('should handle indexing with archiveUrl override', async () => {
       const db = createKysely(env.DB)
-      const indexerModule = await import('@/lib/indexer')
 
-      // Create a mock queue message with custom archive URL
+      // Create a custom archive URL that will fail (404)
       const customUrl = 'https://example.com/custom-archive.zip'
-      const message = {
-        id: 'test-msg-3',
-        timestamp: new Date(),
-        body: {
-          jobId: crypto.randomUUID(),
-          triggerSource: 'manual' as const,
-          createdBy: 'test-admin',
-          archiveUrl: customUrl,
-          timestamp: new Date().toISOString(),
-        },
-        attempts: 1,
-      }
 
-      // The custom URL will fail (404), but we can verify the message structure is processed
+      // The custom URL will fail (404), but we can verify the structure is processed
       try {
-        await indexerModule.indexAllRegistries(
+        await runIndexing(
           env.DB,
-          message.body.triggerSource,
-          message.body.createdBy,
-          message.body.archiveUrl,
+          'manual',
+          'test-admin',
+          customUrl,
         )
       } catch (error) {
         // Expected to fail due to invalid URL
@@ -1020,47 +1035,29 @@ describe('Admin Indexing with Progress Tracking', () => {
       expect(history[0].status).toBe('failed')
     })
 
-    it('should process multiple queue messages sequentially', async () => {
+    it('should process multiple indexing runs sequentially', async () => {
       const db = createKysely(env.DB)
-      const indexerModule = await import('@/lib/indexer')
-      const { TEST_ARCHIVE_URL } = await import('./test_utils')
 
-      // Create multiple mock queue messages
-      const messages = [
-        {
-          id: 'test-msg-4',
-          timestamp: new Date(),
-          body: {
-            jobId: crypto.randomUUID(),
-            triggerSource: 'manual' as const,
-            createdBy: 'user-1',
-            timestamp: new Date().toISOString(),
-          },
-          attempts: 1,
-        },
-        {
-          id: 'test-msg-5',
-          timestamp: new Date(),
-          body: {
-            jobId: crypto.randomUUID(),
-            triggerSource: 'scheduled' as const,
-            timestamp: new Date().toISOString(),
-          },
-          attempts: 1,
-        },
-      ]
-
-      // Process messages sequentially (like queue consumer does)
+      // Process multiple runs sequentially
       const results = []
-      for (const message of messages) {
-        const result = await indexerModule.indexAllRegistries(
-          env.DB,
-          message.body.triggerSource,
-          message.body.createdBy,
-          TEST_ARCHIVE_URL,
-        )
-        results.push(result)
-      }
+
+      // First run
+      const result1 = await runIndexing(
+        env.DB,
+        'manual',
+        'user-1',
+        TEST_ARCHIVE_URL,
+      )
+      results.push(result1)
+
+      // Second run
+      const result2 = await runIndexing(
+        env.DB,
+        'scheduled',
+        undefined,
+        TEST_ARCHIVE_URL,
+      )
+      results.push(result2)
 
       // Verify both completed successfully
       expect(results).toHaveLength(2)
@@ -1081,7 +1078,7 @@ describe('Admin Indexing with Progress Tracking', () => {
       expect(history[1].created_by).toBeNull()
     })
 
-    it('should handle queue message failure with retry', async () => {
+    it('should handle concurrent job prevention', async () => {
       const db = createKysely(env.DB)
 
       // Create a history entry that's already running (simulating concurrent job)
@@ -1111,32 +1108,17 @@ describe('Admin Indexing with Progress Tracking', () => {
         })
         .execute()
 
-      // Try to process a new queue message while one is running
-      const indexerModule = await import('@/lib/indexer')
-      const { TEST_ARCHIVE_URL } = await import('./test_utils')
-
-      const message = {
-        id: 'test-msg-6',
-        timestamp: new Date(),
-        body: {
-          jobId: crypto.randomUUID(),
-          triggerSource: 'manual' as const,
-          createdBy: 'test-key',
-          timestamp: new Date().toISOString(),
-        },
-        attempts: 1,
-      }
-
-      // This should be rejected due to concurrent job
-      const result = await indexerModule.indexAllRegistries(
+      // Try to start a new indexing job while one is running
+      const result = await runIndexing(
         env.DB,
-        message.body.triggerSource,
-        message.body.createdBy,
+        'manual',
+        'test-key',
         TEST_ARCHIVE_URL,
       )
 
       // Should not have started indexing
       expect(result).toBeDefined()
+      expect(result.errors).toContain('Indexing already in progress')
 
       // Verify only the original job exists in history
       const history = await db
@@ -1147,55 +1129,6 @@ describe('Admin Indexing with Progress Tracking', () => {
       expect(history).toHaveLength(1)
       expect(history[0].id).toBe(historyId)
       expect(history[0].status).toBe('running')
-    })
-  })
-
-  describe('Queue message creation', () => {
-    it('should create valid queue message for manual trigger', () => {
-      const apiKey = 'test-admin-key-1234'
-      const createdBy = apiKey.slice(-4) // Last 4 chars
-
-      const message = {
-        jobId: crypto.randomUUID(),
-        triggerSource: 'manual' as const,
-        createdBy,
-        timestamp: new Date().toISOString(),
-      }
-
-      expect(message.jobId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-      )
-      expect(message.triggerSource).toBe('manual')
-      expect(message.createdBy).toBe('1234')
-      expect(message.timestamp).toBeDefined()
-    })
-
-    it('should create valid queue message for scheduled trigger', () => {
-      const message = {
-        jobId: crypto.randomUUID(),
-        triggerSource: 'scheduled' as const,
-        timestamp: new Date().toISOString(),
-      }
-
-      expect(message.jobId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-      )
-      expect(message.triggerSource).toBe('scheduled')
-      expect('createdBy' in message).toBe(false) // createdBy should not exist
-      expect(message.timestamp).toBeDefined()
-    })
-
-    it('should generate unique job IDs', () => {
-      const jobId1 = crypto.randomUUID()
-      const jobId2 = crypto.randomUUID()
-
-      expect(jobId1).not.toBe(jobId2)
-      expect(jobId1).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-      )
-      expect(jobId2).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-      )
     })
   })
 })

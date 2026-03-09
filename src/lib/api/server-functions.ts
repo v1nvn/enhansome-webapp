@@ -6,7 +6,6 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestHeader } from '@tanstack/react-start/server'
-// eslint-disable-next-line import-x/no-unresolved
 import { env } from 'cloudflare:workers'
 
 import { createKysely } from '../db/client'
@@ -290,26 +289,23 @@ export const triggerIndexRegistries = createServerFn({ method: 'POST' })
     const apiKey = getRequestHeader('X-Admin-API-Key')
     const createdBy = apiKey ? apiKey.slice(-4) : undefined
 
-    const jobId = crypto.randomUUID()
-
-    const message = {
-      jobId,
-      triggerSource: 'manual' as const,
-      createdBy,
-      timestamp: new Date().toISOString(),
-    }
-
     try {
-      await env.INDEXING_QUEUE.send(message)
+      // Create workflow instance for manual indexing
+      const instance = await env.INDEXING_WORKFLOW.create({
+        params: {
+          triggerSource: 'manual',
+          createdBy,
+        },
+      })
 
       return {
-        status: 'queued',
-        message: 'Indexing job queued successfully',
-        jobId,
-        timestamp: message.timestamp,
+        status: 'started',
+        message: 'Indexing workflow started successfully',
+        instanceId: instance.id,
+        timestamp: new Date().toISOString(),
       }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      throw new Error('Failed to queue indexing job')
+      throw new Error('Failed to start indexing workflow')
     }
   })
