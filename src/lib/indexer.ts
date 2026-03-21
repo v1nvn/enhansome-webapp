@@ -196,16 +196,19 @@ export async function rebuildFtsIndex(db: D1Database): Promise<void> {
   console.log('Rebuilding FTS5 search index...')
   const deleteStmt = db.prepare('DELETE FROM repositories_fts')
   const insertStmt = db.prepare(
-    `INSERT INTO repositories_fts(rowid, owner, name, description, language, registry_names, category_names, tag_names)
+    `INSERT INTO repositories_fts(rowid, owner, name, description, language, registry_names, category_names, tag_names, stars, archived, last_commit)
      SELECT
        r.id,
        r.owner,
        r.name,
        r.description,
        r.language,
-       GROUP_CONCAT(DISTINCT f.registry_name),
-       GROUP_CONCAT(DISTINCT f.category_name),
-       GROUP_CONCAT(DISTINCT f.tag_name)
+       GROUP_CONCAT(DISTINCT f.registry_name) as registry_names,
+       GROUP_CONCAT(DISTINCT f.category_name) as category_names,
+       GROUP_CONCAT(DISTINCT f.tag_name) as tag_names,
+       r.stars,
+       r.archived,
+       r.last_commit
      FROM repositories r
      LEFT JOIN repository_facets f ON r.id = f.repository_id
      GROUP BY r.id`,

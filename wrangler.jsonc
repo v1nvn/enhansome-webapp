@@ -10,25 +10,13 @@
 		"enabled": true,
 		"head_sampling_rate": 1
 	},
-	"triggers": {
-		"crons": [
-			"0 6 * * *"
-		]
-	},
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "enhansome-registry",
-			"database_id": "4f9aace4-bd83-4937-bb6a-669e3fdae1cd",
+			"database_id": "f9ed98fb-afae-4b48-85cc-e1a41cd9528b",
 			"migrations_dir": "migrations",
 			"migrations_table": "d1_migrations"
-		}
-	],
-	"workflows": [
-		{
-			"name": "indexing-workflow",
-			"binding": "INDEXING_WORKFLOW",
-			"class_name": "IndexingWorkflow"
 		}
 	],
 	"routes": [

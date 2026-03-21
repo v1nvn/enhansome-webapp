@@ -29,7 +29,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply enhansome-registry --remote",
     "db:shell": "wrangler d1 execute enhansome-registry --local",
     "db:shell:remote": "wrangler d1 execute enhansome-registry --remote",
-    "knip": "knip"
+    "knip": "knip",
+    "index": "tsx scripts/index-registry.ts"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.26.1",
@@ -103,6 +104,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^3.2.4",
+    "tsx": "^4.19.2",
     "web-vitals": "^5.1.0",
     "wrangler": "^4.71.0"
   }

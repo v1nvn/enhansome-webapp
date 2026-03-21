@@ -5,7 +5,6 @@
 
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
-import { getRequestHeader } from '@tanstack/react-start/server'
 import { env } from 'cloudflare:workers'
 
 import { createKysely } from '../db/client'
@@ -285,27 +284,13 @@ export const stopIndexing = createServerFn({ method: 'POST' })
 
 export const triggerIndexRegistries = createServerFn({ method: 'POST' })
   .middleware([adminAuthMiddleware])
-  .handler(async () => {
-    const apiKey = getRequestHeader('X-Admin-API-Key')
-    const createdBy = apiKey ? apiKey.slice(-4) : undefined
-
-    try {
-      // Create workflow instance for manual indexing
-      const instance = await env.INDEXING_WORKFLOW.create({
-        params: {
-          triggerSource: 'manual',
-          createdBy,
-        },
-      })
-
-      return {
-        status: 'started',
-        message: 'Indexing workflow started successfully',
-        instanceId: instance.id,
-        timestamp: new Date().toISOString(),
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      throw new Error('Failed to start indexing workflow')
+  .handler(() => {
+    // Indexing is now handled by GitHub Actions
+    // Manual triggers can be done via the GitHub Actions UI
+    return {
+      status: 'info',
+      message:
+        'Indexing is now handled by GitHub Actions. Use the GitHub Actions UI to trigger manual runs.',
+      timestamp: new Date().toISOString(),
     }
   })

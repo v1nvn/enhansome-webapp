@@ -1,0 +1,45 @@
+name: Index Registry
+
+on:
+  schedule:
+    # Daily at 6am UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      archive_url:
+        description: 'Custom archive URL (optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install wrangler
+        run: npm install -g wrangler
+
+      - name: Configure wrangler authentication
+        run: |
+          mkdir -p ~/.wrangler
+          echo "${{ secrets.CLOUDFLARE_API_TOKEN }}" > ~/.wrangler/token
+
+      - name: Run indexing
+        run: npm run index
+        env:
+          ARCHIVE_URL: ${{ inputs.archive_url }}
+          TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
