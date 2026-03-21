@@ -54,10 +54,17 @@ export async function indexRegistry(options: IndexerOptions = {}): Promise<void>
   console.log(`Starting indexing workflow (source: ${triggerSource})`)
 
   // Get D1 binding via wrangler's platform proxy
-  const proxy = await getPlatformProxy()
-  const db = proxy.env.DB
+  // Explicitly use production environment with remote bindings
+  const proxy = await getPlatformProxy({
+    configPath: './wrangler.jsonc',
+  })
+  const db = proxy.env.DB as D1Database
 
-  // Check if indexing is already running
+  // Debug: Verify we're connected to remote DB with tables
+  const { results: tables } = await db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+    .all<{ name: string }>()
+  console.log('Connected to D1. Tables:', tables.map((t) => t.name))
   const isRunning = await checkIsIndexingRunning(db)
   if (isRunning) {
     console.log('Indexing already in progress, skipping...')

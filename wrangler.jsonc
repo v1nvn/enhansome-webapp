@@ -1,6 +1,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "enhansome",
+	"account_id": "be6f8f711cb46b9bcc8c2122de2938bf",
 	"compatibility_date": "2025-09-02",
 	"compatibility_flags": [
 		"nodejs_compat"
@@ -16,7 +17,8 @@
 			"database_name": "enhansome-registry",
 			"database_id": "f9ed98fb-afae-4b48-85cc-e1a41cd9528b",
 			"migrations_dir": "migrations",
-			"migrations_table": "d1_migrations"
+			"migrations_table": "d1_migrations",
+			"remote": true
 		}
 	],
 	"routes": [
