@@ -152,7 +152,7 @@ export async function indexRegistry(options: IndexerOptions = {}): Promise<void>
 
 // CLI entry point
 if (import.meta.url === new URL(process.argv[1], 'file://').href) {
-  const archiveUrl = process.env.ARCHIVE_URL
+  const archiveUrl = process.env.ARCHIVE_URL || undefined
   const triggerSource = process.env.TRIGGER_SOURCE as 'manual' | 'scheduled' | undefined
   const force = process.argv.includes('--force') || process.env.FORCE === 'true'
 
