@@ -10,6 +10,11 @@ on:
         description: 'Custom archive URL (optional)'
         required: false
         type: string
+      force:
+        description: 'Force indexing even if already running'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -43,5 +48,6 @@ jobs:
         env:
           ARCHIVE_URL: ${{ inputs.archive_url }}
           TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+          FORCE: ${{ inputs.force }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

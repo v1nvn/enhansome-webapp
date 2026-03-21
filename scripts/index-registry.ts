@@ -39,6 +39,11 @@ interface IndexerOptions {
    * @default 'manual'
    */
   triggerSource?: 'manual' | 'scheduled'
+
+  /**
+   * Force indexing even if another run is in progress
+   */
+  force?: boolean
 }
 
 /**
@@ -48,6 +53,7 @@ export async function indexRegistry(options: IndexerOptions = {}): Promise<void>
   const {
     archiveUrl,
     createdBy = 'github-actions',
+    force = false,
     triggerSource = 'manual',
   } = options
 
@@ -66,9 +72,12 @@ export async function indexRegistry(options: IndexerOptions = {}): Promise<void>
     .all<{ name: string }>()
   console.log('Connected to D1. Tables:', tables.map((t) => t.name))
   const isRunning = await checkIsIndexingRunning(db)
-  if (isRunning) {
-    console.log('Indexing already in progress, skipping...')
+  if (isRunning && !force) {
+    console.log('Indexing already in progress, skipping... (use --force to override)')
     return
+  }
+  if (isRunning && force) {
+    console.log('Indexing in progress but --force specified, proceeding...')
   }
 
   // Create history entry
@@ -145,9 +154,11 @@ export async function indexRegistry(options: IndexerOptions = {}): Promise<void>
 if (import.meta.url === new URL(process.argv[1], 'file://').href) {
   const archiveUrl = process.env.ARCHIVE_URL
   const triggerSource = process.env.TRIGGER_SOURCE as 'manual' | 'scheduled' | undefined
+  const force = process.argv.includes('--force') || process.env.FORCE === 'true'
 
   indexRegistry({
     archiveUrl,
+    force,
     triggerSource,
   })
     .then(() => {
