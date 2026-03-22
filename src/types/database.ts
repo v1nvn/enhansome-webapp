@@ -20,8 +20,6 @@ export interface CategoriesTable {
  */
 export interface Database {
   categories: CategoriesTable
-  indexing_history: IndexingHistoryTable
-  indexing_latest: IndexingLatestTable
   registry_featured: RegistryFeaturedTable
   registry_metadata: RegistryMetadataTable
   registry_repositories: RegistryRepositoriesTable
@@ -32,35 +30,6 @@ export interface Database {
   repository_facets: RepositoryFacetsTable
   sync_log: SyncLogTable
   tags: TagsTable
-}
-
-/**
- * Indexing history table schema
- */
-export interface IndexingHistoryTable {
-  completed_at: null | string
-  created_by: null | string
-  current_step: null | string
-  error_message: null | string
-  errors: null | string
-  failed_count: number
-  id: Generated<number>
-  progress: number
-  started_at: string
-  status: 'completed' | 'failed' | 'running'
-  success_count: number
-  total_registries: null | number
-  trigger_source: 'manual' | 'scheduled'
-}
-
-/**
- * Indexing latest status table schema
- */
-export interface IndexingLatestTable {
-  history_id: null | number
-  id: 1 // Single-row table with id = 1
-  status: 'completed' | 'failed' | 'idle' | 'running'
-  updated_at: string
 }
 
 /**

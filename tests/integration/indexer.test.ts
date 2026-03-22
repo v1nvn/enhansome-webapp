@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { env, applyD1Migrations } from 'cloudflare:test'
 import { clearDatabase } from '../helpers/db-setup'
+import { createKysely } from '@/lib/db'
 import { indexRegistry, rebuildFacets } from '@/lib/indexer'
 import validRegistry from '../fixtures/valid-registry.json'
 import minimalRegistry from '../fixtures/minimal-registry.json'
@@ -17,7 +18,7 @@ describe('Full Indexing Pipeline with D1', () => {
   beforeEach(async () => {
     // Clear database between tests
     // Isolated storage also provides automatic cleanup
-    await clearDatabase(env.DB)
+    await clearDatabase(createKysely(env.DB))
   })
 
   describe('Metadata Operations', () => {

@@ -4,8 +4,7 @@ User-agent: *
 Allow: /
 Crawl-delay: 1
 
-# Disallow admin or private areas if any
-# Disallow: /admin
+# Disallow private areas if any
 # Disallow: /api
 
 # Sitemap

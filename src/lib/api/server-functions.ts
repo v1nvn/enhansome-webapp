@@ -15,12 +15,8 @@ import {
   fetchRepoDetailHandler,
   fetchTrendingRegistriesHandler,
   fetchTrendingTagsHandler,
-  getIndexingHistoryHandler,
-  getIndexingStatusHandler,
   searchReposHandler,
-  stopIndexingHandler,
 } from './handlers'
-import { adminAuthMiddleware } from './middleware'
 
 // Re-export types that components need
 export type {
@@ -233,64 +229,4 @@ export const filterOptionsQueryOptions = (params?: FetchFilterOptionsInput) =>
     queryKey: ['filter-options', { params }],
     staleTime: 24 * 60 * 60 * 1000,
     placeholderData: previousData => previousData,
-  })
-
-// ============================================================================
-// Admin API
-// ============================================================================
-
-export const validateAdminApiKey = createServerFn({ method: 'POST' })
-  .middleware([adminAuthMiddleware])
-  .handler(() => {
-    return { success: true }
-  })
-
-export const getIndexingStatus = createServerFn({ method: 'GET' })
-  .middleware([adminAuthMiddleware])
-  .handler(async () => {
-    const db = createKysely(env.DB)
-    return getIndexingStatusHandler(db)
-  })
-
-export const indexingStatusQueryOptions = () =>
-  queryOptions({
-    queryFn: () => getIndexingStatus(),
-    queryKey: ['indexing-status'],
-    refetchInterval: query => {
-      return query.state.data?.isRunning ? 2000 : 10000
-    },
-  })
-
-export const getIndexingHistory = createServerFn({ method: 'GET' })
-  .middleware([adminAuthMiddleware])
-  .handler(async () => {
-    const db = createKysely(env.DB)
-    return getIndexingHistoryHandler(db)
-  })
-
-export const indexingHistoryQueryOptions = () =>
-  queryOptions({
-    queryFn: () => getIndexingHistory(),
-    queryKey: ['indexing-history'],
-    staleTime: 30 * 1000,
-  })
-
-export const stopIndexing = createServerFn({ method: 'POST' })
-  .middleware([adminAuthMiddleware])
-  .handler(async () => {
-    const db = createKysely(env.DB)
-    return stopIndexingHandler(db)
-  })
-
-export const triggerIndexRegistries = createServerFn({ method: 'POST' })
-  .middleware([adminAuthMiddleware])
-  .handler(() => {
-    // Indexing is now handled by GitHub Actions
-    // Manual triggers can be done via the GitHub Actions UI
-    return {
-      status: 'info',
-      message:
-        'Indexing is now handled by GitHub Actions. Use the GitHub Actions UI to trigger manual runs.',
-      timestamp: new Date().toISOString(),
-    }
   })

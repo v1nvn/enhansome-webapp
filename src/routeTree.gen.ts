@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RegistryNameRouteImport } from './routes/registry.$name'
-import { Route as AdminIndexRegistriesRouteImport } from './routes/admin.index-registries'
 import { Route as RepoOwnerNameRouteImport } from './routes/repo.$owner.$name'
 
 const BrowseRoute = BrowseRouteImport.update({
@@ -30,11 +29,6 @@ const RegistryNameRoute = RegistryNameRouteImport.update({
   path: '/registry/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminIndexRegistriesRoute = AdminIndexRegistriesRouteImport.update({
-  id: '/admin/index-registries',
-  path: '/admin/index-registries',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const RepoOwnerNameRoute = RepoOwnerNameRouteImport.update({
   id: '/repo/$owner/$name',
   path: '/repo/$owner/$name',
@@ -44,14 +38,12 @@ const RepoOwnerNameRoute = RepoOwnerNameRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
-  '/admin/index-registries': typeof AdminIndexRegistriesRoute
   '/registry/$name': typeof RegistryNameRoute
   '/repo/$owner/$name': typeof RepoOwnerNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
-  '/admin/index-registries': typeof AdminIndexRegistriesRoute
   '/registry/$name': typeof RegistryNameRoute
   '/repo/$owner/$name': typeof RepoOwnerNameRoute
 }
@@ -59,38 +51,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/browse': typeof BrowseRoute
-  '/admin/index-registries': typeof AdminIndexRegistriesRoute
   '/registry/$name': typeof RegistryNameRoute
   '/repo/$owner/$name': typeof RepoOwnerNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/browse'
-    | '/admin/index-registries'
-    | '/registry/$name'
-    | '/repo/$owner/$name'
+  fullPaths: '/' | '/browse' | '/registry/$name' | '/repo/$owner/$name'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/browse'
-    | '/admin/index-registries'
-    | '/registry/$name'
-    | '/repo/$owner/$name'
-  id:
-    | '__root__'
-    | '/'
-    | '/browse'
-    | '/admin/index-registries'
-    | '/registry/$name'
-    | '/repo/$owner/$name'
+  to: '/' | '/browse' | '/registry/$name' | '/repo/$owner/$name'
+  id: '__root__' | '/' | '/browse' | '/registry/$name' | '/repo/$owner/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BrowseRoute: typeof BrowseRoute
-  AdminIndexRegistriesRoute: typeof AdminIndexRegistriesRoute
   RegistryNameRoute: typeof RegistryNameRoute
   RepoOwnerNameRoute: typeof RepoOwnerNameRoute
 }
@@ -118,13 +92,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistryNameRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/index-registries': {
-      id: '/admin/index-registries'
-      path: '/admin/index-registries'
-      fullPath: '/admin/index-registries'
-      preLoaderRoute: typeof AdminIndexRegistriesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/repo/$owner/$name': {
       id: '/repo/$owner/$name'
       path: '/repo/$owner/$name'
@@ -138,7 +105,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BrowseRoute: BrowseRoute,
-  AdminIndexRegistriesRoute: AdminIndexRegistriesRoute,
   RegistryNameRoute: RegistryNameRoute,
   RepoOwnerNameRoute: RepoOwnerNameRoute,
 }
