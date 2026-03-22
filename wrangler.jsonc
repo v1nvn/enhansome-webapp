@@ -17,10 +17,23 @@
 			"database_name": "enhansome-registry",
 			"database_id": "f9ed98fb-afae-4b48-85cc-e1a41cd9528b",
 			"migrations_dir": "migrations",
-			"migrations_table": "d1_migrations",
-			"remote": true
+			"migrations_table": "d1_migrations"
 		}
 	],
+	"env": {
+		"github": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "enhansome-registry",
+					"database_id": "f9ed98fb-afae-4b48-85cc-e1a41cd9528b",
+					"migrations_dir": "migrations",
+					"migrations_table": "d1_migrations",
+					"remote": true
+				}
+			]
+		}
+	},
 	"routes": [
 		{
 			"pattern": "enhansome.xyz",

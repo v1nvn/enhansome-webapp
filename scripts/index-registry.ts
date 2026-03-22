@@ -7,20 +7,7 @@
 
 import { getPlatformProxy } from 'wrangler'
 
-import {
-  checkIsIndexingRunning,
-  createWorkflowHistoryEntry,
-  fetchAndCollectStep,
-  finalizeStep,
-  markIndexingFailed,
-  rebuildFacetsStep,
-  rebuildFtsStep,
-  setIndexingRunning,
-  writeAssociationsStep,
-  writeCategoriesStep,
-  writeRepositoriesStep,
-  writeTagsAndMetadataStep,
-} from '../src/lib/indexer.js'
+import { indexAllRegistries } from '../src/lib/indexer.js'
 
 interface IndexerOptions {
   /**
@@ -30,39 +17,35 @@ interface IndexerOptions {
   archiveUrl?: string
 
   /**
-   * User who triggered the indexing
-   */
-  createdBy?: string
-
-  /**
    * Trigger source
    * @default 'manual'
    */
   triggerSource?: 'manual' | 'scheduled'
 
   /**
-   * Force indexing even if another run is in progress
+   * Wrangler environment to use (e.g., 'github')
+   * Uses default bindings if not specified
    */
-  force?: boolean
+  wranglerEnv?: string
 }
 
 /**
  * Run the complete indexing process
  */
-export async function indexRegistry(options: IndexerOptions = {}): Promise<void> {
-  const {
-    archiveUrl,
-    createdBy = 'github-actions',
-    force = false,
-    triggerSource = 'manual',
-  } = options
+export async function indexRegistry(
+  options: IndexerOptions = {},
+): Promise<void> {
+  const { archiveUrl, triggerSource = 'manual', wranglerEnv } = options
 
   console.log(`Starting indexing workflow (source: ${triggerSource})`)
+  if (wranglerEnv) {
+    console.log(`Using wrangler environment: ${wranglerEnv}`)
+  }
 
   // Get D1 binding via wrangler's platform proxy
-  // Explicitly use production environment with remote bindings
   const proxy = await getPlatformProxy({
     configPath: './wrangler.jsonc',
+    ...(wranglerEnv && { environment: wranglerEnv }),
   })
   const db = proxy.env.DB as D1Database
 
@@ -70,80 +53,24 @@ export async function indexRegistry(options: IndexerOptions = {}): Promise<void>
   const { results: tables } = await db
     .prepare("SELECT name FROM sqlite_master WHERE type='table'")
     .all<{ name: string }>()
-  console.log('Connected to D1. Tables:', tables.map((t) => t.name))
-  const isRunning = await checkIsIndexingRunning(db)
-  if (isRunning && !force) {
-    console.log('Indexing already in progress, skipping... (use --force to override)')
-    return
-  }
-  if (isRunning && force) {
-    console.log('Indexing in progress but --force specified, proceeding...')
-  }
-
-  // Create history entry
-  const historyId = await createWorkflowHistoryEntry(db, triggerSource, createdBy)
-  console.log(`Created indexing history entry: ${historyId}`)
-
-  await setIndexingRunning(db, historyId)
+  console.log(
+    'Connected to D1. Tables:',
+    tables.map(t => t.name),
+  )
 
   try {
-    // Step 1: Fetch and collect all data
-    const fetchResult = await fetchAndCollectStep(db, {
-      archiveUrl,
-      createdBy,
-      historyId,
-      triggerSource,
-    })
-    const collectedData = fetchResult.collected
+    const result = await indexAllRegistries(db, archiveUrl)
 
     console.log(
-      `Collected ${fetchResult.success} registries (${fetchResult.failed} failed)`,
+      `\nIndexing complete: ${result.success} succeeded, ${result.failed} failed`,
     )
 
-    // Step 2: Write repositories
-    console.log('Writing repositories...')
-    await writeRepositoriesStep(db, historyId, collectedData)
-
-    // Step 3: Write tags and metadata
-    console.log('Writing tags and metadata...')
-    await writeTagsAndMetadataStep(db, historyId, collectedData)
-
-    // Step 4: Write associations
-    console.log('Writing associations...')
-    await writeAssociationsStep(db, historyId, collectedData)
-
-    // Step 5: Write categories
-    console.log('Writing categories...')
-    await writeCategoriesStep(db, historyId, collectedData)
-
-    // Step 6: Rebuild facets
-    console.log('Rebuilding facets...')
-    await rebuildFacetsStep(db, historyId)
-
-    // Step 7: Rebuild FTS index
-    console.log('Rebuilding FTS search index...')
-    await rebuildFtsStep(db, historyId)
-
-    // Step 8: Finalize
-    console.log('Finalizing...')
-    await finalizeStep(
-      db,
-      historyId,
-      {
-        errors: fetchResult.errors,
-        failed: fetchResult.failed,
-        success: fetchResult.success,
-      },
-    )
-
-    console.log(
-      `\nIndexing complete: ${fetchResult.success} succeeded, ${fetchResult.failed} failed`,
-    )
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    console.error('Indexing failed:', errorMsg)
-    await markIndexingFailed(db, historyId, errorMsg)
-    throw error
+    if (result.errors.length > 0) {
+      console.error('\nErrors encountered:')
+      for (const error of result.errors) {
+        console.error(`  - ${error}`)
+      }
+    }
   } finally {
     // Clean up the proxy
     await proxy.dispose()
@@ -151,21 +78,27 @@ export async function indexRegistry(options: IndexerOptions = {}): Promise<void>
 }
 
 // CLI entry point
+
 if (import.meta.url === new URL(process.argv[1], 'file://').href) {
   const archiveUrl = process.env.ARCHIVE_URL || undefined
-  const triggerSource = process.env.TRIGGER_SOURCE as 'manual' | 'scheduled' | undefined
-  const force = process.argv.includes('--force') || process.env.FORCE === 'true'
+  const triggerSource = process.env.TRIGGER_SOURCE as
+    | 'manual'
+    | 'scheduled'
+    | undefined
+  const wranglerEnv = process.env.WRANGLER_ENV || undefined
 
   indexRegistry({
     archiveUrl,
-    force,
     triggerSource,
+    wranglerEnv,
   })
     .then(() => {
+      // eslint-disable-next-line n/no-process-exit
       process.exit(0)
     })
-    .catch(error => {
+    .catch((error: unknown) => {
       console.error(error)
+      // eslint-disable-next-line n/no-process-exit
       process.exit(1)
     })
 }

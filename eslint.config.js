@@ -55,7 +55,7 @@ export default defineConfig([
       perfectionist.configs['recommended-natural'],
       eslintConfigPrettier,
     ],
-    files: ['src/**/*.{ts,tsx}', 'env.ts', 'vite.config.ts'],
+    files: ['src/**/*.{ts,tsx}', 'scripts/**/*.{ts,tsx}', 'env.ts', 'vite.config.ts'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,

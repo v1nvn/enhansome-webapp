@@ -1,5 +1,5 @@
 {
-  "include": ["src/**/*", "tests/**/*", "**/*.spec.tsx", "**/*.test.tsx", "cloudflare-env.d.ts"],
+  "include": ["src/**/*", "scripts/**/*","tests/**/*", "**/*.spec.tsx", "**/*.test.tsx", "cloudflare-env.d.ts"],
 
   "compilerOptions": {
     "target": "ES2022",
