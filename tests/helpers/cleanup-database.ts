@@ -19,6 +19,9 @@ import type { Database } from '@/types/database'
 export async function clearDatabase(db: Kysely<Database>): Promise<void> {
   // Clear order matters due to foreign key constraints
 
+  // 0. FTS virtual table (no FKs, must be cleared first)
+  await db.deleteFrom('repositories_fts').execute()
+
   // 1. Denormalized facets table (no FKs, safe to clear first)
   await db.deleteFrom('repository_facets').execute()
 

@@ -8,7 +8,7 @@ import { sql } from 'kysely'
 import type { Database } from '@/types/database'
 import type { RegistryItem } from '@/types/registry'
 
-import { calculateQualityScore } from '../../utils/scoring'
+import { ftsSearch } from './fts-search-repository'
 
 import type { Kysely } from 'kysely'
 
@@ -233,255 +233,39 @@ export async function searchRepos(
     tagName,
   } = params
 
-  // Get total count
-  let countQuery = db
-    .selectFrom('repositories as r')
-    .innerJoin('registry_repositories as rr', 'rr.repository_id', 'r.id')
-    .select(eb => eb.fn.count('r.id').distinct().as('count'))
-
-  if (registryName) {
-    countQuery = countQuery.where('rr.registry_name', '=', registryName)
-  }
-  if (language) {
-    countQuery = countQuery.where('r.language', '=', language)
-  }
-  if (categoryName) {
-    countQuery = countQuery.where(eb =>
-      eb.exists(
-        eb
-          .selectFrom('repository_facets as f')
-          .select(sql`1`.as('one'))
-          .whereRef('f.repository_id', '=', 'r.id')
-          .where('f.category_name', '=', categoryName),
-      ),
-    )
-  }
-  if (tagName) {
-    countQuery = countQuery.where(eb =>
-      eb.exists(
-        eb
-          .selectFrom('repository_facets as f')
-          .select(sql`1`.as('one'))
-          .whereRef('f.repository_id', '=', 'r.id')
-          .where('f.tag_name', '=', tagName),
-      ),
-    )
-  }
-  if (archived) {
-    countQuery = countQuery.where('r.archived', '=', 1)
-  } else {
-    countQuery = countQuery.where('r.archived', '=', 0)
-  }
-  if (minStars) {
-    countQuery = countQuery.where('r.stars', '>=', minStars)
-  }
-  if (q) {
-    const searchTerm = `%${q}%`
-    countQuery = countQuery.where(eb =>
-      eb.or([
-        eb('r.name', 'like', searchTerm),
-        eb('r.owner', 'like', searchTerm),
-        eb('r.description', 'like', searchTerm),
-      ]),
-    )
-  }
-
-  const countResult = await countQuery.executeTakeFirst()
-  const total = Number(countResult?.count ?? 0)
-
-  const offset = cursor ?? 0
-
-  // Main query
-  let mainQuery = db
-    .selectFrom('repositories as r')
-    .innerJoin('registry_repositories as rr', 'rr.repository_id', 'r.id')
-    .leftJoin('repository_facets as f', eb =>
-      eb
-        .onRef('f.repository_id', '=', 'r.id')
-        .onRef('f.registry_name', '=', 'rr.registry_name'),
-    )
-    .select([
-      'r.id',
-      'r.owner',
-      'r.name',
-      'r.description',
-      'r.stars',
-      'r.language',
-      'r.last_commit',
-      'r.archived',
-      'rr.title',
-      'rr.registry_name',
-      'f.category_name as category_name',
-      'f.tag_name as tag_name',
-    ])
-
-  if (registryName) {
-    mainQuery = mainQuery.where('rr.registry_name', '=', registryName)
-  }
-  if (language) {
-    mainQuery = mainQuery.where('r.language', '=', language)
-  }
-  if (categoryName) {
-    mainQuery = mainQuery.where('f.category_name', '=', categoryName)
-  }
-  if (tagName) {
-    mainQuery = mainQuery.where('f.tag_name', '=', tagName)
-  }
-  if (archived) {
-    mainQuery = mainQuery.where('r.archived', '=', 1)
-  } else {
-    mainQuery = mainQuery.where('r.archived', '=', 0)
-  }
-  if (minStars) {
-    mainQuery = mainQuery.where('r.stars', '>=', minStars)
-  }
-  if (q) {
-    const searchTerm = `%${q}%`
-    mainQuery = mainQuery.where(eb =>
-      eb.or([
-        eb('r.name', 'like', searchTerm),
-        eb('r.owner', 'like', searchTerm),
-        eb('r.description', 'like', searchTerm),
-      ]),
-    )
-  }
-
-  const allResults = await mainQuery.limit(1000).execute()
-
-  // Group by repository
-  const repoMap = new Map<
-    number,
-    {
-      archived: number
-      categories: Set<string>
-      description: null | string
-      id: number
-      language: null | string
-      last_commit: null | string
-      name: string
-      owner: string
-      registries: Set<string>
-      stars: number
-      tags: Set<string>
-      title: string
-    }
-  >()
-
-  for (const row of allResults) {
-    const existing = repoMap.get(row.id)
-    if (existing) {
-      existing.registries.add(row.registry_name)
-      if (row.category_name) existing.categories.add(row.category_name)
-      if (row.tag_name) existing.tags.add(row.tag_name)
-    } else {
-      repoMap.set(row.id, {
-        archived: row.archived,
-        categories: row.category_name
-          ? new Set([row.category_name])
-          : new Set(),
-        description: row.description,
-        id: row.id,
-        language: row.language,
-        last_commit: row.last_commit,
-        name: row.name,
-        owner: row.owner,
-        registries: new Set([row.registry_name]),
-        stars: row.stars,
-        tags: row.tag_name ? new Set([row.tag_name]) : new Set(),
-        title: row.title,
-      })
-    }
-  }
-
-  const aggregatedRows = Array.from(repoMap.values())
-
-  // Sort
-  let sortField: 'last_commit' | 'name' | 'stars' = 'stars'
-  let sortDirection: 'asc' | 'desc' = 'desc'
-
-  switch (sortBy) {
-    case 'name':
-      sortField = 'name'
-      sortDirection = 'asc'
-      break
-    case 'stars':
-      sortField = 'stars'
-      sortDirection = 'desc'
-      break
-    case 'updated':
-      sortField = 'last_commit'
-      sortDirection = 'desc'
-      break
-    case 'quality':
-    default:
-      sortField = 'stars'
-      sortDirection = 'desc'
-      break
-  }
-
-  aggregatedRows.sort((a, b) => {
-    const aVal = a[sortField]
-    const bVal = b[sortField]
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return sortDirection === 'desc' ? bVal - aVal : aVal - bVal
-    }
-    if (typeof aVal === 'string' && typeof bVal === 'string') {
-      return sortDirection === 'desc'
-        ? bVal.localeCompare(aVal)
-        : aVal.localeCompare(bVal)
-    }
-    return 0
+  // Use FTS search for all queries (including empty query for filter-only searches)
+  const ftsResult = await ftsSearch(db, {
+    query: q || '', // Empty string for filter-only searches
+    registry: registryName,
+    category: categoryName,
+    tag: tagName,
+    language,
+    minStars,
+    limit,
+    cursor,
+    archived,
+    sortBy,
   })
 
-  const paginatedRows = aggregatedRows.slice(offset, offset + limit + 1)
-  const rows = paginatedRows.slice(0, limit)
-
-  const hasMore = paginatedRows.length > limit
-
-  const data = rows.map(r => {
-    const categories = Array.from(r.categories).sort()
-    const registries = Array.from(r.registries).sort()
-    const tags = Array.from(r.tags).sort()
-
-    const item: RegistryItem & {
-      categories: string[]
-      id: number
-      qualityScore?: number
-      registries: string[]
-      tags: string[]
-    } = {
-      categories,
-      children: [],
-      description: r.description,
-      id: r.id,
-      registries,
-      tags,
-      title: r.title,
-      qualityScore: calculateQualityScore({
-        last_commit: r.last_commit,
-        stars: r.stars,
-      }),
-      repo_info: {
-        archived: Boolean(r.archived),
-        language: r.language,
-        last_commit: r.last_commit || '',
-        owner: r.owner,
-        repo: r.name,
-        stars: r.stars,
-      },
-    }
-    return item
-  })
-
-  if (sortBy === 'quality') {
-    data.sort((a, b) => (b.qualityScore || 0) - (a.qualityScore || 0))
-  }
+  // Transform FTS result to match SearchResult format
+  const data = ftsResult.repositories.map(r => ({
+    ...r.repo_info,
+    children: [],
+    description: r.description,
+    id: r.id,
+    registries: r.registries,
+    tags: r.tags,
+    categories: r.categories,
+    title: r.title,
+    qualityScore: r.qualityScore,
+    repo_info: r.repo_info,
+  }))
 
   return {
     data,
-    hasMore,
-    nextCursor: hasMore ? offset + limit : undefined,
-    total,
+    hasMore: ftsResult.hasMore,
+    nextCursor: ftsResult.nextCursor,
+    total: ftsResult.total,
   }
 }
 

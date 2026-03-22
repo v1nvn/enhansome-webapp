@@ -5,6 +5,7 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { applyD1Migrations, env } from 'cloudflare:test'
 
+import { rebuildFtsIndex } from '@/lib/db/repositories/fts-search-repository'
 import {
   createKysely,
 } from '@/lib/db'
@@ -290,21 +291,6 @@ describe('Database Query Functions', () => {
             item.description?.toLowerCase().includes('framework'),
         ),
       ).toBe(true)
-    })
-
-    it('should use LIKE wildcards in search query', async () => {
-      const db = createKysely(env.DB)
-
-      // LIKE wildcards are supported (%, _)
-      // "test%" matches any string starting with "test"
-      const result1 = await searchRepos(db, { q: 'test%' })
-      // Testify contains "test" as a prefix (case-insensitive)
-      expect(result1.total).toBe(1)
-
-      // "test_" matches "test" followed by exactly one character
-      // "Testify" has "testi" which matches "test_"
-      const result2 = await searchRepos(db, { q: 'test_' })
-      expect(result2.total).toBe(1)
     })
 
     it('should sort by stars descending by default', async () => {
@@ -813,6 +799,21 @@ describe('Database Query Functions', () => {
             category_id: category.id,
           })
           .execute()
+
+        // Add to repository_facets (required for FTS index rebuild)
+        await db
+          .insertInto('repository_facets')
+          .values({
+            repository_id: ginRepo.id,
+            registry_name: 'python',
+            language: 'Go',
+            category_name: 'Web Frameworks',
+            tag_name: 'Web Frameworks',
+          })
+          .execute()
+
+        // Rebuild FTS index after adding new data
+        await rebuildFtsIndex(db)
       }
 
       // Search now returns one entry per repository with all registries in array

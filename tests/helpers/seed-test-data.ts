@@ -5,6 +5,7 @@
 
 import type { Kysely } from 'kysely'
 
+import { rebuildFtsIndex } from '@/lib/db/repositories/fts-search-repository'
 import type { Database } from '@/types/database'
 
 /**
@@ -227,4 +228,7 @@ export async function seedTestData(db: Kysely<Database>) {
       { name: 'Testing', slug: 'testing' },
     ])
     .execute()
+
+  // Rebuild FTS index after seeding data
+  await rebuildFtsIndex(db)
 }

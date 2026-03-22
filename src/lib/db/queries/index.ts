@@ -4,5 +4,4 @@
  */
 
 export * from './aggregator'
-export * from './filter-builder'
 export * from './join-builder'
