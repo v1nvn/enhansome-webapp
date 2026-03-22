@@ -69,7 +69,7 @@ export function RegistryDetail({
   )
 
   // Fetch repositories using infinite query
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage } =
     useInfiniteQuery(searchInfiniteQueryOptions(searchQueryParams))
 
   // Combine all pages
@@ -270,8 +270,8 @@ export function RegistryDetail({
 
           {/* Main content */}
           <div className="relative min-w-0 flex-1">
-            {/* Loading overlay for filter transitions */}
-            {isTransitioning && (
+            {/* Loading overlay for filter transitions and search refetch */}
+            {(isTransitioning || (isFetching && !isFetchingNextPage)) && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>

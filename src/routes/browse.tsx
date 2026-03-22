@@ -148,7 +148,7 @@ function BrowsePage() {
   )
 
   // Fetch from search API using infinite query
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage } =
     useInfiniteQuery(searchInfiniteQueryOptions(searchParams))
 
   // Combine all pages
@@ -172,6 +172,7 @@ function BrowsePage() {
           filterOptions={filterOptions}
           handleFiltersChange={handleFiltersChange}
           hasNextPage={hasNextPage}
+          isFetching={isFetching}
           isFetchingNextPage={isFetchingNextPage}
           isHomepage={isHomepage}
           isTransitioning={isPreviousFilterOptions}
@@ -191,6 +192,7 @@ function BrowsePageContent({
   filterOptions,
   handleFiltersChange,
   hasNextPage,
+  isFetching,
   isFetchingNextPage,
   isHomepage,
   isTransitioning,
@@ -203,6 +205,7 @@ function BrowsePageContent({
   filterOptions: FilterOptions | undefined
   handleFiltersChange: (filters: FilterBarFilters) => void
   hasNextPage: boolean
+  isFetching: boolean
   isFetchingNextPage: boolean
   isHomepage: boolean
   isTransitioning: boolean
@@ -382,8 +385,8 @@ function BrowsePageContent({
 
         {/* Main content */}
         <div className="relative min-w-0 flex-1">
-          {/* Loading overlay for filter transitions */}
-          {isTransitioning && (
+          {/* Loading overlay for filter transitions and search refetch */}
+          {(isTransitioning || (isFetching && !isFetchingNextPage)) && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

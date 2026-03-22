@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
 
 import {
   CategoryBrowser,
@@ -25,6 +25,12 @@ export const Route = createFileRoute('/')({
     void context.queryClient.ensureQueryData(trendingQueryOptions())
     void context.queryClient.ensureQueryData(trendingTagsQueryOptions())
   },
+
+  pendingComponent: () => (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  ),
 })
 
 function Home() {
