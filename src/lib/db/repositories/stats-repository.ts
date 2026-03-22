@@ -3,13 +3,15 @@
  * Handles aggregate statistics queries
  */
 
+import { sql } from 'kysely'
+
 import type { Database } from '@/types/database'
 
 import type { Kysely } from 'kysely'
 
 /**
  * Get statistics for all registries in a single query
- * Note: No ORDER BY - sorting happens client-side when building result maps
+ * Uses registry_repositories_fts - no SUBSTR hack, no split, no in-memory aggregation
  */
 export async function getAllRegistryStatsBatched(db: Kysely<Database>): Promise<
   Map<
@@ -27,28 +29,26 @@ export async function getAllRegistryStatsBatched(db: Kysely<Database>): Promise<
     .select(['registry_name', 'total_items', 'total_stars', 'last_updated'])
     .execute()
 
-  const languageResults = await db
-    .selectFrom('repositories')
-    .innerJoin(
-      'registry_repositories',
-      'registry_repositories.repository_id',
-      'repositories.id',
-    )
-    .select(['registry_repositories.registry_name', 'repositories.language'])
-    .distinct()
-    .where('repositories.language', 'is not', null)
-    .execute()
+  // Use registry_repositories_fts - one row per (repo, registry, category)
+  // registry_name is a single value, no comma-sep, no SUBSTR hack needed
+  const languageResults = await sql<{
+    language: string
+    registry_name: string
+  }>`
+    SELECT DISTINCT registry_name, language
+    FROM registry_repositories_fts
+    WHERE language IS NOT NULL
+    ORDER BY registry_name, language
+  `.execute(db)
 
-  const languageMap = new Map<string, string[]>()
-  for (const row of languageResults) {
-    const existing = languageMap.get(row.registry_name)
-    if (existing) {
-      if (row.language && !existing.includes(row.language)) {
-        existing.push(row.language)
-      }
-    } else {
-      languageMap.set(row.registry_name, row.language ? [row.language] : [])
+  const languageMap = new Map<string, Set<string>>()
+  for (const row of languageResults.rows) {
+    if (!row.registry_name || !row.language) continue
+
+    if (!languageMap.has(row.registry_name)) {
+      languageMap.set(row.registry_name, new Set())
     }
+    languageMap.get(row.registry_name)?.add(row.language)
   }
 
   const result = new Map<
@@ -62,7 +62,7 @@ export async function getAllRegistryStatsBatched(db: Kysely<Database>): Promise<
   >()
 
   for (const metadata of metadataList) {
-    const languages = languageMap.get(metadata.registry_name) ?? []
+    const languages = Array.from(languageMap.get(metadata.registry_name) ?? [])
     result.set(metadata.registry_name, {
       languages: languages.sort(),
       latestUpdate: metadata.last_updated,
@@ -76,6 +76,8 @@ export async function getAllRegistryStatsBatched(db: Kysely<Database>): Promise<
 
 /**
  * Get category summaries across all registries
+ * Note: Uses base tables with joins for accurate counting by registry
+ * FTS table is not suitable here because it flattens data into comma-separated fields
  */
 export async function getCategorySummaries(db: Kysely<Database>): Promise<
   {

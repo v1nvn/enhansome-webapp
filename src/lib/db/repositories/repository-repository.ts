@@ -1,7 +1,10 @@
 /**
  * Repository repository
  * Handles individual repository queries
+ * Uses base tables for single-item lookup, new FTS for related repos
  */
+
+import { sql } from 'kysely'
 
 import type { Database } from '@/types/database'
 
@@ -31,161 +34,115 @@ export async function getRepoDetail(
   stars: number
   tags: string[]
 }> {
-  const result = await db
-    .selectFrom('repositories')
-    .innerJoin(
-      'registry_repositories',
-      'registry_repositories.repository_id',
-      'repositories.id',
-    )
-    .innerJoin(
-      'registry_repository_categories',
-      'registry_repository_categories.repository_id',
-      'repositories.id',
-    )
-    .innerJoin(
-      'categories',
-      'categories.id',
-      'registry_repository_categories.category_id',
-    )
-    .innerJoin(
-      'registry_metadata',
-      'registry_metadata.registry_name',
-      'registry_repositories.registry_name',
-    )
-    .select([
-      'categories.name as category_name',
-      'repositories.id',
-      'repositories.owner',
-      'repositories.name',
-      'repositories.description',
-      'repositories.language',
-      'repositories.last_commit',
-      'repositories.stars',
-      'registry_repositories.registry_name',
-    ])
-    .where('repositories.owner', '=', owner)
-    .where('repositories.name', '=', name)
-    .execute()
+  // Get base repository data
+  const repoResult = await sql<{
+    archived: number
+    description: null | string
+    id: number
+    language: null | string
+    last_commit: null | string
+    name: string
+    owner: string
+    stars: number
+  }>`
+    SELECT id, owner, name, description, language, last_commit, stars, archived
+    FROM repositories
+    WHERE owner = ${sql.raw(`'${owner.replace(/'/g, "''")}'`)}
+      AND name = ${sql.raw(`'${name.replace(/'/g, "''")}'`)}
+  `.execute(db)
 
-  if (result.length === 0) {
+  if (repoResult.rows.length === 0) {
     return null
   }
 
-  const repoRow = result[0]
-  const repo = {
-    id: repoRow.id,
-    owner: repoRow.owner,
-    name: repoRow.name,
-    description: repoRow.description,
-    language: repoRow.language,
-    last_commit: repoRow.last_commit,
-    stars: repoRow.stars,
-  }
+  const repoRow = repoResult.rows[0]
+  const repoId = repoRow.id
 
-  const registryMap = new Map<
-    string,
-    {
-      categories: Set<string>
-      registryName: string
-    }
-  >()
+  // Get categories from base table (registry_repository_categories)
+  const categoryResult = await sql<{
+    name: string
+  }>`
+    SELECT DISTINCT c.name
+    FROM registry_repository_categories rrc
+    JOIN categories c ON c.id = rrc.category_id
+    WHERE rrc.repository_id = ${repoId}
+    ORDER BY c.name
+  `.execute(db)
 
-  for (const row of result) {
-    if (!registryMap.has(row.registry_name)) {
-      registryMap.set(row.registry_name, {
-        categories: new Set(),
-        registryName: row.registry_name,
-      })
-    }
-    registryMap.get(row.registry_name)?.categories.add(row.category_name)
-  }
+  const categories = categoryResult.rows.map(r => r.name)
 
-  const registries = Array.from(registryMap.values()).map(r => ({
-    name: r.registryName,
-  }))
+  // Get tags from base table (repo_tags)
+  const tagResult = await sql<{
+    name: string
+  }>`
+    SELECT DISTINCT t.name
+    FROM repo_tags rt
+    JOIN tags t ON t.id = rt.tag_id
+    WHERE rt.repository_id = ${repoId}
+    ORDER BY t.name
+  `.execute(db)
 
-  const primaryRegistryName = result[0].registry_name
-  const primaryCategories = Array.from(
-    registryMap.get(primaryRegistryName)?.categories ?? [],
-  )
+  const tags = tagResult.rows.map(r => r.name)
 
-  // Get tags for this repo
-  const tagResults = await db
-    .selectFrom('repo_tags as rt')
-    .innerJoin('tags as t', 't.id', 'rt.tag_id')
-    .select(['t.name'])
-    .where('rt.repository_id', '=', repo.id)
-    .orderBy('t.name', 'asc')
-    .execute()
+  // Get all registries for this repo from registry_repositories
+  const registryResult = await sql<{
+    registry_name: string
+  }>`
+    SELECT registry_name
+    FROM registry_repositories
+    WHERE repository_id = ${repoId}
+  `.execute(db)
 
-  const tags = tagResults.map(r => r.name)
+  const registries = registryResult.rows.map(r => ({ name: r.registry_name }))
+  const primaryRegistryName = registries[0]?.name || ''
 
-  const relatedReposResult = await db
-    .selectFrom('registry_repositories')
-    .innerJoin(
-      'repositories',
-      'repositories.id',
-      'registry_repositories.repository_id',
-    )
-    .innerJoin(
-      'registry_repository_categories',
-      'registry_repository_categories.repository_id',
-      'repositories.id',
-    )
-    .innerJoin(
-      'categories',
-      'categories.id',
-      'registry_repository_categories.category_id',
-    )
-    .select([
-      'categories.name as category_name',
-      'repositories.owner',
-      'repositories.name',
-      'repositories.stars',
-    ])
-    .where('registry_repositories.registry_name', '=', primaryRegistryName)
-    .where('repositories.id', '!=', repo.id)
-    .where('repositories.archived', '=', 0)
-    .orderBy('repositories.stars', 'desc')
-    .limit(20)
-    .execute()
+  // Get related repos using new FTS with registry filter
+  let relatedRepos: {
+    categories: string[]
+    name: string
+    owner: null | string
+    stars: number
+  }[] = []
 
-  const relatedRepoMap = new Map<
-    string,
-    { categories: Set<string>; name: string; owner: string; stars: number }
-  >()
-  for (const row of relatedReposResult) {
-    const key = `${row.owner}/${row.name}`
-    if (!relatedRepoMap.has(key)) {
-      relatedRepoMap.set(key, {
-        categories: new Set(),
-        name: row.name,
-        owner: row.owner,
-        stars: row.stars,
-      })
-    }
-    relatedRepoMap.get(key)?.categories.add(row.category_name)
-  }
+  if (primaryRegistryName) {
+    const escapedRegistry = primaryRegistryName.replace(/'/g, "''")
+    const relatedReposResult = await sql<{
+      categories: string
+      name: string
+      owner: string
+      stars: number
+    }>`
+      SELECT
+        owner,
+        name,
+        stars,
+        GROUP_CONCAT(DISTINCT category_name) as categories
+      FROM registry_repositories_fts
+      WHERE registry_name = ${sql.raw(`'${escapedRegistry}'`)}
+        AND archived = 0
+        AND repository_id != ${repoId}
+      GROUP BY repository_id
+      ORDER BY stars DESC
+      LIMIT 6
+    `.execute(db)
 
-  const relatedRepos = Array.from(relatedRepoMap.values())
-    .slice(0, 6)
-    .map(r => ({
-      categories: Array.from(r.categories).sort(),
+    relatedRepos = relatedReposResult.rows.map(r => ({
+      categories: r.categories ? r.categories.split(',').sort() : [],
       name: r.name,
       owner: r.owner,
       stars: r.stars,
     }))
+  }
 
   return {
-    categories: primaryCategories.sort(),
-    description: repo.description,
-    language: repo.language,
-    lastCommit: repo.last_commit,
-    name: repo.name,
-    owner: repo.owner,
+    categories: categories.sort(),
+    description: repoRow.description,
+    language: repoRow.language,
+    lastCommit: repoRow.last_commit,
+    name: repoRow.name,
+    owner: repoRow.owner,
     registryName: primaryRegistryName,
-    stars: repo.stars,
+    stars: repoRow.stars,
     registries,
     relatedRepos,
     tags,

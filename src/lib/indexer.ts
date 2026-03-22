@@ -199,6 +199,49 @@ export async function rebuildFtsIndex(db: D1Database): Promise<void> {
 }
 
 /**
+ * Rebuild the registry-specific FTS5 index.
+ * Creates one row per (repository, registry, category) for efficient filtering.
+ * Eliminates comma-separated fields and in-memory aggregation.
+ */
+export async function rebuildRegistryFtsIndex(db: D1Database): Promise<void> {
+  console.log('Rebuilding registry-specific FTS5 index...')
+  const deleteStmt = db.prepare('DELETE FROM registry_repositories_fts')
+  const insertStmt = db.prepare(
+    `INSERT INTO registry_repositories_fts(
+      rowid, owner, name, description, language,
+      registry_name, category_name, tag_names, title,
+      repository_id, stars, archived, last_commit
+    )
+     SELECT
+       ROW_NUMBER() OVER (ORDER BY f.registry_name, f.category_name, r.stars DESC) + 1000000,
+       r.owner,
+       r.name,
+       r.description,
+       r.language,
+       f.registry_name,
+       COALESCE(f.category_name, 'Uncategorized'),
+       (
+         SELECT GROUP_CONCAT(t.name)
+         FROM repo_tags rt
+         JOIN tags t ON t.id = rt.tag_id
+         WHERE rt.repository_id = r.id AND rt.registry_name = f.registry_name
+       ),
+       rr.title,
+       r.id,
+       r.stars,
+       r.archived,
+       r.last_commit
+     FROM repositories r
+     INNER JOIN repository_facets f ON r.id = f.repository_id
+     INNER JOIN registry_repositories rr ON r.id = rr.repository_id
+       AND rr.registry_name = f.registry_name
+     WHERE f.category_name IS NOT NULL`,
+  )
+  await db.batch([deleteStmt, insertStmt])
+  console.log('Registry-specific FTS5 index rebuilt successfully')
+}
+
+/**
  * Extract registry name from archive file path
  * Path format: <prefix>/repos/owner/repo/data.json
  */
@@ -382,9 +425,10 @@ export async function indexAllRegistries(
   const noopReporter: ProgressReporter = () => Promise.resolve()
   await bulkWriteCollectedData(db, collected, noopReporter)
 
-  // Rebuild facets and FTS index
+  // Rebuild facets and FTS indexes
   await rebuildFacets(db)
   await rebuildFtsIndex(db)
+  await rebuildRegistryFtsIndex(db)
 
   console.log(`\nIndexing complete: ${success} succeeded, ${failed} failed`)
 

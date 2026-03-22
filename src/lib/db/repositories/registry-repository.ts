@@ -51,6 +51,8 @@ export async function getFeaturedRegistries(db: Kysely<Database>): Promise<
 
 /**
  * Get full registry data with categories
+ * Uses registry_repositories_fts - one row per (repo, registry, category)
+ * Results are pre-sorted by category, no split needed
  */
 export async function getRegistryData(
   db: Kysely<Database>,
@@ -66,45 +68,35 @@ export async function getRegistryData(
     throw new Error(`Registry not found: ${registryName}`)
   }
 
-  const items = await db
-    .selectFrom('registry_repositories')
-    .innerJoin(
-      'repositories',
-      'repositories.id',
-      'registry_repositories.repository_id',
-    )
-    .innerJoin(
-      'registry_repository_categories',
-      'registry_repository_categories.repository_id',
-      'repositories.id',
-    )
-    .innerJoin(
-      'categories',
-      'categories.id',
-      'registry_repository_categories.category_id',
-    )
-    .select([
-      'categories.name as category_name',
-      'registry_repositories.title',
-      'repositories.description',
-      'repositories.owner',
-      'repositories.name',
-      'repositories.stars',
-      'repositories.language',
-      'repositories.last_commit',
-      'repositories.archived',
-    ])
-    .where('registry_repositories.registry_name', '=', registryName)
-    .orderBy('repositories.stars', 'desc')
-    .execute()
+  // Query registry_repositories_fts - results already sorted by category
+  const escapedName = registryName.replace(/'/g, "''")
+  const itemsResult = await sql<{
+    archived: number
+    category_name: string
+    description: null | string
+    language: null | string
+    last_commit: null | string
+    name: string
+    owner: string
+    repository_id: number
+    stars: number
+    tag_names: string
+    title: string
+  }>`
+    SELECT owner, name, description, language, stars, last_commit, archived,
+           category_name, title, tag_names, repository_id
+    FROM registry_repositories_fts
+    WHERE registry_name = ${sql.raw(`'${escapedName}'`)}
+    ORDER BY category_name ASC, stars DESC
+  `.execute(db)
 
+  // Build categoryMap by iterating pre-sorted results (no split needed)
   const categoryMap = new Map<
     string,
     { description: string; items: RegistryItem[]; title: string }
   >()
 
-  items.forEach(row => {
-    const categoryName = row.category_name
+  for (const row of itemsResult.rows) {
     const item: RegistryItem = {
       children: [],
       description: row.description,
@@ -119,19 +111,19 @@ export async function getRegistryData(
       },
     }
 
-    if (!categoryMap.has(categoryName)) {
-      categoryMap.set(categoryName, {
+    if (!categoryMap.has(row.category_name)) {
+      categoryMap.set(row.category_name, {
         description: '',
         items: [],
-        title: categoryName,
+        title: row.category_name,
       })
     }
 
-    const section = categoryMap.get(categoryName)
+    const section = categoryMap.get(row.category_name)
     if (section) {
       section.items.push(item)
     }
-  })
+  }
 
   return {
     items: Array.from(categoryMap.values()),
@@ -146,6 +138,7 @@ export async function getRegistryData(
 
 /**
  * Get detailed information about a specific registry
+ * Uses registry_repositories_fts - native SQL for distinct values, no in-memory Sets
  */
 export async function getRegistryDetail(
   db: Kysely<Database>,
@@ -186,76 +179,58 @@ export async function getRegistryDetail(
     return null
   }
 
-  const topReposResults = await db
-    .selectFrom('registry_repositories')
-    .innerJoin(
-      'repositories',
-      'repositories.id',
-      'registry_repositories.repository_id',
-    )
-    .innerJoin(
-      'registry_repository_categories',
-      'registry_repository_categories.repository_id',
-      'repositories.id',
-    )
-    .innerJoin(
-      'categories',
-      'categories.id',
-      'registry_repository_categories.category_id',
-    )
-    .select([
-      'repositories.description',
-      'repositories.language',
-      'repositories.name',
-      'repositories.owner',
-      'repositories.stars',
-      'registry_repositories.title',
-      'categories.name as category_name',
-    ])
-    .where('registry_repositories.registry_name', '=', name)
-    .where('repositories.archived', '=', 0)
-    .orderBy('repositories.stars', 'desc')
-    .execute()
+  const escapedName = name.replace(/'/g, "''")
 
-  const categoryResults = await db
-    .selectFrom('registry_repository_categories')
-    .innerJoin(
-      'categories',
-      'categories.id',
-      'registry_repository_categories.category_id',
-    )
-    .innerJoin(
-      'repositories',
-      'repositories.id',
-      'registry_repository_categories.repository_id',
-    )
-    .select('categories.name')
-    .where('registry_repository_categories.registry_name', '=', name)
-    .where('repositories.archived', '=', 0)
-    .distinct()
-    .execute()
+  // Unique categories - native SQL DISTINCT
+  const categoriesResult = await sql<{ category_name: string }>`
+    SELECT DISTINCT category_name
+    FROM registry_repositories_fts
+    WHERE registry_name = ${sql.raw(`'${escapedName}'`)} AND archived = 0
+    ORDER BY category_name
+  `.execute(db)
 
-  const allCategories = categoryResults.map(r => r.name)
+  // Unique languages - native SQL DISTINCT
+  const languagesResult = await sql<{ language: string }>`
+    SELECT DISTINCT language
+    FROM registry_repositories_fts
+    WHERE registry_name = ${sql.raw(`'${escapedName}'`)} AND archived = 0 AND language IS NOT NULL
+    ORDER BY language
+  `.execute(db)
 
-  const languageResults = await db
-    .selectFrom('registry_repositories')
-    .innerJoin(
-      'repositories',
-      'repositories.id',
-      'registry_repositories.repository_id',
-    )
-    .select('repositories.language')
-    .where('registry_repositories.registry_name', '=', name)
-    .where('repositories.archived', '=', 0)
-    .where('repositories.language', 'is not', null)
-    .distinct()
-    .execute()
+  // Top repos - GROUP BY to dedupe by repository_id
+  const topReposResult = await sql<{
+    categories: string
+    description: null | string
+    language: null | string
+    name: string
+    owner: string
+    stars: number
+  }>`
+    SELECT
+      repository_id,
+      owner,
+      name,
+      description,
+      language,
+      stars,
+      GROUP_CONCAT(DISTINCT category_name) as categories
+    FROM registry_repositories_fts
+    WHERE registry_name = ${sql.raw(`'${escapedName}'`)} AND archived = 0
+    GROUP BY repository_id
+    ORDER BY stars DESC
+    LIMIT 10
+  `.execute(db)
 
-  const uniqueLanguages = new Set(
-    languageResults.map(r => r.language).filter((l): l is string => l !== null),
-  )
+  const topRepos = topReposResult.rows.map(r => ({
+    categories: r.categories ? r.categories.split(',').sort() : [],
+    description: r.description,
+    language: r.language,
+    name: r.name,
+    owner: r.owner,
+    stars: r.stars,
+  }))
 
-  // Get top tags for this registry
+  // Get top tags for this registry (already efficient on repository_facets)
   const tagResults = await db
     .selectFrom('repository_facets as f')
     .select([
@@ -273,51 +248,11 @@ export async function getRegistryDetail(
     name: r.name,
   }))
 
-  const repoMap = new Map<
-    string,
-    {
-      categories: Set<string>
-      description: null | string
-      language: null | string
-      name: string
-      owner: null | string
-      stars: number
-      title: string
-    }
-  >()
-
-  for (const row of topReposResults) {
-    const key = `${row.owner}/${row.name}`
-    if (!repoMap.has(key)) {
-      repoMap.set(key, {
-        categories: new Set(),
-        description: row.description,
-        language: row.language,
-        name: row.name,
-        owner: row.owner,
-        stars: row.stars,
-        title: row.title,
-      })
-    }
-    repoMap.get(key)?.categories.add(row.category_name)
-  }
-
-  const topRepos = Array.from(repoMap.values())
-    .slice(0, 10)
-    .map(r => ({
-      categories: Array.from(r.categories).sort(),
-      description: r.description,
-      language: r.language,
-      name: r.name,
-      owner: r.owner,
-      stars: r.stars,
-    }))
-
   return {
-    categories: allCategories.sort(),
+    categories: categoriesResult.rows.map(r => r.category_name),
     description: metadata.description,
     last_updated: metadata.last_updated,
-    languages: Array.from(uniqueLanguages).sort(),
+    languages: languagesResult.rows.map(r => r.language),
     source_repository: metadata.source_repository,
     tags,
     title: metadata.title,

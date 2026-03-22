@@ -17,6 +17,12 @@ interface IndexerOptions {
   archiveUrl?: string
 
   /**
+   * Only run indexing if database is empty
+   * @default false
+   */
+  onlyIndexEmpty?: boolean
+
+  /**
    * Trigger source
    * @default 'manual'
    */
@@ -35,7 +41,12 @@ interface IndexerOptions {
 export async function indexRegistry(
   options: IndexerOptions = {},
 ): Promise<void> {
-  const { archiveUrl, triggerSource = 'manual', wranglerEnv } = options
+  const {
+    archiveUrl,
+    triggerSource = 'manual',
+    wranglerEnv,
+    onlyIndexEmpty = false,
+  } = options
 
   console.log(`Starting indexing workflow (source: ${triggerSource})`)
   if (wranglerEnv) {
@@ -49,16 +60,26 @@ export async function indexRegistry(
   })
   const db = proxy.env.DB as D1Database
 
-  // Debug: Verify we're connected to remote DB with tables
-  const { results: tables } = await db
-    .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-    .all<{ name: string }>()
-  console.log(
-    'Connected to D1. Tables:',
-    tables.map(t => t.name),
-  )
+  console.debug('Connected to D1.')
 
   try {
+    // Check if database is empty (if option is set)
+    if (onlyIndexEmpty) {
+      console.log('Checking if database is empty...')
+      const result = await db
+        .prepare('SELECT COUNT(*) as count FROM registry_metadata')
+        .first<{ count: number }>()
+      const isEmpty = !result || result.count === 0
+
+      if (!isEmpty) {
+        console.log(
+          `Database already has data (${result.count} registries), skipping indexing`,
+        )
+        return
+      }
+      console.log('Database is empty, proceeding with indexing...')
+    }
+
     const result = await indexAllRegistries(db, archiveUrl)
 
     console.log(
