@@ -494,11 +494,12 @@ describe('Database Query Functions', () => {
       const db = createKysely(env.DB)
       const longQuery = 'a'.repeat(1000)
 
-      // Very long queries cause SQLite LIKE pattern complexity errors
-      // This is expected behavior - test that it throws
-      await expect(
-        searchRepos(db, { q: longQuery }),
-      ).rejects.toThrow()
+      // FTS5 handles long queries gracefully - returns empty results
+      // (old LIKE implementation would throw on complex patterns)
+      const result = await searchRepos(db, { q: longQuery })
+
+      expect(result.total).toBe(0)
+      expect(result.data).toHaveLength(0)
     })
   })
 
