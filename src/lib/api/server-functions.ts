@@ -19,23 +19,17 @@ import {
 } from './handlers'
 
 // Re-export types that components need
-export type {
-  RegistryDetail,
-  RegistryMetadataWithStats,
-  TrendingRegistry,
-} from './handlers/registry-handlers'
+export type { TrendingRegistry } from './handlers/registry-handlers'
 export type { RepoDetail } from './handlers/repository-handlers'
 
 // ============================================================================
 // Metadata API
 // ============================================================================
 
-export const fetchMetadata = createServerFn({ method: 'GET' }).handler(
-  async () => {
-    const db = createKysely(env.DB)
-    return fetchMetadataHandler(db)
-  },
-)
+const fetchMetadata = createServerFn({ method: 'GET' }).handler(async () => {
+  const db = createKysely(env.DB)
+  return fetchMetadataHandler(db)
+})
 
 export const metadataQueryOptions = () =>
   queryOptions({
@@ -48,7 +42,7 @@ export const metadataQueryOptions = () =>
 // Trending Registries API
 // ============================================================================
 
-export const fetchTrendingRegistries = createServerFn({
+const fetchTrendingRegistries = createServerFn({
   method: 'GET',
 }).handler(async () => {
   const db = createKysely(env.DB)
@@ -66,7 +60,7 @@ export const trendingQueryOptions = () =>
 // Trending Tags API
 // ============================================================================
 
-export const fetchTrendingTags = createServerFn({ method: 'GET' }).handler(
+const fetchTrendingTags = createServerFn({ method: 'GET' }).handler(
   async () => {
     const db = createKysely(env.DB)
     return fetchTrendingTagsHandler(db)
@@ -84,7 +78,7 @@ export const trendingTagsQueryOptions = () =>
 // Registry Detail API
 // ============================================================================
 
-export interface FetchRegistryDetailInput {
+interface FetchRegistryDetailInput {
   name: string
 }
 
@@ -94,7 +88,7 @@ export function validateFetchRegistryDetailInput(
   return input
 }
 
-export const fetchRegistryDetail = createServerFn({ method: 'GET' })
+const fetchRegistryDetail = createServerFn({ method: 'GET' })
   .inputValidator(validateFetchRegistryDetailInput)
   .handler(async ({ data }) => {
     const db = createKysely(env.DB)
@@ -112,7 +106,7 @@ export const registryDetailQueryOptions = (name: string) =>
 // Repo Detail API
 // ============================================================================
 
-export interface FetchRepoDetailInput {
+interface FetchRepoDetailInput {
   name: string
   owner: string
 }
@@ -123,7 +117,7 @@ export function validateFetchRepoDetailInput(
   return input
 }
 
-export const fetchRepoDetail = createServerFn({ method: 'GET' })
+const fetchRepoDetail = createServerFn({ method: 'GET' })
   .inputValidator(validateFetchRepoDetailInput)
   .handler(async ({ data }) => {
     const db = createKysely(env.DB)
@@ -141,7 +135,7 @@ export const repoDetailQueryOptions = (owner: string, name: string) =>
 // Search API
 // ============================================================================
 
-export interface SearchParams {
+interface SearchParams {
   archived?: boolean
   categoryName?: string
   cursor?: number
@@ -159,18 +153,11 @@ export function validateSearchParams(input: SearchParams): SearchParams {
   return input
 }
 
-export const searchReposFn = createServerFn({ method: 'GET' })
+const searchReposFn = createServerFn({ method: 'GET' })
   .inputValidator(validateSearchParams)
   .handler(async ({ data }) => {
     const db = createKysely(env.DB)
     return searchReposHandler(db, data)
-  })
-
-export const searchQueryOptions = (params: SearchParams) =>
-  queryOptions({
-    queryFn: () => searchReposFn({ data: params }),
-    queryKey: ['search', params],
-    staleTime: 5 * 60 * 1000,
   })
 
 export const searchInfiniteQueryOptions = (
@@ -203,7 +190,7 @@ export const searchInfiniteQueryOptions = (
 // Filter Options API (unified facets query)
 // ============================================================================
 
-export interface FetchFilterOptionsInput {
+interface FetchFilterOptionsInput {
   categoryName?: string
   language?: string
   registryName?: string
@@ -216,7 +203,7 @@ export function validateFetchFilterOptionsInput(
   return input
 }
 
-export const fetchFilterOptions = createServerFn({ method: 'GET' })
+const fetchFilterOptions = createServerFn({ method: 'GET' })
   .inputValidator(validateFetchFilterOptionsInput)
   .handler(async ({ data }) => {
     const db = createKysely(env.DB)

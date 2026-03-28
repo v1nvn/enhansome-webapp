@@ -11,7 +11,23 @@ import { calculateQualityScore } from '../../utils/scoring'
 
 import type { Kysely } from 'kysely'
 
-export interface FtsSearchParams {
+interface FtsRow {
+  archived: number
+  category_names: string
+  description: null | string
+  language: null | string
+  last_commit: null | string
+  name: string
+  owner: string
+  rank: number
+  registry_names: string
+  rowid: number
+  stars: number
+  tag_names: string
+  titles: string
+}
+
+interface FtsSearchParams {
   /** Include archived repositories (default: false) */
   archived?: boolean
   /** Filter to specific category */
@@ -34,7 +50,7 @@ export interface FtsSearchParams {
   tag?: string
 }
 
-export interface FtsSearchResult {
+interface FtsSearchResult {
   hasMore: boolean
   nextCursor?: number
   repositories: {
@@ -59,22 +75,6 @@ export interface FtsSearchResult {
     registries: string[]
   }
   total: number
-}
-
-interface FtsRow {
-  archived: number
-  category_names: string
-  description: null | string
-  language: null | string
-  last_commit: null | string
-  name: string
-  owner: string
-  rank: number
-  registry_names: string
-  rowid: number
-  stars: number
-  tag_names: string
-  titles: string
 }
 
 // ============================================================

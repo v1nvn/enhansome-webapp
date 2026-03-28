@@ -2,8 +2,6 @@
  * String utility functions
  */
 
-import pluralizeLib from 'pluralize-esm'
-
 /**
  * Format a slug-like string into a readable label
  */
@@ -40,10 +38,6 @@ export function normalizeSpecialChars(str: string): string {
 }
 
 /**
- * Pluralize a category name for consistency.
- * Only pluralizes the last word, leaving multi-word names intact.
- */
-export function pluralize(name: string): string {
   const trimmed = name.trim()
 
   // Mass nouns and other words that should never be pluralized

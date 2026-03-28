@@ -170,78 +170,6 @@ export async function rebuildFacets(db: D1Database): Promise<void> {
 }
 
 /**
- * Rebuild the FTS5 search index.
- * Called after rebuildFacets to populate the full-text search virtual table.
- */
-export async function rebuildFtsIndex(db: D1Database): Promise<void> {
-  console.log('Rebuilding FTS5 search index...')
-  const deleteStmt = db.prepare('DELETE FROM repositories_fts')
-  const insertStmt = db.prepare(
-    `INSERT INTO repositories_fts(rowid, owner, name, description, language, registry_names, category_names, tag_names, stars, archived, last_commit)
-     SELECT
-       r.id,
-       r.owner,
-       r.name,
-       r.description,
-       r.language,
-       GROUP_CONCAT(DISTINCT f.registry_name) as registry_names,
-       GROUP_CONCAT(DISTINCT f.category_name) as category_names,
-       GROUP_CONCAT(DISTINCT f.tag_name) as tag_names,
-       r.stars,
-       r.archived,
-       r.last_commit
-     FROM repositories r
-     LEFT JOIN repository_facets f ON r.id = f.repository_id
-     GROUP BY r.id`,
-  )
-  await db.batch([deleteStmt, insertStmt])
-  console.log('FTS5 search index rebuilt successfully')
-}
-
-/**
- * Rebuild the registry-specific FTS5 index.
- * Creates one row per (repository, registry, category) for efficient filtering.
- * Eliminates comma-separated fields and in-memory aggregation.
- */
-export async function rebuildRegistryFtsIndex(db: D1Database): Promise<void> {
-  console.log('Rebuilding registry-specific FTS5 index...')
-  const deleteStmt = db.prepare('DELETE FROM registry_repositories_fts')
-  const insertStmt = db.prepare(
-    `INSERT INTO registry_repositories_fts(
-      rowid, owner, name, description, language,
-      registry_name, category_name, tag_names, title,
-      repository_id, stars, archived, last_commit
-    )
-     SELECT
-       ROW_NUMBER() OVER (ORDER BY f.registry_name, f.category_name, r.stars DESC) + 1000000,
-       r.owner,
-       r.name,
-       r.description,
-       r.language,
-       f.registry_name,
-       COALESCE(f.category_name, 'Uncategorized'),
-       (
-         SELECT GROUP_CONCAT(t.name)
-         FROM repo_tags rt
-         JOIN tags t ON t.id = rt.tag_id
-         WHERE rt.repository_id = r.id AND rt.registry_name = f.registry_name
-       ),
-       rr.title,
-       r.id,
-       r.stars,
-       r.archived,
-       r.last_commit
-     FROM repositories r
-     INNER JOIN repository_facets f ON r.id = f.repository_id
-     INNER JOIN registry_repositories rr ON r.id = rr.repository_id
-       AND rr.registry_name = f.registry_name
-     WHERE f.category_name IS NOT NULL`,
-  )
-  await db.batch([deleteStmt, insertStmt])
-  console.log('Registry-specific FTS5 index rebuilt successfully')
-}
-
-/**
  * Extract registry name from archive file path
  * Path format: <prefix>/repos/owner/repo/data.json
  */
@@ -282,6 +210,78 @@ function isValidRegistryData(data: unknown): data is RegistryData {
   )
 }
 
+/**
+ * Rebuild the FTS5 search index.
+ * Called after rebuildFacets to populate the full-text search virtual table.
+ */
+async function rebuildFtsIndex(db: D1Database): Promise<void> {
+  console.log('Rebuilding FTS5 search index...')
+  const deleteStmt = db.prepare('DELETE FROM repositories_fts')
+  const insertStmt = db.prepare(
+    `INSERT INTO repositories_fts(rowid, owner, name, description, language, registry_names, category_names, tag_names, stars, archived, last_commit)
+     SELECT
+       r.id,
+       r.owner,
+       r.name,
+       r.description,
+       r.language,
+       GROUP_CONCAT(DISTINCT f.registry_name) as registry_names,
+       GROUP_CONCAT(DISTINCT f.category_name) as category_names,
+       GROUP_CONCAT(DISTINCT f.tag_name) as tag_names,
+       r.stars,
+       r.archived,
+       r.last_commit
+     FROM repositories r
+     LEFT JOIN repository_facets f ON r.id = f.repository_id
+     GROUP BY r.id`,
+  )
+  await db.batch([deleteStmt, insertStmt])
+  console.log('FTS5 search index rebuilt successfully')
+}
+
+/**
+ * Rebuild the registry-specific FTS5 index.
+ * Creates one row per (repository, registry, category) for efficient filtering.
+ * Eliminates comma-separated fields and in-memory aggregation.
+ */
+async function rebuildRegistryFtsIndex(db: D1Database): Promise<void> {
+  console.log('Rebuilding registry-specific FTS5 index...')
+  const deleteStmt = db.prepare('DELETE FROM registry_repositories_fts')
+  const insertStmt = db.prepare(
+    `INSERT INTO registry_repositories_fts(
+      rowid, owner, name, description, language,
+      registry_name, category_name, tag_names, title,
+      repository_id, stars, archived, last_commit
+    )
+     SELECT
+       ROW_NUMBER() OVER (ORDER BY f.registry_name, f.category_name, r.stars DESC) + 1000000,
+       r.owner,
+       r.name,
+       r.description,
+       r.language,
+       f.registry_name,
+       COALESCE(f.category_name, 'Uncategorized'),
+       (
+         SELECT GROUP_CONCAT(t.name)
+         FROM repo_tags rt
+         JOIN tags t ON t.id = rt.tag_id
+         WHERE rt.repository_id = r.id AND rt.registry_name = f.registry_name
+       ),
+       rr.title,
+       r.id,
+       r.stars,
+       r.archived,
+       r.last_commit
+     FROM repositories r
+     INNER JOIN repository_facets f ON r.id = f.repository_id
+     INNER JOIN registry_repositories rr ON r.id = rr.repository_id
+       AND rr.registry_name = f.registry_name
+     WHERE f.category_name IS NOT NULL`,
+  )
+  await db.batch([deleteStmt, insertStmt])
+  console.log('Registry-specific FTS5 index rebuilt successfully')
+}
+
 // ============================================================
 // Bulk SQL helpers
 // ============================================================
@@ -289,10 +289,10 @@ function isValidRegistryData(data: unknown): data is RegistryData {
 const D1_MAX_BIND_PARAMS = 100
 
 // ============================================================
-// In-memory data collection types (exported for workflow)
+// In-memory data collection types
 // ============================================================
 
-export interface CollectedData {
+interface CollectedData {
   metadata: CollectedMetadata[]
   registryRepos: CollectedRegistryRepo[]
   repoCategories: CollectedRepoCategory[]
@@ -301,7 +301,7 @@ export interface CollectedData {
   tags: Map<string, { name: string; slug: string }>
 }
 
-export interface CollectedMetadata {
+interface CollectedMetadata {
   description: string
   lastUpdated: string
   registryName: string
@@ -311,13 +311,13 @@ export interface CollectedMetadata {
   totalStars: number
 }
 
-export interface CollectedRegistryRepo {
+interface CollectedRegistryRepo {
   registryName: string
   repoKey: string
   title: string
 }
 
-export interface CollectedRepo {
+interface CollectedRepo {
   archived: number
   description: null | string
   language: null | string
@@ -327,27 +327,17 @@ export interface CollectedRepo {
   stars: number
 }
 
-export interface CollectedRepoCategory {
+interface CollectedRepoCategory {
   categorySlug: string
   registryName: string
   repoKey: string
 }
 
-export interface CollectedRepoTag {
+interface CollectedRepoTag {
   categorySlug: null | string
   registryName: string
   repoKey: string
   tagSlug: string
-}
-
-// JSON-serializable version for workflow state (Maps converted to arrays)
-export interface SerializableCollectedData {
-  metadata: CollectedMetadata[]
-  registryRepos: CollectedRegistryRepo[]
-  repoCategories: CollectedRepoCategory[]
-  repos: [string, CollectedRepo][]
-  repoTags: CollectedRepoTag[]
-  tags: [string, { name: string; slug: string }][]
 }
 
 interface ExistingRegistrySnapshot {
@@ -359,32 +349,6 @@ interface ExistingRegistrySnapshot {
 }
 
 type ProgressReporter = (step: string) => Promise<void>
-
-export function collectedDataFromSerializable(
-  data: SerializableCollectedData,
-): CollectedData {
-  return {
-    metadata: data.metadata,
-    registryRepos: data.registryRepos,
-    repoCategories: data.repoCategories,
-    repos: new Map(data.repos),
-    repoTags: data.repoTags,
-    tags: new Map(data.tags),
-  }
-}
-
-export function collectedDataToSerializable(
-  data: CollectedData,
-): SerializableCollectedData {
-  return {
-    metadata: data.metadata,
-    registryRepos: data.registryRepos,
-    repoCategories: data.repoCategories,
-    repos: Array.from(data.repos.entries()),
-    repoTags: data.repoTags,
-    tags: Array.from(data.tags.entries()),
-  }
-}
 
 /**
  * Index all registries from scratch

@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router'
 import {
-  ArrowLeft,
   Calendar,
   Code,
   ExternalLink,
@@ -11,6 +10,8 @@ import {
 } from 'lucide-react'
 
 import type { RepoDetail as RepoDetailType } from '@/lib/api/server-functions'
+
+import { BackButton } from '@/components/ui/BackButton'
 
 interface RepoDetailProps {
   data: RepoDetailType
@@ -40,18 +41,11 @@ export function RepoDetail({ data }: RepoDetailProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Back Button */}
-      <div className="sticky top-0 z-50 border-b border-border/30 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
-          <Link
-            className="-ml-2 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-primary/5 hover:text-primary"
-            search={{ registry: data.registryName }}
-            to="/browse"
-          >
-            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
-            <span>Back to browse</span>
-          </Link>
-        </div>
-      </div>
+      <BackButton
+        search={{ registry: data.registryName }}
+        text="Back to browse"
+        to="/browse"
+      />
 
       {/* Hero Header with gradient background */}
       <div className="relative overflow-hidden">

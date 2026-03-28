@@ -11,7 +11,7 @@ import type { D1Database } from '@cloudflare/workers-types'
 // Types
 // ============================================================================
 
-export interface NormalizedCategory {
+interface NormalizedCategory {
   name: string
   slug: string
 }
@@ -894,100 +894,6 @@ const CATEGORY_MAPPINGS = Object.entries(CATEGORY_LOOKUP).reduce<
   }
   return acc
 }, {})
-
-/**
- * Get all categories from database
- */
-export async function getAllCategories(db: D1Database): Promise<
-  {
-    id: number
-    name: string
-    slug: string
-  }[]
-> {
-  const results = await db
-    .prepare('SELECT id, name, slug FROM categories ORDER BY name')
-    .all<{ id: number; name: string; slug: string }>()
-
-  return results.results
-}
-
-/**
- * Get the set of canonical category names from CATEGORY_LOOKUP
- */
-export function getCanonicalCategories(): Set<string> {
-  return new Set(Object.keys(CATEGORY_LOOKUP))
-}
-
-/**
- * Get category by ID
- */
-export async function getCategoryById(
-  db: D1Database,
-  id: number,
-): Promise<null | {
-  id: number
-  name: string
-  slug: string
-}> {
-  const result = await db
-    .prepare('SELECT id, name, slug FROM categories WHERE id = ?')
-    .bind(id)
-    .first<{ id: number; name: string; slug: string }>()
-
-  return result
-}
-
-/**
- * Get category by slug
- */
-export async function getCategoryBySlug(
-  db: D1Database,
-  slug: string,
-): Promise<null | {
-  id: number
-  name: string
-  slug: string
-}> {
-  const result = await db
-    .prepare('SELECT id, name, slug FROM categories WHERE slug = ?')
-    .bind(slug)
-    .first<{ id: number; name: string; slug: string }>()
-
-  return result
-}
-
-// ============================================================================
-// Database Category Functions
-// ============================================================================
-
-/**
- * Get or create a category by its normalized name
- */
-export async function getOrCreateCategory(
-  db: D1Database,
-  name: string,
-): Promise<null | number> {
-  const normalized = normalizeCategoryName(name)
-  if (!normalized) return null
-  const { name: normalizedName, slug } = normalized
-
-  const existing = await db
-    .prepare('SELECT id FROM categories WHERE slug = ?')
-    .bind(slug)
-    .first<{ id: number }>()
-
-  if (existing) {
-    return existing.id
-  }
-
-  const result = await db
-    .prepare('INSERT INTO categories (slug, name) VALUES (?, ?)')
-    .bind(slug, normalizedName)
-    .run()
-
-  return result.meta.last_row_id
-}
 
 /**
  * Clean and normalize a category name.

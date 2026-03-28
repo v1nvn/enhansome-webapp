@@ -3,11 +3,6 @@ export interface RegistryData {
   metadata: RegistryMetadata
 }
 
-export interface RegistryFile {
-  data: RegistryData
-  name: string
-}
-
 export interface RegistryItem {
   // Rich card fields (Phase 2)
   best_for_tags?: string[]

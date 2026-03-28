@@ -9,8 +9,6 @@ import type { Database } from '@/types/database'
 
 import { aggregateCategoriesByRegistry } from '../../db/queries/aggregator'
 import {
-  getFeaturedRegistries,
-  getRegistryData,
   getRegistryDetail,
   getRegistryMetadata,
   getTrendingRegistries,
@@ -20,11 +18,16 @@ import { getGlobalTopTags } from '../../db/repositories/tag-repository'
 
 import type { Kysely } from 'kysely'
 
-export type RegistryDetail = NonNullable<
-  Awaited<ReturnType<typeof getRegistryDetail>>
->
+export interface TrendingRegistry {
+  description: string
+  name: string
+  starsGrowth: number
+  title: string
+  total_items: number
+  total_stars: number
+}
 
-export interface RegistryMetadataWithStats {
+interface RegistryMetadataWithStats {
   description: string
   name: string
   source_repository: string
@@ -36,15 +39,6 @@ export interface RegistryMetadataWithStats {
     totalStars: number
   }
   title: string
-}
-
-export interface TrendingRegistry {
-  description: string
-  name: string
-  starsGrowth: number
-  title: string
-  total_items: number
-  total_stars: number
 }
 
 export async function fetchMetadataHandler(
@@ -97,15 +91,4 @@ export async function fetchTrendingTagsHandler(
   limit = 50,
 ) {
   return getGlobalTopTags(db as any, limit)
-}
-
-export async function getFeaturedRegistriesHandler(db: Kysely<Database>) {
-  return getFeaturedRegistries(db as any)
-}
-
-export async function getRegistryDataHandler(
-  db: Kysely<Database>,
-  registryName: string,
-) {
-  return getRegistryData(db as any, registryName)
 }

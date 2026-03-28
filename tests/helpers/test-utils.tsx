@@ -51,36 +51,3 @@ function render(
 // Export commonly used testing library functions
 export { render, screen, waitFor }
 
-// Mock data generators
-export const createMockRegistryItem = (overrides = {}) => ({
-  children: [],
-  description: 'Test description',
-  repo_info: {
-    archived: false,
-    language: 'TypeScript',
-    last_commit: '2025-01-15T12:00:00Z',
-    owner: 'test-owner',
-    repo: 'test-repo',
-    stars: 1234,
-  },
-  title: 'Test Item',
-  ...overrides,
-})
-
-const createMockRegistrySection = (overrides = {}) => ({
-  description: 'Test section description',
-  items: [createMockRegistryItem()],
-  title: 'Test Section',
-  ...overrides,
-})
-
-export const createMockRegistryData = (overrides = {}) => ({
-  items: [createMockRegistrySection()],
-  metadata: {
-    last_updated: '2025-01-15T12:00:00Z',
-    source_repository: 'test/repo',
-    source_repository_description: 'Test repository',
-    title: 'Test Registry',
-  },
-  ...overrides,
-})

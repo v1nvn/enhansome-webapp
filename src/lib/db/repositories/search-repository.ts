@@ -19,14 +19,14 @@ export interface FilterOptions {
   tags: { count: number; name: string }[]
 }
 
-export interface GetFilterOptionsParams {
+interface GetFilterOptionsParams {
   categoryName?: string
   language?: string
   registryName?: string
   tagName?: string
 }
 
-export interface SearchRepositoryParams {
+interface SearchRepositoryParams {
   archived?: boolean
   categoryName?: string
   cursor?: number
@@ -39,22 +39,7 @@ export interface SearchRepositoryParams {
   tagName?: string
 }
 
-export interface SearchRepositoryRow {
-  archived: number
-  category_name: null | string
-  description: null | string
-  id: number
-  language: null | string
-  last_commit: null | string
-  name: string
-  owner: string
-  registry_name: string
-  stars: number
-  tag_name: null | string
-  title: string
-}
-
-export interface SearchResult {
+interface SearchResult {
   data: (RegistryItem & {
     categories: string[]
     id: number

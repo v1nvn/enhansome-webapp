@@ -6,8 +6,11 @@ import { Filter, Loader2, Star } from 'lucide-react'
 import { type BreadcrumbItem, Breadcrumbs } from '@/components/Breadcrumbs'
 import { BrowseCard } from '@/components/browse/BrowseCard'
 import { FilterBar, type FilterBarFilters } from '@/components/browse/FilterBar'
-import { RegistryMobileFilterPanel } from '@/components/registry/RegistryMobileFilterPanel'
-import { RegistryTagSidebar } from '@/components/registry/RegistryTagSidebar'
+import { FilterPanel } from '@/components/ui/FilterPanel'
+import { FilterSidebar } from '@/components/ui/FilterSidebar'
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { ActionButton, EmptyState } from '@/components/ui/StateComponents'
 import {
   filterOptionsQueryOptions,
   searchInfiniteQueryOptions,
@@ -118,6 +121,34 @@ export function RegistryDetail({
     }))
   }, [filterOptions])
 
+  const registrySections = useMemo(
+    () => [
+      {
+        basePath: `/registry/${registryName}`,
+        items: tagItems,
+        maxHeight: 'max-h-80',
+        paramKey: 'tag',
+        searchPlaceholder: 'Search tags...',
+        selectedValue: searchParams.tag,
+        title: 'Tags',
+      },
+      ...(categoryItems.length > 0
+        ? [
+            {
+              basePath: `/registry/${registryName}`,
+              items: categoryItems,
+              maxHeight: 'max-h-48',
+              paramKey: 'cat' as const,
+              searchPlaceholder: 'Search categories...',
+              selectedValue: searchParams.cat,
+              title: 'Categories',
+            },
+          ]
+        : []),
+    ],
+    [registryName, tagItems, categoryItems, searchParams.tag, searchParams.cat],
+  )
+
   // Build breadcrumbs
   const breadcrumbItems = useMemo((): BreadcrumbItem[] => {
     const items: BreadcrumbItem[] = []
@@ -190,41 +221,9 @@ export function RegistryDetail({
         </div>
 
         {/* Header Section */}
-        <div className="mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-foreground">
-                {initialData.title}
-              </h1>
-              {initialData.description && (
-                <p className="mt-2 max-w-2xl text-muted-foreground">
-                  {initialData.description}
-                </p>
-              )}
-              {/* Stats Row */}
-              <div className="mt-4 flex flex-wrap items-center gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-foreground">
-                    {initialData.total_items.toLocaleString()}
-                  </span>
-                  <span className="text-muted-foreground">repositories</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-amber-500" />
-                  <span className="font-semibold text-foreground">
-                    {initialData.total_stars.toLocaleString()}
-                  </span>
-                  <span className="text-muted-foreground">stars</span>
-                </div>
-                {initialData.last_updated && (
-                  <div className="text-muted-foreground">
-                    Updated {formatDate(initialData.last_updated)}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Mobile filter button */}
+        <PageHeader
+          actions={
+            /* Mobile filter button */
             <button
               aria-label="Open filters"
               className="flex items-center gap-2 rounded-xl border-2 border-border/30 bg-card px-4 py-3 text-sm font-medium shadow-sm transition-all hover:bg-muted/20 lg:hidden"
@@ -236,8 +235,32 @@ export function RegistryDetail({
               <Filter className="h-4 w-4" />
               <span>Filters</span>
             </button>
-          </div>
-        </div>
+          }
+          description={initialData.description}
+          metadata={
+            <>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-foreground">
+                  {initialData.total_items.toLocaleString()}
+                </span>
+                <span className="text-muted-foreground">repositories</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 text-amber-500" />
+                <span className="font-semibold text-foreground">
+                  {initialData.total_stars.toLocaleString()}
+                </span>
+                <span className="text-muted-foreground">stars</span>
+              </div>
+              {initialData.last_updated && (
+                <div className="text-muted-foreground">
+                  Updated {formatDate(initialData.last_updated)}
+                </div>
+              )}
+            </>
+          }
+          title={initialData.title}
+        />
 
         {/* Search Bar - Using FilterBar like browse page */}
         <div className="mb-6">
@@ -257,26 +280,14 @@ export function RegistryDetail({
         <div className="flex gap-8">
           {/* Sidebar - hidden on mobile */}
           <div className="hidden shrink-0 lg:block">
-            {filterOptions && (
-              <RegistryTagSidebar
-                categories={categoryItems}
-                registryName={registryName}
-                selectedCategory={searchParams.cat}
-                selectedTag={searchParams.tag}
-                tags={tagItems}
-              />
-            )}
+            {filterOptions && <FilterSidebar sections={registrySections} />}
           </div>
 
           {/* Main content */}
-          <div className="relative min-w-0 flex-1">
-            {/* Loading overlay for filter transitions and search refetch */}
-            {(isTransitioning || (isFetching && !isFetchingNextPage)) && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            )}
-
+          <LoadingOverlay
+            className="min-w-0 flex-1"
+            isLoading={isTransitioning || (isFetching && !isFetchingNextPage)}
+          >
             {/* Results count */}
             <div className="mb-4 text-sm text-muted-foreground">
               {total.toLocaleString()} repositories
@@ -309,20 +320,14 @@ export function RegistryDetail({
                 })}
               </div>
             ) : (
-              <div className="flex min-h-[400px] items-center justify-center">
-                <div className="text-center">
-                  <p className="text-lg text-muted-foreground">
-                    No repositories found
-                  </p>
-                  <button
-                    className="mt-4 text-sm text-primary hover:underline"
-                    onClick={handleClearFilters}
-                    type="button"
-                  >
+              <EmptyState
+                action={
+                  <ActionButton onClick={handleClearFilters}>
                     Clear filters
-                  </button>
-                </div>
-              </div>
+                  </ActionButton>
+                }
+                title="No repositories found"
+              />
             )}
 
             {/* Infinite scroll trigger */}
@@ -331,23 +336,19 @@ export function RegistryDetail({
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               )}
             </div>
-          </div>
+          </LoadingOverlay>
         </div>
 
         {/* Mobile Filter Panel */}
         {filterOptions && (
-          <RegistryMobileFilterPanel
-            categories={categoryItems}
+          <FilterPanel
             isOpen={isMobilePanelOpen}
-            onClearAll={handleClearFilters}
             onClose={() => {
               setIsMobilePanelOpen(false)
             }}
-            registryName={registryName}
-            selectedCategory={searchParams.cat}
-            selectedTag={searchParams.tag}
-            tags={tagItems}
-          />
+          >
+            <FilterSidebar sections={registrySections} />
+          </FilterPanel>
         )}
       </div>
     </div>

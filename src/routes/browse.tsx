@@ -10,12 +10,15 @@ import type { RegistryItem } from '@/types/registry'
 import { type BreadcrumbItem, Breadcrumbs } from '@/components/Breadcrumbs'
 import {
   BrowseCard,
-  CategorySidebar,
   FilterBar,
   type FilterBarFilters,
-  MobileFilterPanel,
 } from '@/components/browse'
 import { CompareDrawer } from '@/components/CompareDrawer'
+import { FilterPanel } from '@/components/ui/FilterPanel'
+import { FilterSidebar } from '@/components/ui/FilterSidebar'
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { EmptyState } from '@/components/ui/StateComponents'
 import {
   filterOptionsQueryOptions,
   searchInfiniteQueryOptions,
@@ -213,11 +216,55 @@ function BrowsePageContent({
   searchQuery?: string
   total: number
 }) {
-  const navigate = Route.useNavigate()
   const search = Route.useSearch()
 
   // Mobile filter panel state
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false)
+
+  const browseSections = useMemo(
+    () =>
+      filterOptions
+        ? [
+            {
+              items: filterOptions.categories.map(c => ({
+                count: c.count,
+                label: c.name,
+                value: c.name,
+              })),
+              maxHeight: 'max-h-64',
+              paramKey: 'cat',
+              searchPlaceholder: 'Search categories...',
+              selectedValue: search.cat,
+              title: 'Categories',
+            },
+            {
+              items: filterOptions.registries.map(r => ({
+                count: r.count,
+                label: r.label,
+                value: r.name,
+              })),
+              maxHeight: 'max-h-40',
+              paramKey: 'registry',
+              searchPlaceholder: 'Search registries...',
+              selectedValue: search.registry,
+              title: 'Registries',
+            },
+            {
+              items: filterOptions.languages.map(l => ({
+                count: l.count,
+                label: l.name,
+                value: l.name,
+              })),
+              maxHeight: 'max-h-40',
+              paramKey: 'lang',
+              searchPlaceholder: 'Search languages...',
+              selectedValue: search.lang,
+              title: 'Languages',
+            },
+          ]
+        : [],
+    [filterOptions, search.cat, search.lang, search.registry],
+  )
 
   // Compare mode state
   const [selectedItems, setSelectedItems] = useState<Set<string>>(
@@ -280,10 +327,6 @@ function BrowsePageContent({
     setIsCompareOpen(false)
   }
 
-  const handleClearFilters = () => {
-    void navigate({ to: '/browse' })
-  }
-
   // Build breadcrumbs
   const breadcrumbItems = useMemo((): BreadcrumbItem[] => {
     const items: BreadcrumbItem[] = []
@@ -325,22 +368,9 @@ function BrowsePageContent({
       )}
 
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">
-              {isHomepage
-                ? 'Discovery'
-                : searchQuery
-                  ? `Results for "${searchQuery}"`
-                  : 'Filtered Results'}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {total.toLocaleString()} tools curated for you
-            </p>
-          </div>
-
-          {/* Mobile filter button */}
+      <PageHeader
+        actions={
+          /* Mobile filter button */
           <button
             aria-label="Open filters"
             className="flex items-center gap-2 rounded-xl border-2 border-border/30 bg-card px-4 py-3 text-sm font-medium shadow-sm transition-all hover:bg-muted/20 lg:hidden"
@@ -352,8 +382,16 @@ function BrowsePageContent({
             <Filter className="h-4 w-4" />
             <span>Filters</span>
           </button>
-        </div>
-      </div>
+        }
+        description={`${total.toLocaleString()} tools curated for you`}
+        title={
+          isHomepage
+            ? 'Discovery'
+            : searchQuery
+              ? `Results for "${searchQuery}"`
+              : 'Filtered Results'
+        }
+      />
 
       {/* Search Bar - Full width on top */}
       <div className="mb-6">
@@ -373,25 +411,14 @@ function BrowsePageContent({
       <div className="flex gap-8">
         {/* Sidebar - hidden on mobile */}
         <div className="hidden shrink-0 lg:block">
-          {filterOptions && (
-            <CategorySidebar
-              filterOptions={filterOptions}
-              selectedCategory={search.cat}
-              selectedLanguage={search.lang}
-              selectedRegistry={search.registry}
-            />
-          )}
+          {filterOptions && <FilterSidebar sections={browseSections} />}
         </div>
 
         {/* Main content */}
-        <div className="relative min-w-0 flex-1">
-          {/* Loading overlay for filter transitions and search refetch */}
-          {(isTransitioning || (isFetching && !isFetchingNextPage)) && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          )}
-
+        <LoadingOverlay
+          className="min-w-0 flex-1"
+          isLoading={isTransitioning || (isFetching && !isFetchingNextPage)}
+        >
           {/* Items Grid */}
           {allItems.length > 0 ? (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -410,16 +437,10 @@ function BrowsePageContent({
               })}
             </div>
           ) : (
-            <div className="flex min-h-[400px] items-center justify-center">
-              <div className="text-center">
-                <p className="text-lg text-muted-foreground">
-                  No repositories found
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Try adjusting your filters or search query
-                </p>
-              </div>
-            </div>
+            <EmptyState
+              description="Try adjusting your filters or search query"
+              title="No repositories found"
+            />
           )}
 
           {/* Infinite scroll trigger */}
@@ -428,25 +449,19 @@ function BrowsePageContent({
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             )}
           </div>
-        </div>
+        </LoadingOverlay>
       </div>
 
       {/* Mobile Filter Panel */}
       {filterOptions && (
-        <MobileFilterPanel
-          filterOptions={filterOptions}
+        <FilterPanel
           isOpen={isMobilePanelOpen}
-          onClearAll={() => {
-            handleClearFilters()
-            setIsMobilePanelOpen(false)
-          }}
           onClose={() => {
             setIsMobilePanelOpen(false)
           }}
-          selectedCategory={search.cat}
-          selectedLanguage={search.lang}
-          selectedRegistry={search.registry}
-        />
+        >
+          <FilterSidebar sections={browseSections} />
+        </FilterPanel>
       )}
 
       {/* Floating Compare Button */}

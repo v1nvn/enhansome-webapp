@@ -310,20 +310,20 @@ const CATEGORY_PATTERNS: Record<string, RegExp[]> = {
 // Types
 // ============================================================================
 
-export interface DetectedIntent {
-  category?: string
-  cleanedQuery: string
-  framework?: string
-  language?: string
-  signals: IntentSignal[]
-}
-
 export interface IntentSignal {
   filterKey: string
   filterValue: string
   id: string
   label: string
   type: 'category' | 'framework' | 'language'
+}
+
+interface DetectedIntent {
+  category?: string
+  cleanedQuery: string
+  framework?: string
+  language?: string
+  signals: IntentSignal[]
 }
 
 // ============================================================================

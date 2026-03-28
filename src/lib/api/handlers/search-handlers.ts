@@ -14,7 +14,7 @@ import {
 
 import type { Kysely } from 'kysely'
 
-export interface SearchParamsInternal {
+interface SearchParamsInternal {
   archived?: boolean
   categoryName?: string
   cursor?: number

@@ -4,4 +4,3 @@
  */
 
 export * from './aggregator'
-export * from './join-builder'

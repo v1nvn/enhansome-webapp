@@ -2,34 +2,6 @@ import type { Database } from '@/types/database'
 
 import type { Kysely } from 'kysely'
 
-export interface AggregatedRepository {
-  archived: number
-  categories: Set<string>
-  description: null | string
-  id: number
-  language: null | string
-  last_commit: null | string
-  name: string
-  owner: string
-  registries: Set<string>
-  stars: number
-  title: string
-}
-
-export interface RepositoryRow {
-  archived: number
-  category_name: string
-  description: null | string
-  id: number
-  language: null | string
-  last_commit: null | string
-  name: string
-  owner: string
-  registry_name: string
-  stars: number
-  title: string
-}
-
 /**
  * Aggregate categories by registry_name from junction table
  */

@@ -9,7 +9,7 @@ import { generateSlug, normalizeSpecialChars, removeEmojis } from './strings'
 // Types
 // ============================================================================
 
-export interface NormalizedTag {
+interface NormalizedTag {
   name: string
   slug: string
 }
