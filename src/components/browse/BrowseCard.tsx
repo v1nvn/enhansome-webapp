@@ -3,13 +3,28 @@ import { Calendar, ExternalLink, MoreVertical, Star, Tag } from 'lucide-react'
 
 import type { RegistryItem } from '@/types/registry'
 
+import { cn } from '@/lib/utils/cn'
+
 interface BrowseCardProps {
   item: RegistryItem & {
+    qualityScore?: number
     registries?: string[]
     tags?: string[]
   }
   onCompareToggle?: () => void
 }
+
+interface RepoSignal {
+  label: string
+  variant: 'amber' | 'blue' | 'green' | 'purple'
+}
+
+const SIGNAL_VARIANTS = {
+  green: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  purple: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+  amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+} as const
 
 export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
   const formatDate = (dateStr: string) => {
@@ -58,9 +73,40 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
       )}
 
       {/* Description - 1 line only */}
-      <p className="mt-2 mb-4 line-clamp-1 text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-2 line-clamp-1 text-sm leading-relaxed text-muted-foreground">
         {item.description ?? ''}
       </p>
+
+      {/* Relevance Signals */}
+      {(() => {
+        const signals = getRepoSignals(
+          item.repo_info
+            ? {
+                last_commit: item.repo_info.last_commit,
+                qualityScore: item.qualityScore,
+                stars: item.repo_info.stars,
+              }
+            : {},
+        )
+        return signals.length > 0 ? (
+          <div className="mt-2 mb-3 flex flex-wrap items-center gap-1.5">
+            {signals.map(signal => (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+                  SIGNAL_VARIANTS[signal.variant],
+                )}
+                key={signal.label}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" />
+                {signal.label}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="mb-3" />
+        )
+      })()}
 
       {/* Registry Badge */}
       {item.registries && item.registries.length > 0 && (
@@ -174,4 +220,31 @@ export function BrowseCard({ item, onCompareToggle }: BrowseCardProps) {
       )}
     </div>
   )
+}
+
+function getRepoSignals(item: {
+  last_commit?: null | string
+  qualityScore?: number
+  stars?: number
+}): RepoSignal[] {
+  const signals: RepoSignal[] = []
+  const lastCommit = item.last_commit
+  const stars = item.stars ?? 0
+
+  if (lastCommit) {
+    const days = Math.floor(
+      (Date.now() - new Date(lastCommit).getTime()) / (1000 * 60 * 60 * 24),
+    )
+    if (days <= 7) {
+      signals.push({ label: 'Active recently', variant: 'green' })
+    } else if (days <= 30) {
+      signals.push({ label: `Updated ${days}d ago`, variant: 'blue' })
+    }
+  }
+
+  if (signals.length < 2 && stars >= 20000) {
+    signals.push({ label: 'Highly starred', variant: 'amber' })
+  }
+
+  return signals.slice(0, 2)
 }

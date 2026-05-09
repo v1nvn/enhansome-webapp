@@ -12,6 +12,7 @@ import {
   BrowseCard,
   FilterBar,
   type FilterBarFilters,
+  SmartChips,
 } from '@/components/browse'
 import { CompareDrawer } from '@/components/CompareDrawer'
 import { FilterPanel } from '@/components/ui/FilterPanel'
@@ -28,7 +29,9 @@ const PAGE_SIZE = 20
 
 interface BrowseSearch {
   cat?: string
+  dateFrom?: string
   lang?: string
+  minStars?: number
   q?: string
   registry?: string
   sort?: 'name' | 'quality' | 'stars' | 'updated'
@@ -40,7 +43,9 @@ export const Route = createFileRoute('/browse')({
 
   validateSearch: (search: Record<string, unknown>): BrowseSearch => ({
     cat: search.cat as string | undefined,
+    dateFrom: search.dateFrom as string | undefined,
     lang: search.lang as string | undefined,
+    minStars: typeof search.minStars === 'number' ? search.minStars : undefined,
     q: search.q as string | undefined,
     registry: search.registry as string | undefined,
     sort:
@@ -116,7 +121,9 @@ function BrowsePage() {
   const currentFilters = useMemo((): FilterBarFilters => {
     return {
       cat: search.cat,
+      dateFrom: search.dateFrom,
       lang: search.lang,
+      minStars: search.minStars,
       registry: search.registry,
       sort: search.sort || 'quality',
       tag: search.tag,
@@ -128,7 +135,9 @@ function BrowsePage() {
     const newSearch: BrowseSearch = {
       ...search,
       cat: filters.cat,
+      dateFrom: filters.dateFrom,
       lang: filters.lang,
+      minStars: filters.minStars,
       registry: filters.registry,
       sort: filters.sort || 'quality',
       tag: filters.tag,
@@ -140,8 +149,10 @@ function BrowsePage() {
   const searchParams = useMemo(
     () => ({
       categoryName: search.cat,
+      dateFrom: search.dateFrom,
       language: search.lang,
       limit: PAGE_SIZE,
+      minStars: search.minStars,
       q: search.q?.trim(),
       registryName: search.registry,
       sortBy: search.sort || 'quality',
@@ -344,14 +355,29 @@ function BrowsePageContent({
     if (search.cat) {
       items.push({
         label: search.cat,
-        search: { ...search, cat: search.cat },
+        search: {
+          q: search.q,
+          registry: search.registry,
+          lang: search.lang,
+          cat: search.cat,
+          sort: search.sort,
+          tag: search.tag,
+          dateFrom: search.dateFrom,
+        },
       })
     }
 
     if (search.tag && !search.cat) {
       items.push({
         label: search.tag,
-        search: { ...search, tag: search.tag },
+        search: {
+          q: search.q,
+          registry: search.registry,
+          lang: search.lang,
+          sort: search.sort,
+          tag: search.tag,
+          dateFrom: search.dateFrom,
+        },
       })
     }
 
@@ -405,6 +431,13 @@ function BrowsePageContent({
           resultsCount={total}
           to="/browse"
         />
+        <div className="mt-3">
+          <SmartChips
+            filterOptions={filterOptions}
+            filters={currentFilters}
+            onFiltersChange={handleFiltersChange}
+          />
+        </div>
       </div>
 
       {/* Two-column layout */}

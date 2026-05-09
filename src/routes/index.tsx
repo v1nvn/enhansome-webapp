@@ -6,10 +6,12 @@ import { Loader2, Search } from 'lucide-react'
 
 import {
   CategoryBrowser,
+  EmergingTools,
   RegistryExplorer,
   TrendingTags,
 } from '@/components/home'
 import {
+  emergingReposQueryOptions,
   filterOptionsQueryOptions,
   metadataQueryOptions,
   trendingQueryOptions,
@@ -20,10 +22,13 @@ export const Route = createFileRoute('/')({
   component: Home,
 
   loader: ({ context }) => {
-    void context.queryClient.ensureQueryData(metadataQueryOptions())
-    void context.queryClient.ensureQueryData(filterOptionsQueryOptions())
-    void context.queryClient.ensureQueryData(trendingQueryOptions())
-    void context.queryClient.ensureQueryData(trendingTagsQueryOptions())
+    return Promise.all([
+      context.queryClient.ensureQueryData(metadataQueryOptions()),
+      context.queryClient.ensureQueryData(filterOptionsQueryOptions()),
+      context.queryClient.ensureQueryData(trendingQueryOptions()),
+      context.queryClient.ensureQueryData(trendingTagsQueryOptions()),
+      context.queryClient.ensureQueryData(emergingReposQueryOptions()),
+    ])
   },
 
   pendingComponent: () => (
@@ -41,6 +46,7 @@ function Home() {
   const { data: filterOptions } = useSuspenseQuery(filterOptionsQueryOptions())
   const { data: trendingRegistries } = useSuspenseQuery(trendingQueryOptions())
   const { data: trendingTags } = useSuspenseQuery(trendingTagsQueryOptions())
+  const { data: emergingRepos } = useSuspenseQuery(emergingReposQueryOptions())
 
   const handleSearch = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -80,6 +86,7 @@ function Home() {
       {/* Discovery Section */}
       <section className="mx-auto max-w-5xl space-y-12 px-4 pb-20 sm:px-6 lg:px-8">
         <RegistryExplorer registries={trendingRegistries} />
+        <EmergingTools repos={emergingRepos} />
         <CategoryBrowser categories={filterOptions.categories} limit={20} />
         <TrendingTags limit={20} tags={trendingTags} />
       </section>

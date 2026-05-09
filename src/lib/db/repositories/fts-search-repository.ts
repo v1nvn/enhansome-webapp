@@ -34,6 +34,8 @@ interface FtsSearchParams {
   category?: string
   /** Pagination cursor (repository id) */
   cursor?: number
+  /** Filter repos with last_commit on or after this ISO date */
+  dateFrom?: string
   /** Filter by programming language */
   language?: string
   /** Max results (default 20, max 50) */
@@ -97,6 +99,7 @@ export async function ftsSearch(
     tag,
     language,
     minStars,
+    dateFrom,
     limit = 20,
     cursor,
     archived = false,
@@ -115,6 +118,7 @@ export async function ftsSearch(
       tag,
       language,
       minStars,
+      dateFrom,
       limit,
       cursor,
       archived,
@@ -130,6 +134,7 @@ export async function ftsSearch(
     tag,
     language,
     minStars,
+    dateFrom,
     limit,
     cursor,
     archived,
@@ -256,6 +261,7 @@ async function ftsSearchGlobal(
     archived: boolean
     category?: string
     cursor?: number
+    dateFrom?: string
     hasQuery: boolean
     language?: string
     limit: number
@@ -271,6 +277,7 @@ async function ftsSearchGlobal(
     tag,
     language,
     minStars,
+    dateFrom,
     limit,
     cursor,
     archived,
@@ -285,6 +292,7 @@ async function ftsSearchGlobal(
   else filters.push('archived = 1')
   if (language) filters.push(`language = '${escapeSql(language)}'`)
   if (minStars !== undefined) filters.push(`stars >= ${minStars}`)
+  if (dateFrom) filters.push(`last_commit >= '${escapeSql(dateFrom)}'`)
 
   // Build MATCH clause - include category and tag filters as FTS column phrase searches
   // FTS5 supports column-specific queries: MATCH 'column:phrase' - uses index, no LIKE needed
@@ -403,6 +411,7 @@ async function ftsSearchRegistry(
     archived: boolean
     category?: string
     cursor?: number
+    dateFrom?: string
     hasQuery: boolean
     language?: string
     limit: number
@@ -420,6 +429,7 @@ async function ftsSearchRegistry(
     tag,
     language,
     minStars,
+    dateFrom,
     limit,
     cursor,
     archived,
@@ -435,6 +445,7 @@ async function ftsSearchRegistry(
   if (category) filters.push(`category_name = '${escapeSql(category)}'`)
   if (language) filters.push(`language = '${escapeSql(language)}'`)
   if (minStars !== undefined) filters.push(`stars >= ${minStars}`)
+  if (dateFrom) filters.push(`last_commit >= '${escapeSql(dateFrom)}'`)
 
   // Build MATCH clause - include tag filter as FTS column phrase search for efficiency
   // FTS5 supports column-specific queries: MATCH 'column:phrase'

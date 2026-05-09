@@ -9,7 +9,9 @@ import { extractIntent, type IntentSignal } from '@/lib/utils/search'
 
 export interface FilterBarFilters {
   cat?: string
+  dateFrom?: string
   lang?: string
+  minStars?: number
   registry?: string
   sort?: 'name' | 'quality' | 'stars' | 'updated'
   tag?: string

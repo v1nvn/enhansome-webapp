@@ -9,6 +9,7 @@ import { env } from 'cloudflare:workers'
 
 import { createKysely } from '../db/client'
 import {
+  fetchEmergingReposHandler,
   fetchFilterOptionsHandler,
   fetchMetadataHandler,
   fetchRegistryDetailHandler,
@@ -216,4 +217,22 @@ export const filterOptionsQueryOptions = (params?: FetchFilterOptionsInput) =>
     queryKey: ['filter-options', { params }],
     staleTime: 24 * 60 * 60 * 1000,
     placeholderData: previousData => previousData,
+  })
+
+// ============================================================================
+// Emerging Repos API
+// ============================================================================
+
+const fetchEmergingRepos = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const db = createKysely(env.DB)
+    return fetchEmergingReposHandler(db)
+  },
+)
+
+export const emergingReposQueryOptions = () =>
+  queryOptions({
+    queryFn: () => fetchEmergingRepos(),
+    queryKey: ['emerging-repos'],
+    staleTime: 30 * 60 * 1000,
   })

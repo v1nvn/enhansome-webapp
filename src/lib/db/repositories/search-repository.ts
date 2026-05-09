@@ -8,6 +8,7 @@ import { sql } from 'kysely'
 import type { Database } from '@/types/database'
 import type { RegistryItem } from '@/types/registry'
 
+import { calculateQualityScore } from '../../utils/scoring'
 import { ftsSearch } from './fts-search-repository'
 
 import type { Kysely } from 'kysely'
@@ -30,6 +31,7 @@ interface SearchRepositoryParams {
   archived?: boolean
   categoryName?: string
   cursor?: number
+  dateFrom?: string
   language?: string
   limit?: number
   minStars?: number
@@ -50,6 +52,83 @@ interface SearchResult {
   hasMore: boolean
   nextCursor?: number
   total: number
+}
+
+export async function getEmergingRepos(
+  db: Kysely<Database>,
+  limit = 8,
+): Promise<
+  (RegistryItem & {
+    categories: string[]
+    id: number
+    qualityScore: number
+    registries: string[]
+    tags: string[]
+  })[]
+> {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
+
+  interface EmergingRow {
+    archived: number
+    category_names: string
+    description: null | string
+    language: null | string
+    last_commit: null | string
+    name: string
+    owner: string
+    registry_names: string
+    rowid: number
+    stars: number
+    tag_names: string
+    titles: string
+  }
+
+  const result = await sql<EmergingRow>`
+    SELECT rowid, owner, name, description, stars, language, last_commit, archived,
+           registry_names, category_names, tag_names, titles
+    FROM repositories_fts
+    WHERE archived = 0
+      AND stars >= 50
+      AND stars < 5000
+      AND last_commit >= ${thirtyDaysAgo}
+    ORDER BY last_commit DESC, stars DESC
+    LIMIT ${limit * 3}
+  `.execute(db)
+
+  const repos = result.rows.map(row => {
+    const titleList = row.titles ? row.titles.split(',').filter(Boolean) : []
+    return {
+      id: row.rowid,
+      title: titleList[0] || `${row.owner}/${row.name}`,
+      description: row.description,
+      registries: row.registry_names
+        ? row.registry_names.split(',').filter(Boolean)
+        : [],
+      categories: row.category_names
+        ? row.category_names.split(',').filter(Boolean)
+        : [],
+      tags: row.tag_names ? row.tag_names.split(',').filter(Boolean) : [],
+      qualityScore: calculateQualityScore({
+        last_commit: row.last_commit,
+        stars: row.stars,
+      }),
+      repo_info: {
+        owner: row.owner,
+        repo: row.name,
+        stars: row.stars,
+        language: row.language,
+        last_commit: row.last_commit || '',
+        archived: Boolean(row.archived),
+      },
+      children: [],
+    }
+  })
+
+  repos.sort((a, b) => b.qualityScore - a.qualityScore)
+
+  return repos.slice(0, limit)
 }
 
 export async function getFilterOptions(
@@ -209,6 +288,7 @@ export async function searchRepos(
     archived = false,
     categoryName,
     cursor,
+    dateFrom,
     language,
     limit = 20,
     minStars,
@@ -226,6 +306,7 @@ export async function searchRepos(
     tag: tagName,
     language,
     minStars,
+    dateFrom,
     limit,
     cursor,
     archived,

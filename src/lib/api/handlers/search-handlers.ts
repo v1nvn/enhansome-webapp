@@ -8,6 +8,7 @@
 import type { Database } from '@/types/database'
 
 import {
+  getEmergingRepos,
   getFilterOptions,
   searchRepos,
 } from '../../db/repositories/search-repository'
@@ -26,6 +27,13 @@ interface SearchParamsInternal {
   registryName?: string
   sortBy?: 'name' | 'quality' | 'stars' | 'updated'
   tagName?: string
+}
+
+export async function fetchEmergingReposHandler(
+  db: Kysely<Database>,
+  limit = 8,
+) {
+  return getEmergingRepos(db as any, limit)
 }
 
 export async function fetchFilterOptionsHandler(
@@ -48,6 +56,7 @@ export async function searchReposHandler(
     archived: data.archived,
     categoryName: data.categoryName,
     cursor: data.cursor,
+    dateFrom: data.dateFrom,
     language: data.language,
     limit: data.limit ?? 20,
     minStars: data.minStars,

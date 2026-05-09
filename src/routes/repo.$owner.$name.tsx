@@ -8,8 +8,7 @@ import { repoDetailQueryOptions } from '@/lib/api/server-functions'
 export const Route = createFileRoute('/repo/$owner/$name')({
   component: RepoDetailPage,
   loader: ({ context, params }) => {
-    // Preload repo detail data
-    void context.queryClient.ensureQueryData(
+    return context.queryClient.ensureQueryData(
       repoDetailQueryOptions(params.owner, params.name),
     )
   },
