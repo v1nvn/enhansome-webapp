@@ -446,13 +446,15 @@ async function ftsSearchRegistry(
       : `tag_names:"${escapeSql(tag)}"`
   }
 
+  const hasMatchClause = matchClause.trim().length > 0
+
   // Build WHERE clause
   const whereClause =
     filters.length > 0
-      ? hasQuery
+      ? hasMatchClause
         ? `registry_repositories_fts MATCH '${escapeSql(matchClause)}' AND registry_name = '${escapeSql(registry)}' AND ${filters.join(' AND ')}`
         : `registry_name = '${escapeSql(registry)}' AND ${filters.join(' AND ')}`
-      : hasQuery
+      : hasMatchClause
         ? `registry_repositories_fts MATCH '${escapeSql(matchClause)}' AND registry_name = '${escapeSql(registry)}'`
         : `registry_name = '${escapeSql(registry)}'`
 

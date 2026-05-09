@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "content-design": {
+      "source": "n8n-io/n8n",
+      "sourceType": "github",
+      "computedHash": "53045f16edbc545891334c3821a1a587f144546c085fafe992594183161ebc07"
+    },
+    "ux-designer": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "computedHash": "1178ae59d9dd5ca71122674d85bd78d746b3b95f76c58c65cb0fd48dd54bea45"
+    },
+    "visualization-expert": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "computedHash": "cd8f8bc48c6790cb3b25a13e7a7b05dccd6fd5213577ca59d3c232282d1e151a"
+    }
+  }
+}
